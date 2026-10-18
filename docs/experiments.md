@@ -482,8 +482,8 @@ bun experiments/kill9-budget.ts
 bun tests/concurrency.test.ts     # E15
 bun run smoke:install             # E16
 
-# Agent-level E2/E3, the profile A/B, and the repair A/B (requires a sibling
-# deepseek-harness checkout and DEEPSEEK_API_KEY)
+# Agent-level experiments (requires a sibling deepseek-harness checkout and
+# DEEPSEEK_API_KEY)
 SUPER_DSH_BENCH_ONLY=memory SUPER_DSH_BENCH_REPS=2 bun experiments/agent-bench.ts
 SUPER_DSH_BENCH_ONLY=verify bun experiments/agent-bench.ts
 SUPER_DSH_BENCH_JUST_MERGE=1 bun experiments/agent-bench.ts   # re-merge saved per-experiment results

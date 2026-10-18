@@ -81,6 +81,20 @@ Best-of-N planning was measured and rejected; skill curation is deferred pending
 | Budget restart | `experiments/kill9-budget.ts` | covered: used tokens 900 → 900; reservations cleared on restart |
 | Checkpoint identity, determinism context, worker crash | none | gaps |
 
+## Scope closure
+
+Three items are intentionally outside the plugin layer:
+
+- **Semantic/embedding retrieval** is not implemented. The lexical path is
+  deterministic and dependency-free; add a provider adapter only after a real
+  query corpus shows a lexical recall gap.
+- **Checkpoint identity, determinism context, and full event replay** are dsh
+  host responsibilities. The plugin provides effects recovery, audit, and
+  recovery plans, but does not claim resumable step identity or byte-identical
+  replay.
+- **Remote worker runtime** is protocol-only; no process, scheduler, or remote
+  transport is bundled.
+
 ## Add-worthy candidates not yet fully resolved
 
 These are **not** rejected; they were either not implemented or only partially covered. They are the honest gaps:
@@ -94,7 +108,7 @@ These are **not** rejected; they were either not implemented or only partially c
 | Structured checkpoint handoff | Not implemented. `handoff` + `replay_plan` cover the deterministic path. | Add a structured checkpoint schema only if a real handoff consumer needs it. |
 | Content-addressed evidence log | Partial: audit hash chain + `audit_evidence` + `audit_export`. | Compare against external WORM/ledger needs; decide whether a separate evidence index is worth it. |
 | Python worker / external worker runtime | Protocol library only; no worker process. | Only if remote workers are needed; add capability/deadline/cancel and sandboxing. |
-| Full session replay / checkpoint identity / determinism context | Not implemented. | Define a replay corpus and materialized-state comparison; currently only effects/audit replay. |
+| Full session replay / checkpoint identity / determinism context | Host scope; not planned. | dsh owns session persistence and resume; the plugin provides effects/audit recovery instead. |
 | Skill curation | Deferred after synthetic-only experiment. | Need real skill corpus + 30–50 agent tasks. |
 | Out-of-scope runtime features (event bus, remote workers, schedulers, full replay) | Not implemented. | Revisit only with a real consumer; not part of the reliability layer. |
 

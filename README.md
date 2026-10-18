@@ -280,7 +280,7 @@ Full methodology and raw results: [`docs/experiments.md`](docs/experiments.md), 
 - Handoff/replay-plan filtering of injected context is heuristic; unknown future formats may appear as user requests.
 - The verification gate runs one configured command and fails open after `maxAttempts`.
 - `budget` accumulates event usage; the used-token ledger is persisted under `$DSH_HOME/super-dsh/budget` (kill-9: 900 → 900), while reservations are in-memory and cleared on restart. Tools/subagents are not individually priced.
-- The capability/causal/worker modules are tested libraries, not exposed tools; no remote worker runtime is included.
+- The capability/causal/worker modules are tested libraries, not exposed tools; no remote worker runtime is included. Checkpoint identity, determinism context, and full event replay are dsh host responsibilities, not claimed by this plugin.
 - The default profile is `core`; the additional coding/full tools register only when explicitly configured. The 5-task A/B is small and does not prove coding tools are never useful.
 - Version 0.2.0 is the current release and ships the features above. Remaining gaps are tracked in [docs/status.md](docs/status.md).
 

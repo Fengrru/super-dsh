@@ -279,7 +279,7 @@ Profile/性能/崩溃验证：
 - handoff/replay-plan 对注入上下文的过滤是启发式；未来未知格式可能被当成用户请求。
 - 验证闸门只跑一个配置命令，达到 `maxAttempts` 后放行。
 - `budget` 累计事件 usage；used-token 账本持久化在 `$DSH_HOME/super-dsh/budget`（kill-9：900 → 900），reservation 仍在内存并在重启时清空；工具/子代理没有单独计价。
-- capability/causal/worker 是测试过的库，不是暴露的工具；没有包含远程 worker 运行时。
+- capability/causal/worker 是测试过的库，不是暴露的工具；没有包含远程 worker 运行时。checkpoint identity、determinism context 和完整 event replay 属于 dsh 宿主职责，本插件不宣称实现。
 - 默认 profile 是 core；coding/full 的额外工具只在显式配置后注册。5 任务 A/B 样本很小，不能证明 coding 永远无益。
 - 当前版本为 0.2.0，交付上述能力；剩余缺口见 [docs/status.md](docs/status.md)。
 

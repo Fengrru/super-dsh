@@ -57,5 +57,6 @@ A "no" to any of these means it stays out of the default bundle.
   materially harder; a wrong bulk edit is unrecoverable.
 - **No LLM request cache or remote worker runtime.** Revisit only when a real
   workload or consumer exists.
-- **Checkpoint identity, determinism context, and full event replay remain
-  gaps**; they are tracked in `docs/status.md`, not claimed as implemented.
+- **Checkpoint identity, determinism context, and full event replay are host
+  responsibilities**, not plugin features. dsh owns session persistence and
+  resume; replaying side-effectful tool calls is not attempted.
