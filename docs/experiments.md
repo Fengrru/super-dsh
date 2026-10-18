@@ -358,7 +358,25 @@ The written rule passed only through the `random + 0.20` branch; it did **not** 
 - **E7 escaped**: `process.getBuiltinModule('fs')` read the secret and created the marker file, bypassing the require hook. E6 also obtained the host `process`.
 - **Decision: do-not-add.** A single escape fails the security gate; dsh's own approval/sandbox remains the boundary. Raw: `experiments/results/code-sandbox-security-bench.json`.
 
-## E10 — Rejected candidates
+## E10 — Tool schema overhead and default profiles
+
+Every model request pays for the schemas of all registered tools. This experiment measures three candidate presets; no model call is involved.
+
+**Command:** `bun experiments/tool-overhead-bench.ts` → `experiments/results/tool-overhead-bench.json`.
+
+| Profile | Features | Tools | Schema chars | Approx tokens |
+|---|---|---:|---:|---:|
+| core | edit, memory, audit, effects, artifacts, repairs, apply_patch | 23 | 12,916 | **3,229** |
+| coding | core + repo map/search, notes, knowledge, handoff/replay, compact/reflection | 39 | 21,038 | **5,260** |
+| full | coding + verify, budget, retention | 43 | 23,542 | **5,886** |
+
+The current default is effectively `coding` (~5.3k schema tokens per request). The suite added 16 tools and ~2k tokens over core, before any task benefit is measured.
+
+Related unresolved performance: a first `repo_map` build over 2,000 files in the dsh checkout took **33.3s** (warm calls 0.66–0.71s); `search_code` now defaults on and triggers that index. Effects were fixed to **0.073ms/call**; audit is ~1.76ms/event.
+
+**Decision:** do not raise the default tool count further. Build `core`/`coding`/`full` presets, fix the repo-map cold start, then run an agent A/B (success, tokens, wrong-tool calls) to choose the default profile. A broad tool list is a product risk until measured.
+
+## E11 — Rejected candidates
 
 
 Several attractive ideas from `awesome-agent-infra` and `nexus-runtime` did **not** survive review. They are documented in [`decisions.md`](decisions.md): the Nexus kernel bridge, a code-graph repo map, hallucination/confidence heuristics, goal-verifier's fallback, replay/dynamic-workflow recovery, and the LLM request dedup cache. The common reasons were: the implementation was a mock or had correctness bugs, the capability duplicated a stronger dsh primitive, or there was no way to measure a benefit in this environment.

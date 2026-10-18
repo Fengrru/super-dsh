@@ -41,6 +41,18 @@ Plus tested libraries: capability tokens, causal clock, worker protocol, file lo
 
 Best-of-N planning, Valid8 gate, POMDP, reasoning-search, process-reward, agent-metacog, hallucination-detector, code-sandbox. See `docs/experiments.md` E8/E9 and `docs/decisions.md`.
 
+## Performance and default profile
+
+| Profile | Tools | Approx schema tokens/request | Status |
+|---|---:|---:|---|
+| core | 23 | 3,229 | Candidate |
+| coding | 39 | 5,260 | Current default |
+| full | 43 | 5,886 | Candidate |
+
+- `repo_map` cold build over 2,000 files: **33.3s**; warm calls 0.66–0.71s. `search_code` now defaults on and triggers this index.
+- Effects recording: **0.073ms/call** (fixed). Audit: ~1.76ms/event.
+- The default suite adds ~2k schema tokens over core before any measured task benefit. Profiles and an agent A/B are the next requirement; do not add more default tools first. See `docs/experiments.md` E10.
+
 ## Add-worthy candidates not yet fully resolved
 
 These are **not** rejected; they were either not implemented or only partially covered. They are the honest gaps:
@@ -66,8 +78,9 @@ These are **not** rejected; they were either not implemented or only partially c
 
 ## Recommended next closures
 
-1. Agent-level A/B for memory v2 + repairs (the two most likely to improve task outcomes).
-2. Embedding/semantic retrieval experiment, only if lexical recall is the limiting factor.
+1. Fix the repo-map cold start and add `core`/`coding`/`full` presets; run an agent A/B to choose the default profile (success, tokens, wrong-tool calls).
+2. Agent-level A/B for memory v2 + repairs + search_code (the features most likely to improve task outcomes).
 3. Kill-9 artifact/audit/budget tests to close `docs/invariants.md` gaps.
-4. Decide MEMORY.md canonical vs export-only.
-5. Only then revisit worker runtime / structured checkpoint / evidence log.
+4. Embedding/semantic retrieval experiment, only if lexical recall is the limiting factor.
+5. Decide MEMORY.md canonical vs export-only.
+6. Only then revisit worker runtime / structured checkpoint / evidence log.
