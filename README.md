@@ -32,7 +32,7 @@ git clone https://github.com/Fengrru/super-dsh.git   # once published
 cd super-dsh
 bun install        # no runtime dependencies; build/test toolchain only
 bun run build      # emits dist/index.js
-bun test           # 197 deterministic checks
+bun test           # 205 deterministic checks
 ```
 
 Local overlay:
@@ -76,7 +76,7 @@ dsh --profile headless --dump-config | grep super-dsh
 
 **Session notes** — `note_append`, `note_read`, `note_compact`. Session ids are sanitized into filenames; malformed lines are isolated; compaction rewrites atomically.
 
-**Repo map** — `repo_map`, `find_symbol`, `impact_of`. Zero-dependency regex index for TS/JS, Python, Rust, Go, Java with imports, reference edges, PageRank, mtime/size invalidation, and per-file symbol ids (same-named symbols never overwrite each other). Heuristic: confirm with `read` before editing.
+**Repo map** — `repo_map`, `find_symbol`, `impact_of`, `search_code`. Zero-dependency regex index for TS/JS, Python, Rust, Go, Java with imports, reference edges, PageRank, mtime/size invalidation, and per-file symbol ids (same-named symbols never overwrite each other). `search_code` routes natural-language queries to definition/caller/text modes and merges the results. Heuristic: confirm with `read` before editing.
 
 **Knowledge base** — `knowledge_add`, `knowledge_search`, `knowledge_history`, `knowledge_verify`, `knowledge_forget`. Append-only version chains per key, trust states, TTL, archived tombstones. Search returns the latest non-expired, non-disputed version per key; optional pre-step injection is trusted-only.
 
@@ -140,6 +140,7 @@ Tested TS building blocks, not model-facing tools:
         repoMap:
           maxFiles: 2000
           maxFileBytes: 524288
+          search: true
         knowledge:
           injectTopK: 0
         effects:
@@ -178,7 +179,7 @@ Quantitative experiments on this machine (Windows 10, Node 24, DeepSeek `deepsee
 
 0.3 Nexus-design validation:
 
-- `bun test`: **197 tests / 1,184 assertions** across 23 files, including schema-subset validation for every registered tool.
+- `bun test`: **205 tests / 1,352 assertions** across 24 files, including schema-subset validation for every registered tool.
 - Effects 10,000 calls: **733 ms total, 0.073 ms/call** (20,000 ledger records, 5.5 MB), down from ~33 ms/call.
 - Real kill-9 (`experiments/kill9-effects.ts`): a separate Bun process records an irreversible intent, is killed with `taskkill /F /T` or `SIGKILL`, a new process reconciles it to `unknown`, and the repeated irreversible call is denied — **duplicateDenied=true, duplicateExecutions=0**; the committed control still allows a repeat.
 - Audit: HMAC signatures, stripped/rehashed tamper detection, export with head/verify, and a byte-pinned golden fixture.
@@ -190,6 +191,15 @@ Quantitative experiments on this machine (Windows 10, Node 24, DeepSeek `deepsee
 - Memory v2 consolidation (`experiments/memory-v2-bench.ts`): 60 facts, recall@3 **1.000 before and after**, stale injections **0**, injected chars **13,775 → 12,565**; 15 duplicates merged, 20 entries archived (merged/expired/cap).
 - Repair memory (`experiments/repair-bench.ts`): 5 hints, known errors hit **10/10**, correct hint **10/10**, unknown errors false-hit **0/10**, average injected context 212 chars.
 - Retention: gzip + SHA-256 manifest, verified delete, restore, path traversal/symlink/overwrite refusal (`tests/retention.test.ts`).
+
+Deferred-candidate experiments (pre-registered decision rules):
+
+| Candidate | Result | Decision |
+|---|---|---|
+| Best-of-N planning (max-mode) | baseline 0.986, judge 0.995, oracle 1.000, judge top-1 75%, **2.64× tokens**; ceiling effect | **Do not add** |
+| Agentic search | hit@5 **80% → 100%**, MRR **0.70 → 0.90**, warm 1.37× latency, cold index 165 ms | **Added as `search_code`** (retrieval-level evidence; caller MRR has a comment-noise caveat) |
+| Valid8 output gate | correct false positives 0/10, buggy detected **1/10 (10%)**; AST degraded | **Do not add** |
+| Skill curation | synthetic hit@3 83.3% → 100%, stale slots 25% → 0%, but only synthetic data | **Defer** until real skill corpus/agent tasks |
 
 Full methodology and raw results: [`docs/experiments.md`](docs/experiments.md), [`experiments/`](experiments/). Invariant mapping: [`docs/invariants.md`](docs/invariants.md). The 88-item source analysis: [`docs/analysis/`](docs/analysis/README.md).
 
@@ -206,7 +216,7 @@ Full methodology and raw results: [`docs/experiments.md`](docs/experiments.md), 
 - dsh's public APIs are **pre-stable** (validated against `0.2.1-rc.2`).
 - `fuzzy_edit` handles one region per call; `replace_all` is intentionally not exposed.
 - `apply_patch` rollback is best-effort: if a restore write itself fails, the error lists files that could not be restored. Locks are advisory: host `write`/`edit`, external editors, and processes with a different lock dir can bypass them. TTL/symlink/case/normalization caveats apply.
-- The repo map is regex-based, not type-aware; comments/strings can produce false positives, compressed one-line code is under-indexed, and mtime+size is the cache key.
+- The repo map is regex-based, not type-aware; comments/strings can produce false positives, compressed one-line code is under-indexed, and mtime+size is the cache key. `search_code` routes by keyword and still inherits those limits; caller-mode references include comments (which can lower MRR). Set `repoMap.search: false` to hide the extra tool.
 - Effects, knowledge, notes, memory, and repairs are append-only JSONL without cross-process locks; do not run two processes writing the same session/workspace concurrently.
 - Memory v2 retrieval is still lexical (no embeddings); consolidation is deterministic token/Jaccard merging, not semantic summarization. `working` entries are session-scoped by the session id available at save time.
 - Error-repair matching is lexical and tool/code-filtered; a hint can be wrong for a superficially similar error. Hints are injected as data, not enforced.

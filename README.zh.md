@@ -15,7 +15,7 @@ dsh 的插件机制很强，但公共组合仍有执行空白：
 | 没有副作用账本 | 崩溃在 intent 与 result 之间会留下未知外部动作 | `effects` intent/commit + `effect_reconcile`/`effect_resolve` |
 | 没有内容寻址 artifact | 报告/截图/补丁事后无法验证 | `artifacts` SHA-256 + `artifact_verify` |
 | 没有第一方长期记忆 | 新会话忘记约定和偏好 | 项目记忆 + TTL + MEMORY.md 导入导出 |
-| 没有仓库级符号图 | Agent 只能盲 grep，漏掉调用者 | `repo_map` / `find_symbol` / `impact_of` |
+| 没有仓库级符号图 | Agent 只能盲 grep，漏掉调用者 | `repo_map` / `find_symbol` / `impact_of` / `search_code` |
 | 没有 scratchpad | 长任务丢失发现与决策 | 会话便签 + 压缩 |
 | 没有版本化知识库 | 事实被覆盖，没有历史/信任状态 | `knowledge_*` 版本链与 trust |
 | 没有可恢复 handoff | 切换/压缩会话丢失上下文 | 确定性 `handoff` + 机器可读 `replay_plan` |
@@ -32,7 +32,7 @@ git clone https://github.com/Fengrru/super-dsh.git   # 发布后
 cd super-dsh
 bun install        # 无运行时依赖，仅构建/测试需要
 bun run build      # 生成 dist/index.js
-bun test           # 197 个确定性检查
+bun test           # 205 个确定性检查
 ```
 
 本地 overlay：
@@ -76,7 +76,7 @@ dsh --profile headless --dump-config | grep super-dsh
 
 **会话便签**：`note_append` / `note_read` / `note_compact`。session id 清洗为安全文件名；坏行隔离；压缩用临时文件 + rename 原子重写。
 
-**仓库地图**：`repo_map` / `find_symbol` / `impact_of`。零依赖 regex 索引，支持 TS/JS、Python、Rust、Go、Java，含 import、引用边、PageRank、mtime+size 失效，以及带文件路径的符号 ID（同名符号不覆盖）。它是启发式索引，编辑前仍应 `read` 确认。
+**仓库地图**：`repo_map` / `find_symbol` / `impact_of` / `search_code`。零依赖 regex 索引，支持 TS/JS、Python、Rust、Go、Java，含 import、引用边、PageRank、mtime+size 失效，以及带文件路径的符号 ID（同名符号不覆盖）。`search_code` 把自然语言查询路由到 definition/caller/text 模式并合并结果。它是启发式索引，编辑前仍应 `read` 确认。
 
 **版本化知识库**：`knowledge_add` / `knowledge_search` / `knowledge_history` / `knowledge_verify` / `knowledge_forget`。按 key 的追加式版本链、trust、TTL、archived tombstone。搜索只返回每个 key 最新、未过期、非 disputed 的版本；可选 pre-step 注入只注入 verified。
 
@@ -140,6 +140,7 @@ dsh --profile headless --dump-config | grep super-dsh
         repoMap:
           maxFiles: 2000
           maxFileBytes: 524288
+          search: true
         knowledge:
           injectTopK: 0
         effects:
@@ -178,7 +179,7 @@ dsh --profile headless --dump-config | grep super-dsh
 
 0.3 Nexus 设计验证：
 
-- `bun test`：**197 个测试 / 1,184 个断言**，23 个文件，包含对每个注册工具 schema 子集的校验。
+- `bun test`：**205 个测试 / 1,352 个断言**，24 个文件，包含对每个注册工具 schema 子集的校验。
 - Effects 10,000 次调用：**733ms 总计，0.073ms/次**（20,000 条账本记录，5.5MB），从约 33ms/次降下来。
 - 真实 kill-9（`experiments/kill9-effects.ts`）：独立 Bun 进程记录不可逆 intent，被 `taskkill /F /T` 或 `SIGKILL` 杀死，新进程把它对账为 `unknown`，重复不可逆调用被拒绝——**duplicateDenied=true, duplicateExecutions=0**；committed 对照仍允许重复。
 - 审计：HMAC 签名、删除/重算签名篡改检测、带 head/verify 的导出、字节级 golden fixture。
@@ -190,6 +191,15 @@ dsh --profile headless --dump-config | grep super-dsh
 - Memory v2 巩固（`experiments/memory-v2-bench.ts`）：60 条事实，巩固前后 recall@3 **1.000**，stale 注入 **0**，注入字符 **13,775 → 12,565**；合并 15 条重复，归档 20 条（合并/过期/超限）。
 - 修复记忆（`experiments/repair-bench.ts`）：5 条提示，已知错误命中 **10/10**，正确 hint **10/10**，未知错误误命中 **0/10**，平均注入 212 字符。
 - 归档保留：gzip + SHA-256 manifest、校验后删除、恢复、路径穿越/symlink/覆盖拒绝（`tests/retention.test.ts`）。
+
+暂缓候选的实验结论（预注册决策规则）：
+
+| 候选 | 结果 | 决策 |
+|---|---|---|
+| Best-of-N 规划（max-mode） | baseline 0.986、judge 0.995、oracle 1.000、judge top-1 75%、**2.64× token**；明显天花板 | **不加** |
+| Agentic search | hit@5 **80% → 100%**、MRR **0.70 → 0.90**、warm 1.37× 耗时、冷索引 165ms | **已加为 `search_code`**（检索级证据；caller MRR 有注释噪声 caveat） |
+| Valid8 输出门禁 | 正确片段误报 0/10，错误片段检出 **1/10（10%）**；AST 退化 | **不加** |
+| Skill curation | 合成 hit@3 83.3%→100%、stale 槽位 25%→0%，但只有合成数据 | **延后**，等真实技能语料/Agent 任务 |
 
 完整方法与原始结果见 [`docs/experiments.md`](docs/experiments.md) 与 [`experiments/`](experiments/)。不变量映射见 [`docs/invariants.md`](docs/invariants.md)。88 项来源分析见 [`docs/analysis/`](docs/analysis/README.md)。
 
@@ -206,7 +216,7 @@ dsh --profile headless --dump-config | grep super-dsh
 - dsh 公共 API 仍是 pre-stable（验证于 `0.2.1-rc.2`）。
 - `fuzzy_edit` 每次只处理单区域；故意不暴露 `replace_all`。
 - `apply_patch` 回滚是尽力而为：若恢复写入本身失败，错误会列出无法恢复的文件。文件锁是 advisory：宿主 `write`/`edit`、外部编辑器、使用不同锁目录的进程可绕过；TTL/symlink/大小写/路径归一化有边界。
-- repo map 是 regex 启发式，不做类型分析；注释/字符串会误报，压缩单行代码召回有限；缓存键是 mtime+size。
+- repo map 是 regex 启发式，不做类型分析；注释/字符串会误报，压缩单行代码召回有限；缓存键是 mtime+size。`search_code` 按关键词路由，继承这些限制；caller 模式会把注释中的符号名当引用（可能降低 MRR）。`repoMap.search: false` 可隐藏该工具。
 - effects、knowledge、notes、memory、repairs 都是追加式 JSONL，没有跨进程锁；不要让两个进程同时写同一 session/workspace。
 - Memory v2 检索仍是词法级（无 embedding）；巩固是确定性 token/Jaccard 合并，不是语义摘要；`working` 可见性依赖保存时的 session id。
 - 错误修复匹配是词法级 + tool/code 过滤；相似错误可能命中错误提示；提示作为数据注入，不强制。

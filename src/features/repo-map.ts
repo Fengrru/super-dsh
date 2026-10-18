@@ -59,6 +59,24 @@ interface RepoIndex {
   maxScore: number
 }
 
+interface RepoMapOptions {
+  root?: string
+  maxFiles?: number
+  maxFileBytes?: number
+  /** Optional runtime switch for the natural-language search_code tool. */
+  search?: boolean
+}
+
+type SearchMode = 'definition' | 'caller' | 'text'
+
+interface SearchHit {
+  name: string
+  kind: string
+  file: string
+  line: number
+  score: number
+}
+
 interface SymbolRule {
   re: RegExp
   kind: string
@@ -77,6 +95,18 @@ const DAMPING = 0.85
 const MAX_IMPACT = 50
 const MAX_GRAPH_EDGES = 400_000
 const IDENTIFIER_PATTERN = /[A-Za-z_$][\w$]*/g
+const DEFAULT_SEARCH_LIMIT = 10
+const MAX_SEARCH_LIMIT = 50
+const TEXT_SYMBOLS_PER_FILE = 2
+
+const SEARCH_STOPWORDS = new Set([
+  'where', 'is', 'are', 'who', 'calls', 'call', 'used', 'by', 'find',
+  'definition', 'defined', 'locate', 'declaration', 'function', 'class',
+  'symbol', 'the', 'of', 'to', 'in', 'on', 'for', 'and', 'or',
+])
+
+const SEARCH_CALLER_PATTERN = /\b(?:who\s+calls?|callers?|used\s+by|references?|impact(?:s|ed)?)\b/i
+const SEARCH_DEFINITION_PATTERN = /\b(?:where\s+(?:is|are)|defined|definition|locate|declaration|find\s+(?:function|class|symbol))\b/i
 
 const RESERVED = new Set([
   'if', 'for', 'while', 'switch', 'catch', 'return', 'function', 'constructor', 'else', 'do',
@@ -130,9 +160,12 @@ export function applyRepoMap(
   config: SuperDshConfig = {},
 ): void {
   if (config.repoMap === false) return
-  const options = typeof config.repoMap === 'object' ? config.repoMap : {}
+  const options: RepoMapOptions = typeof config.repoMap === 'object' && config.repoMap !== null
+    ? config.repoMap
+    : {}
   const maxFiles = clampInt(options.maxFiles ?? DEFAULT_MAX_FILES, 1, 100_000)
   const maxFileBytes = clampInt(options.maxFileBytes ?? DEFAULT_MAX_FILE_BYTES, 1, 64 * 1024 * 1024)
+  const searchEnabled = options.search !== false
   const cache = new Map<string, RepoIndex>()
 
   ctx.systemPrompt.section({
@@ -140,7 +173,11 @@ export function applyRepoMap(
     order: 148,
     text: 'For unfamiliar code, use `repo_map` to see the most referenced symbols, `find_symbol` to locate a '
       + 'definition, and `impact_of` to find files that reference it. The map is a regex-based heuristic index '
-      + '(imports and name occurrences, no type analysis); confirm with `read` before editing.',
+      + '(imports and name occurrences, no type analysis); confirm with `read` before editing.'
+      + (searchEnabled
+        ? ' For natural-language questions use `search_code`; it routes definition queries ("where is X defined"),'
+          + ' caller queries ("who calls X"), and text queries through the repository index automatically.'
+        : ''),
   })
 
   const rootOf = async (exec: ToolExecutionLike): Promise<string> => {
@@ -446,13 +483,291 @@ export function applyRepoMap(
     },
   }
 
-  for (const tool of [mapTool, findTool, impactTool]) {
+  const searchTool: ToolDefinitionLike = {
+    name: 'search_code',
+    description: 'Natural-language code search over the repository index. Classifies the query as a '
+      + 'definition lookup ("where is X defined"), a caller lookup ("who calls X"), or a text search, '
+      + 'then returns ranked file and symbol hits with file:line locations.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'Natural-language query, e.g. "where is validateSession defined", "who calls loadConfig", or "timeout handling".',
+        },
+        limit: { type: 'integer', description: 'Maximum results, 1..50. Defaults to 10.' },
+      },
+      required: ['query'],
+      additionalProperties: false,
+    },
+    output: {
+      schema: {
+        type: 'object',
+        properties: {
+          mode: { type: 'string', description: 'Effective search mode: definition, caller, or text.' },
+          query: { type: 'string' },
+          results: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                kind: { type: 'string', description: 'Symbol kind, or "file" for file-level hits.' },
+                file: { type: 'string' },
+                line: { type: 'integer' },
+                score: { type: 'number', description: 'Normalized relevance score in 0..1.' },
+              },
+              required: ['name', 'kind', 'file', 'line', 'score'],
+              additionalProperties: false,
+            },
+          },
+          count: { type: 'integer' },
+        },
+        required: ['mode', 'query', 'results', 'count'],
+        additionalProperties: false,
+      },
+      render: (_args, value) => {
+        const results = value.results as SearchHit[]
+        const header = `Search [${String(value.mode)}] "${String(value.query)}": ${String(value.count)} result(s)`
+        if (results.length === 0) return [{ type: 'text', text: `${header}; no matches.` }]
+        return [{
+          type: 'text',
+          text: `${header}\n${results.map(hit =>
+            `${hit.file}:${hit.line} ${hit.name} (${hit.kind}, ${hit.score})`).join('\n')}`,
+        }]
+      },
+    },
+    async execute(rawArgs: Record<string, unknown>, exec: ToolExecutionLike) {
+      const query = typeof rawArgs.query === 'string' ? rawArgs.query.trim() : ''
+      if (query.length === 0) throw new Error('query must be a non-empty string')
+      const limit = clampInt(rawArgs.limit ?? DEFAULT_SEARCH_LIMIT, 1, MAX_SEARCH_LIMIT)
+      const index = await indexFor(exec)
+      const classified = classifySearchQuery(query)
+      const identifier = extractSearchIdentifier(query, index.byName)
+
+      let mode: SearchMode = classified
+      let results: SearchHit[] = []
+      if (classified === 'definition' && identifier !== undefined) {
+        results = searchDefinitions(index, identifier, limit)
+      } else if (classified === 'caller' && identifier !== undefined) {
+        results = searchCallers(index, identifier, limit)
+      }
+
+      // Definition/caller hits take priority; fall back to a lexical text scan
+      // when the routed mode finds nothing.
+      if (results.length === 0) {
+        mode = 'text'
+        results = searchText(index, query, limit)
+      }
+
+      return { mode, query, results, count: results.length }
+    },
+  }
+
+  const tools = searchEnabled ? [mapTool, findTool, impactTool, searchTool] : [mapTool, findTool, impactTool]
+  for (const tool of tools) {
     try {
       ctx.tools.register(tool)
     } catch (error: unknown) {
       warn(ctx.logger, `could not register ${tool.name}`, error)
     }
   }
+}
+
+function classifySearchQuery(query: string): SearchMode {
+  if (SEARCH_CALLER_PATTERN.test(query)) return 'caller'
+  if (SEARCH_DEFINITION_PATTERN.test(query)) return 'definition'
+  return 'text'
+}
+
+/**
+ * Pick the identifier a definition/caller query is about. Tokens that already
+ * name an indexed symbol win, longest first; otherwise the longest surviving
+ * token is the best guess.
+ */
+function extractSearchIdentifier(
+  query: string,
+  byName: Map<string, IndexedSymbol[]>,
+): string | undefined {
+  const tokens: string[] = []
+  const seen = new Set<string>()
+  for (const token of query.match(IDENTIFIER_PATTERN) ?? []) {
+    const lower = token.toLowerCase()
+    if (SEARCH_STOPWORDS.has(lower) || seen.has(lower)) continue
+    seen.add(lower)
+    tokens.push(token)
+  }
+  if (tokens.length === 0) return undefined
+
+  const exact = tokens.filter(token => byName.has(token))
+  if (exact.length > 0) return longestToken(exact)
+
+  const lowerNames = new Set<string>()
+  for (const name of byName.keys()) lowerNames.add(name.toLowerCase())
+  const relaxed = tokens.filter(token => lowerNames.has(token.toLowerCase()))
+  if (relaxed.length > 0) return longestToken(relaxed)
+  return longestToken(tokens)
+}
+
+function longestToken(tokens: string[]): string {
+  let best = tokens[0]
+  for (const token of tokens) {
+    if (token.length > best.length) best = token
+  }
+  return best
+}
+
+function matchDefinitions(
+  index: RepoIndex,
+  identifier: string,
+): Array<{ symbol: IndexedSymbol; score: number }> {
+  const lowerIdentifier = identifier.toLowerCase()
+  const matches: Array<{ symbol: IndexedSymbol; score: number }> = []
+  for (const symbol of index.symbols) {
+    const score = nameMatchScore(symbol.name, identifier, lowerIdentifier)
+    if (score > 0) matches.push({ symbol, score })
+  }
+  matches.sort((left, right) =>
+    right.score - left.score
+    || compareByCentrality(left.symbol, right.symbol))
+  return matches
+}
+
+function searchDefinitions(index: RepoIndex, identifier: string, limit: number): SearchHit[] {
+  return matchDefinitions(index, identifier).slice(0, limit).map(match => ({
+    name: match.symbol.name,
+    kind: match.symbol.kind,
+    file: match.symbol.file,
+    line: match.symbol.line,
+    score: round(match.score),
+  }))
+}
+
+/**
+ * Direct callers: one reverse-reference hop from every definition, plus the
+ * symbols each referencing file defines. File-level hits make the referencing
+ * file visible even when it has no extractable declarations.
+ */
+function searchCallers(index: RepoIndex, identifier: string, limit: number): SearchHit[] {
+  const definitions = matchDefinitions(index, identifier)
+  const results: SearchHit[] = []
+  const seenHits = new Set<string>()
+  const seenFiles = new Set<string>()
+
+  for (const definition of definitions) {
+    for (const file of index.referencedBy.get(definition.symbol.id) ?? []) {
+      if (!seenFiles.has(file)) {
+        seenFiles.add(file)
+        if (pushSearchHit(results, seenHits, {
+          name: file,
+          kind: 'file',
+          file,
+          line: 1,
+          score: round(definition.score),
+        }, limit)) return results
+      }
+      for (const symbol of index.defsByFile.get(file) ?? []) {
+        if (pushSearchHit(results, seenHits, {
+          name: symbol.name,
+          kind: symbol.kind,
+          file: symbol.file,
+          line: symbol.line,
+          score: round(definition.score * 0.75),
+        }, limit)) return results
+      }
+    }
+  }
+  return results
+}
+
+function searchText(index: RepoIndex, query: string, limit: number): SearchHit[] {
+  const tokens = extractTextTokens(query)
+  if (tokens.length === 0) return []
+
+  const ranked: Array<{ file: string; count: number }> = []
+  let maxCount = 0
+  for (const file of index.files) {
+    let text: string
+    try {
+      text = readFileSync(join(index.root, file), 'utf8')
+    } catch {
+      continue
+    }
+    let count = 0
+    for (const token of tokens) count += countWordOccurrences(text, token)
+    if (count === 0) continue
+    ranked.push({ file, count })
+    if (count > maxCount) maxCount = count
+  }
+
+  ranked.sort((left, right) => right.count - left.count || compareText(left.file, right.file))
+  const results: SearchHit[] = []
+  const seenHits = new Set<string>()
+  for (const entry of ranked.slice(0, limit)) {
+    if (pushSearchHit(results, seenHits, {
+      name: entry.file,
+      kind: 'file',
+      file: entry.file,
+      line: 1,
+      score: maxCount > 0 ? round(entry.count / maxCount) : 0,
+    }, limit)) break
+
+    const symbols = (index.defsByFile.get(entry.file) ?? [])
+      .slice()
+      .sort(compareByCentrality)
+      .slice(0, TEXT_SYMBOLS_PER_FILE)
+    for (const symbol of symbols) {
+      if (pushSearchHit(results, seenHits, {
+        name: symbol.name,
+        kind: symbol.kind,
+        file: symbol.file,
+        line: symbol.line,
+        score: index.maxScore > 0 ? round(symbol.score / index.maxScore) : 0,
+      }, limit)) break
+    }
+    if (results.length >= limit) break
+  }
+  return results
+}
+
+function extractTextTokens(query: string): string[] {
+  const tokens: string[] = []
+  const seen = new Set<string>()
+  for (const token of query.match(IDENTIFIER_PATTERN) ?? []) {
+    const lower = token.toLowerCase()
+    if (SEARCH_STOPWORDS.has(lower) || seen.has(lower)) continue
+    seen.add(lower)
+    tokens.push(lower)
+  }
+  return tokens
+}
+
+function countWordOccurrences(text: string, token: string): number {
+  if (token.length === 0) return 0
+  const pattern = new RegExp(
+    `(?<![A-Za-z0-9_$])${escapeRegExp(token)}(?![A-Za-z0-9_$])`,
+    'gi',
+  )
+  return text.match(pattern)?.length ?? 0
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/** Push a hit unless its file+name+line key was already seen; report whether the limit is full. */
+function pushSearchHit(
+  results: SearchHit[],
+  seen: Set<string>,
+  hit: SearchHit,
+  limit: number,
+): boolean {
+  const key = `${hit.file}\u0000${hit.name}\u0000${hit.line}`
+  if (!seen.has(key)) {
+    seen.add(key)
+    results.push(hit)
+  }
+  return results.length >= limit
 }
 
 function scanRepository(root: string, maxFiles: number, maxFileBytes: number): ScanResult {

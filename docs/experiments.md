@@ -232,7 +232,70 @@ The consolidation reduces injected bytes by 1,210 with no recall or stale-inject
 
 **Real-dsh smoke:** memory tier save + feedback + consolidate, and repair record + search were exercised in a live headless session. Retention is covered by tests and is intentionally not default-on.
 
-## E8 — Rejected candidates
+## E8 — Deferred-candidate experiments
+
+These candidates were not added by default in 0.2/0.3. Each experiment had a **pre-registered decision rule**; results below are from this machine.
+
+### E8.1 Best-of-N planning (`max-mode-sampler`)
+
+- 4 coding tasks, baseline: 2 single plans at temperature 0.3; treatment: 3 plans at 0.9 + judge at 0.1.
+- Deterministic score: 0.4 files coverage + 0.3 concepts + 0.15 verification + 0.15 path validity.
+
+| Metric | Result |
+|---|---:|
+| baseline average | 0.9860 |
+| judge-selected average | 0.9947 |
+| oracle best-of-3 | 1.0000 |
+| judge top-1 accuracy | 75% (3/4) |
+| token multiplier | **2.64×** |
+| judge gain over baseline | **+0.0087** |
+
+**Decision: do not add.** Baseline plans were already near ceiling; the oracle headroom was +0.0140, far below the +0.10 threshold, while treatment cost 2.64× tokens. The judge also missed the best candidate once (though that case was a path-normalization tie). Raw: `experiments/results/best-of-n-plan-bench.json`.
+
+### E8.2 Agentic search (`agentic-search`)
+
+- 12-file fixture, 15 queries (5 definition, 5 caller, 5 text); baseline = self-implemented lexical file scan; treatment = intent router over `find_symbol` / `impact_of` / `repo_map` + text fallback.
+- Decision rule: hit@5 ≥ baseline + 0.15, higher MRR, latency <3×.
+
+| Metric | Baseline | Treatment |
+|---|---:|---:|
+| hit@5 | 80.0% | **100%** |
+| MRR | 0.700 | **0.900** |
+| warm query latency | 2.56 ms | 3.50 ms (1.37×) |
+| cold index | — | 165 ms |
+
+**Decision: add as `search_code`.** It passed the rule. Caveat: the baseline is a synthetic substring scan, not the model's actual grep/ripgrep tool choice; caller MRR dropped 0.8→0.7 because comments count as references. `repoMap.search: false` disables the extra tool. Raw: `experiments/results/agentic-search-bench.json`.
+
+### E8.3 Valid8 output gate
+
+- 20 snippets: 10 correct (including `any`, `console.log`, one acceptable empty catch) and 10 buggy (syntax, duplicate declaration, brackets, injection, off-by-one, assignment-in-condition, missing await).
+- Logic: syntax + security layers, default threshold 0.7.
+- Decision rule: false positives ≤10% **and** buggy detection ≥50%.
+
+| Metric | Result |
+|---|---:|
+| correct snippets flagged (FP) | 0/10 (0%) |
+| buggy snippets caught (TP) | **1/10 (10%)** |
+| syntax-only TP | 0/10 (0%) |
+
+**Decision: do not add.** The AST path degraded (TypeScript 7.0.2 lacks the expected `createSourceFile` surface), so only regex checks ran; even with AST, single-issue scoring often stays above 0.7. It does not catch logic errors. Raw: `experiments/results/valid8-bench.json`.
+
+### E8.4 Skill curation (`skillforge` / `skill-curator` / `dreamdistill`)
+
+- 24 synthetic skills (16 active, 4 stale, 4 near-duplicates), 12 queries, lexical top-3.
+- Treatment: archive stale/duplicates and pin top 20% by uses.
+- Decision rule: hit@3 +0.10, stale/duplicate selections −50%, no character-cost increase; but require real evidence before adding.
+
+| Metric | Baseline | Treatment |
+|---|---:|---:|
+| hit@3 | 83.3% | 100% |
+| MRR | 0.875 | 1.000 |
+| stale/duplicate top-3 slots | 25% | 0% |
+| average description chars | 70.86 | 64.47 |
+
+**Decision: defer, not add.** The mechanical rule passed, but the gain came entirely from two deliberately crowded synthetic queries; there is no real dsh skill corpus or agent-task evidence. Revisit with 30–50 real tasks and actual skill usage. Raw: `experiments/results/skill-curation-bench.json`.
+
+## E9 — Rejected candidates
 
 
 Several attractive ideas from `awesome-agent-infra` and `nexus-runtime` did **not** survive review. They are documented in [`decisions.md`](decisions.md): the Nexus kernel bridge, a code-graph repo map, hallucination/confidence heuristics, goal-verifier's fallback, replay/dynamic-workflow recovery, and the LLM request dedup cache. The common reasons were: the implementation was a mock or had correctness bugs, the capability duplicated a stronger dsh primitive, or there was no way to measure a benefit in this environment.

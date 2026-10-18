@@ -37,6 +37,17 @@ A "no" to any of these means it stays out of the default bundle. This file recor
 | Budget accounting/enforcement | Usage accumulation, total precedence, seq dedupe, enforce reject/allow (`tests/budget.test.ts`); no agent A/B yet | **Not default.** Enable with `budget`. |
 | `denyUnresolvedIrreversible` | Duplicate irreversible call denied after a real kill-9 restart (`duplicateDenied: true`, `duplicateExecutions: 0`); pure tools unaffected (`experiments/results/kill9-effects.json`, `tests/effects.test.ts`) | **Not default.** Accounting is on; denial is opt-in. |
 
+## Experiment-gated candidates
+
+These were deliberately not bundled initially; each has a pre-registered experiment in `docs/experiments.md` E8.
+
+| Candidate | Evidence | Decision |
+|---|---|---|
+| Agentic search | hit@5 80% → 100%, MRR 0.70 → 0.90, warm 1.37× latency, cold index 165 ms (`experiments/results/agentic-search-bench.json`) | **Added** as `search_code`; `repoMap.search: false` disables it. Caveat: synthetic baseline and caller comment noise. |
+| Best-of-N planning | baseline 0.986, judge 0.995, oracle 1.000, judge top-1 75%, 2.64× tokens (`experiments/results/best-of-n-plan-bench.json`) | **Do not add.** Ceiling effect; oracle gain below +0.10. |
+| Valid8 output gate | FP 0/10, TP **1/10**; AST degraded (`experiments/results/valid8-bench.json`) | **Do not add.** Does not catch logic errors. |
+| Skill curation / dreamdistill | Synthetic hit@3 83.3% → 100%, stale slots 25% → 0%, but only synthetic data (`experiments/results/skill-curation-bench.json`) | **Defer** until a real skill corpus/agent-task experiment. |
+
 ## Rejected or deferred
 
 ### Nexus Runtime as a runtime dependency

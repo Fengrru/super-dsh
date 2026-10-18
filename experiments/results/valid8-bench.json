@@ -1,0 +1,556 @@
+{
+  "experiment": "valid8-bench",
+  "generatedAt": "2026-10-18T02:23:32.554Z",
+  "hypothesis": "valid8 can act as a narrow output gate: it flags most objectively broken snippets while rarely flagging correct snippets, including deliberate any/console.log/empty-catch cases.",
+  "source": "../../awesome-agent-infra/packages/valid8/src/index.ts",
+  "configuration": {
+    "threshold": 0.7,
+    "flagRule": "flagged when syntax score < threshold OR security score < threshold",
+    "syntaxFile": "sample.ts",
+    "securityOptions": "no permission ruleset, no external scanner",
+    "fragments": {
+      "total": 20,
+      "correct": 10,
+      "buggy": 10
+    }
+  },
+  "environment": {
+    "runtime": "bun 1.3.14",
+    "node": "v24.3.0",
+    "typescript": {
+      "resolved": true,
+      "version": "7.0.2",
+      "astAvailable": false,
+      "degradationNote": "typescript@7.0.2 resolved but does not expose a usable createSourceFile/ScriptTarget API; valid8 catches the failure and falls back to regex-only checks: duplicate `const const`/`let let`/`var var` declarations and bare TODO comments. For .ts files the fallback does not check brace or parenthesis balance."
+    },
+    "astProbe": {
+      "code": "const value: any = 1\\nconsole.log(value)",
+      "score": 1,
+      "report": "Syntax check passed",
+      "astIssuesIfActive": 2,
+      "note": "AST quality checks did not run; only regex fallback was active."
+    }
+  },
+  "summary": {
+    "correct": {
+      "total": 10,
+      "flagged": 0,
+      "flagRate": 0,
+      "avgSyntaxScore": 1,
+      "avgSecurityScore": 1,
+      "byCategory": [
+        {
+          "category": "plain",
+          "total": 4,
+          "flagged": 0,
+          "flagRate": 0,
+          "ids": [
+            "correct-sum",
+            "correct-interface",
+            "correct-async",
+            "correct-discriminated-union"
+          ]
+        },
+        {
+          "category": "any",
+          "total": 3,
+          "flagged": 0,
+          "flagRate": 0,
+          "ids": [
+            "correct-any-json",
+            "correct-any-payload",
+            "correct-any-cache"
+          ]
+        },
+        {
+          "category": "console-log",
+          "total": 2,
+          "flagged": 0,
+          "flagRate": 0,
+          "ids": [
+            "correct-console-progress",
+            "correct-console-error"
+          ]
+        },
+        {
+          "category": "empty-catch",
+          "total": 1,
+          "flagged": 0,
+          "flagRate": 0,
+          "ids": [
+            "correct-empty-catch"
+          ]
+        }
+      ]
+    },
+    "buggy": {
+      "total": 10,
+      "flagged": 1,
+      "flagRate": 0.1,
+      "avgSyntaxScore": 0.97,
+      "avgSecurityScore": 0.95,
+      "byCategory": [
+        {
+          "category": "syntax-error",
+          "total": 2,
+          "flagged": 0,
+          "flagRate": 0,
+          "ids": [
+            "buggy-missing-expression",
+            "buggy-unclosed-function"
+          ]
+        },
+        {
+          "category": "duplicate-declaration",
+          "total": 2,
+          "flagged": 0,
+          "flagRate": 0,
+          "ids": [
+            "buggy-duplicate-const",
+            "buggy-duplicate-let"
+          ]
+        },
+        {
+          "category": "bracket-mismatch",
+          "total": 2,
+          "flagged": 0,
+          "flagRate": 0,
+          "ids": [
+            "buggy-missing-brace",
+            "buggy-missing-paren"
+          ]
+        },
+        {
+          "category": "security-command-concat",
+          "total": 1,
+          "flagged": 1,
+          "flagRate": 1,
+          "ids": [
+            "buggy-command-injection"
+          ]
+        },
+        {
+          "category": "logic-off-by-one",
+          "total": 1,
+          "flagged": 0,
+          "flagRate": 0,
+          "ids": [
+            "buggy-off-by-one"
+          ]
+        },
+        {
+          "category": "assignment-condition",
+          "total": 1,
+          "flagged": 0,
+          "flagRate": 0,
+          "ids": [
+            "buggy-assignment-condition"
+          ]
+        },
+        {
+          "category": "unawaited-async",
+          "total": 1,
+          "flagged": 0,
+          "flagRate": 0,
+          "ids": [
+            "buggy-missing-await"
+          ]
+        }
+      ]
+    },
+    "falsePositiveRate": 0,
+    "truePositiveRate": 0.1,
+    "layers": {
+      "syntaxOnly": {
+        "falsePositiveRate": 0,
+        "truePositiveRate": 0,
+        "correctFlagged": 0,
+        "buggyFlagged": 0
+      },
+      "securityOnly": {
+        "falsePositiveRate": 0,
+        "truePositiveRate": 0.1,
+        "correctFlagged": 0,
+        "buggyFlagged": 1
+      },
+      "combined": {
+        "falsePositiveRate": 0,
+        "truePositiveRate": 0.1,
+        "correctFlagged": 0,
+        "buggyFlagged": 1
+      }
+    }
+  },
+  "decisionRules": {
+    "required": "false-positive rate <= 0.10 AND true-positive rate >= 0.50",
+    "criteria": {
+      "falsePositiveRateAtMost10Pct": true,
+      "truePositiveRateAtLeast50Pct": false
+    }
+  },
+  "decision": "do-not-add",
+  "snippets": [
+    {
+      "id": "correct-sum",
+      "expectation": "correct",
+      "category": "plain",
+      "description": "Typed array reduction",
+      "syntax": {
+        "score": 1,
+        "report": "Syntax check passed",
+        "flagged": false
+      },
+      "security": {
+        "score": 1,
+        "report": "Security check passed",
+        "flagged": false
+      },
+      "flagged": false,
+      "flagReasons": []
+    },
+    {
+      "id": "correct-interface",
+      "expectation": "correct",
+      "category": "plain",
+      "description": "Interface plus nullish fallback",
+      "syntax": {
+        "score": 1,
+        "report": "Syntax check passed",
+        "flagged": false
+      },
+      "security": {
+        "score": 1,
+        "report": "Security check passed",
+        "flagged": false
+      },
+      "flagged": false,
+      "flagReasons": []
+    },
+    {
+      "id": "correct-async",
+      "expectation": "correct",
+      "category": "plain",
+      "description": "Async function with await",
+      "syntax": {
+        "score": 1,
+        "report": "Syntax check passed",
+        "flagged": false
+      },
+      "security": {
+        "score": 1,
+        "report": "Security check passed",
+        "flagged": false
+      },
+      "flagged": false,
+      "flagReasons": []
+    },
+    {
+      "id": "correct-discriminated-union",
+      "expectation": "correct",
+      "category": "plain",
+      "description": "Discriminated union with generic helper",
+      "syntax": {
+        "score": 1,
+        "report": "Syntax check passed",
+        "flagged": false
+      },
+      "security": {
+        "score": 1,
+        "report": "Security check passed",
+        "flagged": false
+      },
+      "flagged": false,
+      "flagReasons": []
+    },
+    {
+      "id": "correct-any-json",
+      "expectation": "correct",
+      "category": "any",
+      "description": "JSON.parse boundary returns any",
+      "syntax": {
+        "score": 1,
+        "report": "Syntax check passed",
+        "flagged": false
+      },
+      "security": {
+        "score": 1,
+        "report": "Security check passed",
+        "flagged": false
+      },
+      "flagged": false,
+      "flagReasons": []
+    },
+    {
+      "id": "correct-any-payload",
+      "expectation": "correct",
+      "category": "any",
+      "description": "Untrusted payload kept as any at the boundary",
+      "syntax": {
+        "score": 1,
+        "report": "Syntax check passed",
+        "flagged": false
+      },
+      "security": {
+        "score": 1,
+        "report": "Security check passed",
+        "flagged": false
+      },
+      "flagged": false,
+      "flagReasons": []
+    },
+    {
+      "id": "correct-any-cache",
+      "expectation": "correct",
+      "category": "any",
+      "description": "Loosely typed heterogeneous cache",
+      "syntax": {
+        "score": 1,
+        "report": "Syntax check passed",
+        "flagged": false
+      },
+      "security": {
+        "score": 1,
+        "report": "Security check passed",
+        "flagged": false
+      },
+      "flagged": false,
+      "flagReasons": []
+    },
+    {
+      "id": "correct-console-progress",
+      "expectation": "correct",
+      "category": "console-log",
+      "description": "Progress log in a CLI helper",
+      "syntax": {
+        "score": 1,
+        "report": "Syntax check passed",
+        "flagged": false
+      },
+      "security": {
+        "score": 1,
+        "report": "Security check passed",
+        "flagged": false
+      },
+      "flagged": false,
+      "flagReasons": []
+    },
+    {
+      "id": "correct-console-error",
+      "expectation": "correct",
+      "category": "console-log",
+      "description": "Failure log in an error path",
+      "syntax": {
+        "score": 1,
+        "report": "Syntax check passed",
+        "flagged": false
+      },
+      "security": {
+        "score": 1,
+        "report": "Security check passed",
+        "flagged": false
+      },
+      "flagged": false,
+      "flagReasons": []
+    },
+    {
+      "id": "correct-empty-catch",
+      "expectation": "correct",
+      "category": "empty-catch",
+      "description": "Fallback port parse; swallowing the parse failure is intended",
+      "syntax": {
+        "score": 1,
+        "report": "Syntax check passed",
+        "flagged": false
+      },
+      "security": {
+        "score": 1,
+        "report": "Security check passed",
+        "flagged": false
+      },
+      "flagged": false,
+      "flagReasons": []
+    },
+    {
+      "id": "buggy-missing-expression",
+      "expectation": "buggy",
+      "category": "syntax-error",
+      "description": "Missing initializer expression after =",
+      "syntax": {
+        "score": 1,
+        "report": "Syntax check passed",
+        "flagged": false
+      },
+      "security": {
+        "score": 1,
+        "report": "Security check passed",
+        "flagged": false
+      },
+      "flagged": false,
+      "flagReasons": []
+    },
+    {
+      "id": "buggy-unclosed-function",
+      "expectation": "buggy",
+      "category": "syntax-error",
+      "description": "Function body never closed",
+      "syntax": {
+        "score": 1,
+        "report": "Syntax check passed",
+        "flagged": false
+      },
+      "security": {
+        "score": 1,
+        "report": "Security check passed",
+        "flagged": false
+      },
+      "flagged": false,
+      "flagReasons": []
+    },
+    {
+      "id": "buggy-duplicate-const",
+      "expectation": "buggy",
+      "category": "duplicate-declaration",
+      "description": "double const keyword",
+      "syntax": {
+        "score": 0.85,
+        "report": "Duplicate variable declaration",
+        "flagged": false
+      },
+      "security": {
+        "score": 1,
+        "report": "Security check passed",
+        "flagged": false
+      },
+      "flagged": false,
+      "flagReasons": []
+    },
+    {
+      "id": "buggy-duplicate-let",
+      "expectation": "buggy",
+      "category": "duplicate-declaration",
+      "description": "double let keyword",
+      "syntax": {
+        "score": 0.85,
+        "report": "Duplicate variable declaration",
+        "flagged": false
+      },
+      "security": {
+        "score": 1,
+        "report": "Security check passed",
+        "flagged": false
+      },
+      "flagged": false,
+      "flagReasons": []
+    },
+    {
+      "id": "buggy-missing-brace",
+      "expectation": "buggy",
+      "category": "bracket-mismatch",
+      "description": "Missing closing brace on an if block",
+      "syntax": {
+        "score": 1,
+        "report": "Syntax check passed",
+        "flagged": false
+      },
+      "security": {
+        "score": 1,
+        "report": "Security check passed",
+        "flagged": false
+      },
+      "flagged": false,
+      "flagReasons": []
+    },
+    {
+      "id": "buggy-missing-paren",
+      "expectation": "buggy",
+      "category": "bracket-mismatch",
+      "description": "Call expression never closed",
+      "syntax": {
+        "score": 1,
+        "report": "Syntax check passed",
+        "flagged": false
+      },
+      "security": {
+        "score": 1,
+        "report": "Security check passed",
+        "flagged": false
+      },
+      "flagged": false,
+      "flagReasons": []
+    },
+    {
+      "id": "buggy-command-injection",
+      "expectation": "buggy",
+      "category": "security-command-concat",
+      "description": "User input concatenated into a shell command plus a sensitive path",
+      "syntax": {
+        "score": 1,
+        "report": "Syntax check passed",
+        "flagged": false
+      },
+      "security": {
+        "score": 0.5,
+        "report": "Security concerns found: path_traversal: /etc/passwd, code_injection: exec(",
+        "flagged": true
+      },
+      "flagged": true,
+      "flagReasons": [
+        "security score 0.5: Security concerns found: path_traversal: /etc/passwd, code_injection: exec("
+      ]
+    },
+    {
+      "id": "buggy-off-by-one",
+      "expectation": "buggy",
+      "category": "logic-off-by-one",
+      "description": "Loop condition uses <= and reads past the array end",
+      "syntax": {
+        "score": 1,
+        "report": "Syntax check passed",
+        "flagged": false
+      },
+      "security": {
+        "score": 1,
+        "report": "Security check passed",
+        "flagged": false
+      },
+      "flagged": false,
+      "flagReasons": []
+    },
+    {
+      "id": "buggy-assignment-condition",
+      "expectation": "buggy",
+      "category": "assignment-condition",
+      "description": "Assignment used where an equality check was intended",
+      "syntax": {
+        "score": 1,
+        "report": "Syntax check passed",
+        "flagged": false
+      },
+      "security": {
+        "score": 1,
+        "report": "Security check passed",
+        "flagged": false
+      },
+      "flagged": false,
+      "flagReasons": []
+    },
+    {
+      "id": "buggy-missing-await",
+      "expectation": "buggy",
+      "category": "unawaited-async",
+      "description": "Async write is fire-and-forget",
+      "syntax": {
+        "score": 1,
+        "report": "Syntax check passed",
+        "flagged": false
+      },
+      "security": {
+        "score": 1,
+        "report": "Security check passed",
+        "flagged": false
+      },
+      "flagged": false,
+      "flagReasons": []
+    }
+  ]
+}

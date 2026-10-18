@@ -1,0 +1,1578 @@
+{
+  "experiment": "skill-curation-bench",
+  "generatedAt": "2026-10-18T02:25:38.498Z",
+  "evidenceLevel": "synthetic-simulation",
+  "hypothesis": "Archiving stale and near-duplicate skills while pinning high-frequency skills improves top-3 skill retrieval and lowers context cost without hurting retrieval accuracy.",
+  "caveat": "Synthetic skills and queries with a lexical retriever. This is not Agent-level evidence and does not measure real dsh skill usage.",
+  "config": {
+    "skills": 24,
+    "activeSkills": 16,
+    "staleSkills": 4,
+    "nearDuplicateSkills": 4,
+    "queries": 12,
+    "topK": 3,
+    "staleLastUsedDaysAbove": 90,
+    "staleUsesBelow": 2,
+    "nearDuplicateJaccardAbove": 0.8,
+    "pinTopPercent": 0.2,
+    "pinBoost": 0.1,
+    "scoreWeights": {
+      "name": 3,
+      "tag": 2,
+      "description": 1,
+      "usage": 0.35,
+      "recency": 0.5
+    },
+    "metricDefinitions": {
+      "hitAt3": "Fraction of queries whose expected active skill is ranked in the top 3.",
+      "mrr": "Mean reciprocal rank of the expected active skill.",
+      "noiseSelectionRate": "Share of all top-3 slots occupied by a stale or near-duplicate skill, averaged over queries.",
+      "avgCandidateDescriptionChars": "Mean character count of the three returned candidates per query (prompt token-cost proxy).",
+      "avgPoolDescriptionChars": "Mean character count over all searchable skills (curation breadth, not the injected top-3)."
+    }
+  },
+  "corpus": {
+    "skills": [
+      {
+        "name": "run-tests",
+        "description": "Run the project test suite and report failing tests with diagnostics",
+        "tags": [
+          "test",
+          "suite",
+          "verification"
+        ],
+        "lastUsedDays": 1,
+        "uses": 48
+      },
+      {
+        "name": "type-check",
+        "description": "Run the TypeScript compiler in no-emit mode to find type errors",
+        "tags": [
+          "typescript",
+          "compiler",
+          "diagnostics"
+        ],
+        "lastUsedDays": 2,
+        "uses": 36
+      },
+      {
+        "name": "format-code",
+        "description": "Format source files with the repository formatter and fix style issues",
+        "tags": [
+          "format",
+          "style",
+          "cleanup"
+        ],
+        "lastUsedDays": 5,
+        "uses": 22
+      },
+      {
+        "name": "git-diff-review",
+        "description": "Review a git diff for bugs, missing tests, and risky changes",
+        "tags": [
+          "git",
+          "diff",
+          "review"
+        ],
+        "lastUsedDays": 3,
+        "uses": 30
+      },
+      {
+        "name": "dependency-audit",
+        "description": "Scan package dependencies for known vulnerabilities and outdated versions",
+        "tags": [
+          "security",
+          "dependencies",
+          "audit"
+        ],
+        "lastUsedDays": 7,
+        "uses": 14
+      },
+      {
+        "name": "build-bundle",
+        "description": "Build the production bundle and inspect output size warnings",
+        "tags": [
+          "build",
+          "bundle",
+          "production"
+        ],
+        "lastUsedDays": 4,
+        "uses": 18
+      },
+      {
+        "name": "benchmark-performance",
+        "description": "Benchmark a function or command and compare latency regressions",
+        "tags": [
+          "performance",
+          "benchmark",
+          "latency"
+        ],
+        "lastUsedDays": 12,
+        "uses": 9
+      },
+      {
+        "name": "write-unit-test",
+        "description": "Create unit tests for an existing module with edge case coverage",
+        "tags": [
+          "test",
+          "unit",
+          "coverage"
+        ],
+        "lastUsedDays": 6,
+        "uses": 20
+      },
+      {
+        "name": "debug-failing-test",
+        "description": "Debug a failing test by reproducing it and isolating the root cause",
+        "tags": [
+          "debug",
+          "test",
+          "failing"
+        ],
+        "lastUsedDays": 2,
+        "uses": 26
+      },
+      {
+        "name": "release-notes",
+        "description": "Draft release notes from merged pull requests and changelog entries",
+        "tags": [
+          "release",
+          "changelog",
+          "notes"
+        ],
+        "lastUsedDays": 15,
+        "uses": 8
+      },
+      {
+        "name": "refactor-module",
+        "description": "Refactor a module while preserving behavior and public APIs",
+        "tags": [
+          "refactor",
+          "module",
+          "maintain"
+        ],
+        "lastUsedDays": 9,
+        "uses": 11
+      },
+      {
+        "name": "update-docs",
+        "description": "Update README and API docs to match current behavior",
+        "tags": [
+          "docs",
+          "readme",
+          "documentation"
+        ],
+        "lastUsedDays": 8,
+        "uses": 16
+      },
+      {
+        "name": "database-migration",
+        "description": "Create and verify a database schema migration with rollback",
+        "tags": [
+          "database",
+          "migration",
+          "schema"
+        ],
+        "lastUsedDays": 21,
+        "uses": 7
+      },
+      {
+        "name": "generate-api-client",
+        "description": "Generate a typed client from an OpenAPI schema",
+        "tags": [
+          "api",
+          "openapi",
+          "client"
+        ],
+        "lastUsedDays": 25,
+        "uses": 6
+      },
+      {
+        "name": "analyze-logs",
+        "description": "Analyze application logs to find error patterns and correlations",
+        "tags": [
+          "logs",
+          "errors",
+          "analysis"
+        ],
+        "lastUsedDays": 11,
+        "uses": 12
+      },
+      {
+        "name": "review-security",
+        "description": "Review code changes for security vulnerabilities and unsafe input handling",
+        "tags": [
+          "security",
+          "review",
+          "vulnerabilities"
+        ],
+        "lastUsedDays": 5,
+        "uses": 17
+      },
+      {
+        "name": "legacy-test-runner",
+        "description": "Run the legacy JUnit test suite on the sunset CI host, upload XML reports, and publish the results to the old dashboard",
+        "tags": [
+          "test",
+          "legacy",
+          "ci",
+          "xml",
+          "report"
+        ],
+        "lastUsedDays": 240,
+        "uses": 1
+      },
+      {
+        "name": "legacy-typecheck",
+        "description": "Run the deprecated TypeScript type checker on the old CI host and report legacy type diagnostics to the build dashboard",
+        "tags": [
+          "typescript",
+          "legacy",
+          "ci",
+          "report",
+          "diagnostic"
+        ],
+        "lastUsedDays": 300,
+        "uses": 1
+      },
+      {
+        "name": "test-suite-mirror",
+        "description": "Synchronize the legacy test suite mirror repository, upload XML reports, and refresh the old documentation index",
+        "tags": [
+          "svn",
+          "mirror",
+          "test",
+          "suite",
+          "xml",
+          "report"
+        ],
+        "lastUsedDays": 180,
+        "uses": 1
+      },
+      {
+        "name": "type-error-report",
+        "description": "Produce the nightly TypeScript error summary report for the retired build host and email the archive to the old partner",
+        "tags": [
+          "typescript",
+          "report",
+          "ci",
+          "legacy"
+        ],
+        "lastUsedDays": 400,
+        "uses": 0
+      },
+      {
+        "name": "run-tests-legacy",
+        "description": "Run the project test suite and report failing tests with detailed diagnostics",
+        "tags": [
+          "test",
+          "suite",
+          "xml",
+          "ci",
+          "report"
+        ],
+        "lastUsedDays": 10,
+        "uses": 4,
+        "duplicateOf": "run-tests"
+      },
+      {
+        "name": "type-check-fast",
+        "description": "Run the TypeScript compiler in no-emit mode to find type errors quickly",
+        "tags": [
+          "typescript",
+          "compiler",
+          "checker",
+          "ci",
+          "diagnostic"
+        ],
+        "lastUsedDays": 18,
+        "uses": 3,
+        "duplicateOf": "type-check"
+      },
+      {
+        "name": "git-diff-review-plus",
+        "description": "Review a git diff for bugs, missing tests, and risky code changes",
+        "tags": [
+          "git",
+          "diff",
+          "review",
+          "code"
+        ],
+        "lastUsedDays": 16,
+        "uses": 5,
+        "duplicateOf": "git-diff-review"
+      },
+      {
+        "name": "debug-failing-test-v2",
+        "description": "Debug a failing test by reproducing it and isolating the root cause quickly",
+        "tags": [
+          "debug",
+          "test",
+          "failing"
+        ],
+        "lastUsedDays": 12,
+        "uses": 6,
+        "duplicateOf": "debug-failing-test"
+      }
+    ],
+    "queries": [
+      {
+        "id": "q01",
+        "query": "run the test suite on CI and upload XML reports for the repository",
+        "expectedSkill": "run-tests",
+        "scenario": "crowded",
+        "note": "Deliberately crowded by a near-duplicate runner and two legacy test/report tools."
+      },
+      {
+        "id": "q02",
+        "query": "run the TypeScript checker on CI and report type diagnostics",
+        "expectedSkill": "type-check",
+        "scenario": "crowded",
+        "note": "Deliberately crowded by a near-duplicate checker and two stale type/report tools."
+      },
+      {
+        "id": "q03",
+        "query": "format source files and fix style issues",
+        "expectedSkill": "format-code",
+        "scenario": "clean"
+      },
+      {
+        "id": "q04",
+        "query": "review a git diff for bugs missing tests and risky changes",
+        "expectedSkill": "git-diff-review",
+        "scenario": "clean"
+      },
+      {
+        "id": "q05",
+        "query": "scan package dependencies for known security vulnerabilities",
+        "expectedSkill": "dependency-audit",
+        "scenario": "clean"
+      },
+      {
+        "id": "q06",
+        "query": "build the production bundle and inspect output size warnings",
+        "expectedSkill": "build-bundle",
+        "scenario": "clean"
+      },
+      {
+        "id": "q07",
+        "query": "benchmark function latency and compare performance regressions",
+        "expectedSkill": "benchmark-performance",
+        "scenario": "clean"
+      },
+      {
+        "id": "q08",
+        "query": "create unit tests for an existing module with edge case coverage",
+        "expectedSkill": "write-unit-test",
+        "scenario": "clean"
+      },
+      {
+        "id": "q09",
+        "query": "debug a failing test and isolate the root cause",
+        "expectedSkill": "debug-failing-test",
+        "scenario": "clean"
+      },
+      {
+        "id": "q10",
+        "query": "create and verify a database schema migration with rollback",
+        "expectedSkill": "database-migration",
+        "scenario": "clean"
+      },
+      {
+        "id": "q11",
+        "query": "generate a typed API client from an OpenAPI schema",
+        "expectedSkill": "generate-api-client",
+        "scenario": "clean"
+      },
+      {
+        "id": "q12",
+        "query": "review code changes for security vulnerabilities and unsafe input handling",
+        "expectedSkill": "review-security",
+        "scenario": "clean"
+      }
+    ]
+  },
+  "curation": {
+    "policyOrder": [
+      "Archive near-duplicates, keeping the copy with higher uses.",
+      "Archive stale skills (lastUsedDays > 90 and uses < 2).",
+      "Pin the top 20% of remaining skills by uses with a small retrieval boost."
+    ],
+    "nearDuplicatePairs": [
+      {
+        "kept": "run-tests",
+        "archived": "run-tests-legacy",
+        "keptUses": 48,
+        "archivedUses": 4,
+        "jaccard": 0.875
+      },
+      {
+        "kept": "type-check",
+        "archived": "type-check-fast",
+        "keptUses": 36,
+        "archivedUses": 3,
+        "jaccard": 0.9
+      },
+      {
+        "kept": "git-diff-review",
+        "archived": "git-diff-review-plus",
+        "keptUses": 30,
+        "archivedUses": 5,
+        "jaccard": 0.8889
+      },
+      {
+        "kept": "debug-failing-test",
+        "archived": "debug-failing-test-v2",
+        "keptUses": 26,
+        "archivedUses": 6,
+        "jaccard": 0.875
+      }
+    ],
+    "archived": [
+      {
+        "name": "legacy-test-runner",
+        "reason": "stale",
+        "lastUsedDays": 240,
+        "uses": 1,
+        "descriptionChars": 119
+      },
+      {
+        "name": "legacy-typecheck",
+        "reason": "stale",
+        "lastUsedDays": 300,
+        "uses": 1,
+        "descriptionChars": 119
+      },
+      {
+        "name": "test-suite-mirror",
+        "reason": "stale",
+        "lastUsedDays": 180,
+        "uses": 1,
+        "descriptionChars": 112
+      },
+      {
+        "name": "type-error-report",
+        "reason": "stale",
+        "lastUsedDays": 400,
+        "uses": 0,
+        "descriptionChars": 119
+      },
+      {
+        "name": "run-tests-legacy",
+        "reason": "near-duplicate",
+        "duplicateOf": "run-tests",
+        "jaccard": 0.875,
+        "lastUsedDays": 10,
+        "uses": 4,
+        "descriptionChars": 77
+      },
+      {
+        "name": "type-check-fast",
+        "reason": "near-duplicate",
+        "duplicateOf": "type-check",
+        "jaccard": 0.9,
+        "lastUsedDays": 18,
+        "uses": 3,
+        "descriptionChars": 71
+      },
+      {
+        "name": "git-diff-review-plus",
+        "reason": "near-duplicate",
+        "duplicateOf": "git-diff-review",
+        "jaccard": 0.8889,
+        "lastUsedDays": 16,
+        "uses": 5,
+        "descriptionChars": 65
+      },
+      {
+        "name": "debug-failing-test-v2",
+        "reason": "near-duplicate",
+        "duplicateOf": "debug-failing-test",
+        "jaccard": 0.875,
+        "lastUsedDays": 12,
+        "uses": 6,
+        "descriptionChars": 75
+      }
+    ],
+    "archivedCount": 8,
+    "pinned": [
+      "run-tests",
+      "type-check",
+      "git-diff-review",
+      "debug-failing-test"
+    ],
+    "remaining": [
+      "run-tests",
+      "type-check",
+      "format-code",
+      "git-diff-review",
+      "dependency-audit",
+      "build-bundle",
+      "benchmark-performance",
+      "write-unit-test",
+      "debug-failing-test",
+      "release-notes",
+      "refactor-module",
+      "update-docs",
+      "database-migration",
+      "generate-api-client",
+      "analyze-logs",
+      "review-security"
+    ]
+  },
+  "metrics": {
+    "baseline": {
+      "queries": 12,
+      "hitsAt3": 10,
+      "hitAt3": 0.8333,
+      "mrr": 0.875,
+      "noiseSelections": 9,
+      "noiseSelectionRate": 0.25,
+      "queriesWithNoise": 5,
+      "avgCandidateDescriptionChars": 70.86,
+      "avgPoolDescriptionChars": 73.58,
+      "searchableSkills": 24
+    },
+    "treatment": {
+      "queries": 12,
+      "hitsAt3": 12,
+      "hitAt3": 1,
+      "mrr": 1,
+      "noiseSelections": 0,
+      "noiseSelectionRate": 0,
+      "queriesWithNoise": 0,
+      "avgCandidateDescriptionChars": 64.47,
+      "avgPoolDescriptionChars": 63.06,
+      "searchableSkills": 16
+    },
+    "scenarioBreakdown": {
+      "clean": {
+        "queries": 10,
+        "baseline": {
+          "queries": 10,
+          "hitsAt3": 10,
+          "hitAt3": 1,
+          "mrr": 1,
+          "noiseSelections": 3,
+          "noiseSelectionRate": 0.1,
+          "queriesWithNoise": 3,
+          "avgCandidateDescriptionChars": 64.47,
+          "avgPoolDescriptionChars": 73.58,
+          "searchableSkills": 24
+        },
+        "treatment": {
+          "queries": 10,
+          "hitsAt3": 10,
+          "hitAt3": 1,
+          "mrr": 1,
+          "noiseSelections": 0,
+          "noiseSelectionRate": 0,
+          "queriesWithNoise": 0,
+          "avgCandidateDescriptionChars": 64.37,
+          "avgPoolDescriptionChars": 63.06,
+          "searchableSkills": 16
+        }
+      },
+      "crowded": {
+        "queries": 2,
+        "baseline": {
+          "queries": 2,
+          "hitsAt3": 0,
+          "hitAt3": 0,
+          "mrr": 0.25,
+          "noiseSelections": 6,
+          "noiseSelectionRate": 1,
+          "queriesWithNoise": 2,
+          "avgCandidateDescriptionChars": 102.83,
+          "avgPoolDescriptionChars": 73.58,
+          "searchableSkills": 24
+        },
+        "treatment": {
+          "queries": 2,
+          "hitsAt3": 2,
+          "hitAt3": 1,
+          "mrr": 1,
+          "noiseSelections": 0,
+          "noiseSelectionRate": 0,
+          "queriesWithNoise": 0,
+          "avgCandidateDescriptionChars": 65,
+          "avgPoolDescriptionChars": 63.06,
+          "searchableSkills": 16
+        }
+      }
+    },
+    "delta": {
+      "hitAt3": 0.1667,
+      "mrr": 0.125,
+      "noiseSelectionRate": -0.25,
+      "noiseSelectionRelativeReduction": 1,
+      "avgCandidateDescriptionChars": -6.39,
+      "avgPoolDescriptionChars": -10.52
+    }
+  },
+  "decision": "defer",
+  "decisionDetail": {
+    "ruleDecision": "add-curator-tool",
+    "rule": "add-curator-tool only if treatment hit@3 >= baseline + 0.10 AND stale/duplicate selection rate falls by >= 50% AND character cost does not rise; otherwise do-not-add.",
+    "checks": {
+      "hitAt3Improvement": {
+        "actual": 0.1667,
+        "required": 0.1,
+        "pass": true
+      },
+      "noiseSelectionReduction": {
+        "actual": 1,
+        "required": 0.5,
+        "pass": true
+      },
+      "characterCostNotUp": {
+        "actualCandidateCharDelta": -6.39,
+        "actualPoolCharDelta": -10.52,
+        "required": "both <= 0",
+        "pass": true
+      }
+    },
+    "evidenceLevel": "synthetic-simulation",
+    "simulationOnly": true,
+    "rationale": "The simulated thresholds pass, but the advantage comes from a hand-authored synthetic corpus and two deliberately crowded queries. There is no real dsh skill corpus or Agent-level task evidence, so the recommendation is defer, not add.",
+    "recommendedNextStep": "Collect real dsh skill usage and 30-50 real agent tasks, then re-evaluate curation against the real skill corpus and an Agent-level success metric before adding the tool."
+  },
+  "perQuery": [
+    {
+      "id": "q01",
+      "query": "run the test suite on CI and upload XML reports for the repository",
+      "expectedSkill": "run-tests",
+      "scenario": "crowded",
+      "note": "Deliberately crowded by a near-duplicate runner and two legacy test/report tools.",
+      "baseline": {
+        "top3": [
+          {
+            "name": "run-tests-legacy",
+            "score": 21.05,
+            "lexical": 20,
+            "usageBoost": 0.563,
+            "recencyBoost": 0.486,
+            "pinBoost": 0
+          },
+          {
+            "name": "test-suite-mirror",
+            "score": 20.496,
+            "lexical": 20,
+            "usageBoost": 0.243,
+            "recencyBoost": 0.253,
+            "pinBoost": 0
+          },
+          {
+            "name": "legacy-test-runner",
+            "score": 18.414,
+            "lexical": 18,
+            "usageBoost": 0.243,
+            "recencyBoost": 0.171,
+            "pinBoost": 0
+          }
+        ],
+        "expectedRank": 4,
+        "hitAt3": false,
+        "reciprocalRank": 0.25,
+        "noiseSelected": [
+          "run-tests-legacy",
+          "test-suite-mirror",
+          "legacy-test-runner"
+        ],
+        "noiseSelectionCount": 3,
+        "noiseSelectionRate": 1,
+        "avgCandidateDescriptionChars": 102.66666666666667
+      },
+      "treatment": {
+        "top3": [
+          {
+            "name": "run-tests",
+            "score": 15.961,
+            "lexical": 14,
+            "usageBoost": 1.362,
+            "recencyBoost": 0.499,
+            "pinBoost": 0.1
+          },
+          {
+            "name": "debug-failing-test",
+            "score": 7.751,
+            "lexical": 6,
+            "usageBoost": 1.154,
+            "recencyBoost": 0.497,
+            "pinBoost": 0.1
+          },
+          {
+            "name": "write-unit-test",
+            "score": 7.557,
+            "lexical": 6,
+            "usageBoost": 1.066,
+            "recencyBoost": 0.492,
+            "pinBoost": 0
+          }
+        ],
+        "expectedRank": 1,
+        "hitAt3": true,
+        "reciprocalRank": 1,
+        "noiseSelected": [],
+        "noiseSelectionCount": 0,
+        "noiseSelectionRate": 0,
+        "avgCandidateDescriptionChars": 66.33333333333333
+      }
+    },
+    {
+      "id": "q02",
+      "query": "run the TypeScript checker on CI and report type diagnostics",
+      "expectedSkill": "type-check",
+      "scenario": "crowded",
+      "note": "Deliberately crowded by a near-duplicate checker and two stale type/report tools.",
+      "baseline": {
+        "top3": [
+          {
+            "name": "legacy-typecheck",
+            "score": 15.332,
+            "lexical": 15,
+            "usageBoost": 0.243,
+            "recencyBoost": 0.089,
+            "pinBoost": 0
+          },
+          {
+            "name": "type-check-fast",
+            "score": 14.961,
+            "lexical": 14,
+            "usageBoost": 0.485,
+            "recencyBoost": 0.475,
+            "pinBoost": 0
+          },
+          {
+            "name": "type-error-report",
+            "score": 14,
+            "lexical": 14,
+            "usageBoost": 0,
+            "recencyBoost": 0,
+            "pinBoost": 0
+          }
+        ],
+        "expectedRank": 4,
+        "hitAt3": false,
+        "reciprocalRank": 0.25,
+        "noiseSelected": [
+          "legacy-typecheck",
+          "type-check-fast",
+          "type-error-report"
+        ],
+        "noiseSelectionCount": 3,
+        "noiseSelectionRate": 1,
+        "avgCandidateDescriptionChars": 103
+      },
+      "treatment": {
+        "top3": [
+          {
+            "name": "type-check",
+            "score": 11.861,
+            "lexical": 10,
+            "usageBoost": 1.264,
+            "recencyBoost": 0.497,
+            "pinBoost": 0.1
+          },
+          {
+            "name": "run-tests",
+            "score": 7.961,
+            "lexical": 6,
+            "usageBoost": 1.362,
+            "recencyBoost": 0.499,
+            "pinBoost": 0.1
+          },
+          {
+            "name": "git-diff-review",
+            "score": 1.798,
+            "lexical": 0,
+            "usageBoost": 1.202,
+            "recencyBoost": 0.496,
+            "pinBoost": 0.1
+          }
+        ],
+        "expectedRank": 1,
+        "hitAt3": true,
+        "reciprocalRank": 1,
+        "noiseSelected": [],
+        "noiseSelectionCount": 0,
+        "noiseSelectionRate": 0,
+        "avgCandidateDescriptionChars": 63.666666666666664
+      }
+    },
+    {
+      "id": "q03",
+      "query": "format source files and fix style issues",
+      "expectedSkill": "format-code",
+      "scenario": "clean",
+      "baseline": {
+        "top3": [
+          {
+            "name": "format-code",
+            "score": 14.591,
+            "lexical": 13,
+            "usageBoost": 1.097,
+            "recencyBoost": 0.493,
+            "pinBoost": 0
+          },
+          {
+            "name": "run-tests",
+            "score": 1.861,
+            "lexical": 0,
+            "usageBoost": 1.362,
+            "recencyBoost": 0.499,
+            "pinBoost": 0
+          },
+          {
+            "name": "type-check",
+            "score": 1.761,
+            "lexical": 0,
+            "usageBoost": 1.264,
+            "recencyBoost": 0.497,
+            "pinBoost": 0
+          }
+        ],
+        "expectedRank": 1,
+        "hitAt3": true,
+        "reciprocalRank": 1,
+        "noiseSelected": [],
+        "noiseSelectionCount": 0,
+        "noiseSelectionRate": 0,
+        "avgCandidateDescriptionChars": 67
+      },
+      "treatment": {
+        "top3": [
+          {
+            "name": "format-code",
+            "score": 14.591,
+            "lexical": 13,
+            "usageBoost": 1.097,
+            "recencyBoost": 0.493,
+            "pinBoost": 0
+          },
+          {
+            "name": "run-tests",
+            "score": 1.961,
+            "lexical": 0,
+            "usageBoost": 1.362,
+            "recencyBoost": 0.499,
+            "pinBoost": 0.1
+          },
+          {
+            "name": "type-check",
+            "score": 1.861,
+            "lexical": 0,
+            "usageBoost": 1.264,
+            "recencyBoost": 0.497,
+            "pinBoost": 0.1
+          }
+        ],
+        "expectedRank": 1,
+        "hitAt3": true,
+        "reciprocalRank": 1,
+        "noiseSelected": [],
+        "noiseSelectionCount": 0,
+        "noiseSelectionRate": 0,
+        "avgCandidateDescriptionChars": 67
+      }
+    },
+    {
+      "id": "q04",
+      "query": "review a git diff for bugs missing tests and risky changes",
+      "expectedSkill": "git-diff-review",
+      "scenario": "clean",
+      "baseline": {
+        "top3": [
+          {
+            "name": "git-diff-review",
+            "score": 24.698,
+            "lexical": 23,
+            "usageBoost": 1.202,
+            "recencyBoost": 0.496,
+            "pinBoost": 0
+          },
+          {
+            "name": "git-diff-review-plus",
+            "score": 24.105,
+            "lexical": 23,
+            "usageBoost": 0.627,
+            "recencyBoost": 0.478,
+            "pinBoost": 0
+          },
+          {
+            "name": "review-security",
+            "score": 8.505,
+            "lexical": 7,
+            "usageBoost": 1.012,
+            "recencyBoost": 0.493,
+            "pinBoost": 0
+          }
+        ],
+        "expectedRank": 1,
+        "hitAt3": true,
+        "reciprocalRank": 1,
+        "noiseSelected": [
+          "git-diff-review-plus"
+        ],
+        "noiseSelectionCount": 1,
+        "noiseSelectionRate": 0.3333333333333333,
+        "avgCandidateDescriptionChars": 66.33333333333333
+      },
+      "treatment": {
+        "top3": [
+          {
+            "name": "git-diff-review",
+            "score": 24.798,
+            "lexical": 23,
+            "usageBoost": 1.202,
+            "recencyBoost": 0.496,
+            "pinBoost": 0.1
+          },
+          {
+            "name": "review-security",
+            "score": 8.505,
+            "lexical": 7,
+            "usageBoost": 1.012,
+            "recencyBoost": 0.493,
+            "pinBoost": 0
+          },
+          {
+            "name": "run-tests",
+            "score": 7.961,
+            "lexical": 6,
+            "usageBoost": 1.362,
+            "recencyBoost": 0.499,
+            "pinBoost": 0.1
+          }
+        ],
+        "expectedRank": 1,
+        "hitAt3": true,
+        "reciprocalRank": 1,
+        "noiseSelected": [],
+        "noiseSelectionCount": 0,
+        "noiseSelectionRate": 0,
+        "avgCandidateDescriptionChars": 67.33333333333333
+      }
+    },
+    {
+      "id": "q05",
+      "query": "scan package dependencies for known security vulnerabilities",
+      "expectedSkill": "dependency-audit",
+      "scenario": "clean",
+      "baseline": {
+        "top3": [
+          {
+            "name": "dependency-audit",
+            "score": 13.438,
+            "lexical": 12,
+            "usageBoost": 0.948,
+            "recencyBoost": 0.49,
+            "pinBoost": 0
+          },
+          {
+            "name": "review-security",
+            "score": 10.505,
+            "lexical": 9,
+            "usageBoost": 1.012,
+            "recencyBoost": 0.493,
+            "pinBoost": 0
+          },
+          {
+            "name": "run-tests",
+            "score": 1.861,
+            "lexical": 0,
+            "usageBoost": 1.362,
+            "recencyBoost": 0.499,
+            "pinBoost": 0
+          }
+        ],
+        "expectedRank": 1,
+        "hitAt3": true,
+        "reciprocalRank": 1,
+        "noiseSelected": [],
+        "noiseSelectionCount": 0,
+        "noiseSelectionRate": 0,
+        "avgCandidateDescriptionChars": 71.66666666666667
+      },
+      "treatment": {
+        "top3": [
+          {
+            "name": "dependency-audit",
+            "score": 13.438,
+            "lexical": 12,
+            "usageBoost": 0.948,
+            "recencyBoost": 0.49,
+            "pinBoost": 0
+          },
+          {
+            "name": "review-security",
+            "score": 10.505,
+            "lexical": 9,
+            "usageBoost": 1.012,
+            "recencyBoost": 0.493,
+            "pinBoost": 0
+          },
+          {
+            "name": "run-tests",
+            "score": 1.961,
+            "lexical": 0,
+            "usageBoost": 1.362,
+            "recencyBoost": 0.499,
+            "pinBoost": 0.1
+          }
+        ],
+        "expectedRank": 1,
+        "hitAt3": true,
+        "reciprocalRank": 1,
+        "noiseSelected": [],
+        "noiseSelectionCount": 0,
+        "noiseSelectionRate": 0,
+        "avgCandidateDescriptionChars": 71.66666666666667
+      }
+    },
+    {
+      "id": "q06",
+      "query": "build the production bundle and inspect output size warnings",
+      "expectedSkill": "build-bundle",
+      "scenario": "clean",
+      "baseline": {
+        "top3": [
+          {
+            "name": "build-bundle",
+            "score": 20.525,
+            "lexical": 19,
+            "usageBoost": 1.031,
+            "recencyBoost": 0.495,
+            "pinBoost": 0
+          },
+          {
+            "name": "run-tests",
+            "score": 1.861,
+            "lexical": 0,
+            "usageBoost": 1.362,
+            "recencyBoost": 0.499,
+            "pinBoost": 0
+          },
+          {
+            "name": "type-check",
+            "score": 1.761,
+            "lexical": 0,
+            "usageBoost": 1.264,
+            "recencyBoost": 0.497,
+            "pinBoost": 0
+          }
+        ],
+        "expectedRank": 1,
+        "hitAt3": true,
+        "reciprocalRank": 1,
+        "noiseSelected": [],
+        "noiseSelectionCount": 0,
+        "noiseSelectionRate": 0,
+        "avgCandidateDescriptionChars": 63.666666666666664
+      },
+      "treatment": {
+        "top3": [
+          {
+            "name": "build-bundle",
+            "score": 20.525,
+            "lexical": 19,
+            "usageBoost": 1.031,
+            "recencyBoost": 0.495,
+            "pinBoost": 0
+          },
+          {
+            "name": "run-tests",
+            "score": 1.961,
+            "lexical": 0,
+            "usageBoost": 1.362,
+            "recencyBoost": 0.499,
+            "pinBoost": 0.1
+          },
+          {
+            "name": "type-check",
+            "score": 1.861,
+            "lexical": 0,
+            "usageBoost": 1.264,
+            "recencyBoost": 0.497,
+            "pinBoost": 0.1
+          }
+        ],
+        "expectedRank": 1,
+        "hitAt3": true,
+        "reciprocalRank": 1,
+        "noiseSelected": [],
+        "noiseSelectionCount": 0,
+        "noiseSelectionRate": 0,
+        "avgCandidateDescriptionChars": 63.666666666666664
+      }
+    },
+    {
+      "id": "q07",
+      "query": "benchmark function latency and compare performance regressions",
+      "expectedSkill": "benchmark-performance",
+      "scenario": "clean",
+      "baseline": {
+        "top3": [
+          {
+            "name": "benchmark-performance",
+            "score": 18.289,
+            "lexical": 17,
+            "usageBoost": 0.806,
+            "recencyBoost": 0.484,
+            "pinBoost": 0
+          },
+          {
+            "name": "run-tests",
+            "score": 1.861,
+            "lexical": 0,
+            "usageBoost": 1.362,
+            "recencyBoost": 0.499,
+            "pinBoost": 0
+          },
+          {
+            "name": "type-check",
+            "score": 1.761,
+            "lexical": 0,
+            "usageBoost": 1.264,
+            "recencyBoost": 0.497,
+            "pinBoost": 0
+          }
+        ],
+        "expectedRank": 1,
+        "hitAt3": true,
+        "reciprocalRank": 1,
+        "noiseSelected": [],
+        "noiseSelectionCount": 0,
+        "noiseSelectionRate": 0,
+        "avgCandidateDescriptionChars": 64.66666666666667
+      },
+      "treatment": {
+        "top3": [
+          {
+            "name": "benchmark-performance",
+            "score": 18.289,
+            "lexical": 17,
+            "usageBoost": 0.806,
+            "recencyBoost": 0.484,
+            "pinBoost": 0
+          },
+          {
+            "name": "run-tests",
+            "score": 1.961,
+            "lexical": 0,
+            "usageBoost": 1.362,
+            "recencyBoost": 0.499,
+            "pinBoost": 0.1
+          },
+          {
+            "name": "type-check",
+            "score": 1.861,
+            "lexical": 0,
+            "usageBoost": 1.264,
+            "recencyBoost": 0.497,
+            "pinBoost": 0.1
+          }
+        ],
+        "expectedRank": 1,
+        "hitAt3": true,
+        "reciprocalRank": 1,
+        "noiseSelected": [],
+        "noiseSelectionCount": 0,
+        "noiseSelectionRate": 0,
+        "avgCandidateDescriptionChars": 64.66666666666667
+      }
+    },
+    {
+      "id": "q08",
+      "query": "create unit tests for an existing module with edge case coverage",
+      "expectedSkill": "write-unit-test",
+      "scenario": "clean",
+      "baseline": {
+        "top3": [
+          {
+            "name": "write-unit-test",
+            "score": 21.557,
+            "lexical": 20,
+            "usageBoost": 1.066,
+            "recencyBoost": 0.492,
+            "pinBoost": 0
+          },
+          {
+            "name": "run-tests",
+            "score": 7.861,
+            "lexical": 6,
+            "usageBoost": 1.362,
+            "recencyBoost": 0.499,
+            "pinBoost": 0
+          },
+          {
+            "name": "debug-failing-test",
+            "score": 7.651,
+            "lexical": 6,
+            "usageBoost": 1.154,
+            "recencyBoost": 0.497,
+            "pinBoost": 0
+          }
+        ],
+        "expectedRank": 1,
+        "hitAt3": true,
+        "reciprocalRank": 1,
+        "noiseSelected": [],
+        "noiseSelectionCount": 0,
+        "noiseSelectionRate": 0,
+        "avgCandidateDescriptionChars": 66.33333333333333
+      },
+      "treatment": {
+        "top3": [
+          {
+            "name": "write-unit-test",
+            "score": 21.557,
+            "lexical": 20,
+            "usageBoost": 1.066,
+            "recencyBoost": 0.492,
+            "pinBoost": 0
+          },
+          {
+            "name": "run-tests",
+            "score": 7.961,
+            "lexical": 6,
+            "usageBoost": 1.362,
+            "recencyBoost": 0.499,
+            "pinBoost": 0.1
+          },
+          {
+            "name": "debug-failing-test",
+            "score": 7.751,
+            "lexical": 6,
+            "usageBoost": 1.154,
+            "recencyBoost": 0.497,
+            "pinBoost": 0.1
+          }
+        ],
+        "expectedRank": 1,
+        "hitAt3": true,
+        "reciprocalRank": 1,
+        "noiseSelected": [],
+        "noiseSelectionCount": 0,
+        "noiseSelectionRate": 0,
+        "avgCandidateDescriptionChars": 66.33333333333333
+      }
+    },
+    {
+      "id": "q09",
+      "query": "debug a failing test and isolate the root cause",
+      "expectedSkill": "debug-failing-test",
+      "scenario": "clean",
+      "baseline": {
+        "top3": [
+          {
+            "name": "debug-failing-test",
+            "score": 21.651,
+            "lexical": 20,
+            "usageBoost": 1.154,
+            "recencyBoost": 0.497,
+            "pinBoost": 0
+          },
+          {
+            "name": "debug-failing-test-v2",
+            "score": 21.165,
+            "lexical": 20,
+            "usageBoost": 0.681,
+            "recencyBoost": 0.484,
+            "pinBoost": 0
+          },
+          {
+            "name": "run-tests",
+            "score": 8.861,
+            "lexical": 7,
+            "usageBoost": 1.362,
+            "recencyBoost": 0.499,
+            "pinBoost": 0
+          }
+        ],
+        "expectedRank": 1,
+        "hitAt3": true,
+        "reciprocalRank": 1,
+        "noiseSelected": [
+          "debug-failing-test-v2"
+        ],
+        "noiseSelectionCount": 1,
+        "noiseSelectionRate": 0.3333333333333333,
+        "avgCandidateDescriptionChars": 70
+      },
+      "treatment": {
+        "top3": [
+          {
+            "name": "debug-failing-test",
+            "score": 21.751,
+            "lexical": 20,
+            "usageBoost": 1.154,
+            "recencyBoost": 0.497,
+            "pinBoost": 0.1
+          },
+          {
+            "name": "run-tests",
+            "score": 8.961,
+            "lexical": 7,
+            "usageBoost": 1.362,
+            "recencyBoost": 0.499,
+            "pinBoost": 0.1
+          },
+          {
+            "name": "write-unit-test",
+            "score": 7.557,
+            "lexical": 6,
+            "usageBoost": 1.066,
+            "recencyBoost": 0.492,
+            "pinBoost": 0
+          }
+        ],
+        "expectedRank": 1,
+        "hitAt3": true,
+        "reciprocalRank": 1,
+        "noiseSelected": [],
+        "noiseSelectionCount": 0,
+        "noiseSelectionRate": 0,
+        "avgCandidateDescriptionChars": 66.33333333333333
+      }
+    },
+    {
+      "id": "q10",
+      "query": "create and verify a database schema migration with rollback",
+      "expectedSkill": "database-migration",
+      "scenario": "clean",
+      "baseline": {
+        "top3": [
+          {
+            "name": "database-migration",
+            "score": 19.199,
+            "lexical": 18,
+            "usageBoost": 0.728,
+            "recencyBoost": 0.471,
+            "pinBoost": 0
+          },
+          {
+            "name": "write-unit-test",
+            "score": 2.557,
+            "lexical": 1,
+            "usageBoost": 1.066,
+            "recencyBoost": 0.492,
+            "pinBoost": 0
+          },
+          {
+            "name": "generate-api-client",
+            "score": 2.147,
+            "lexical": 1,
+            "usageBoost": 0.681,
+            "recencyBoost": 0.466,
+            "pinBoost": 0
+          }
+        ],
+        "expectedRank": 1,
+        "hitAt3": true,
+        "reciprocalRank": 1,
+        "noiseSelected": [],
+        "noiseSelectionCount": 0,
+        "noiseSelectionRate": 0,
+        "avgCandidateDescriptionChars": 56.333333333333336
+      },
+      "treatment": {
+        "top3": [
+          {
+            "name": "database-migration",
+            "score": 19.199,
+            "lexical": 18,
+            "usageBoost": 0.728,
+            "recencyBoost": 0.471,
+            "pinBoost": 0
+          },
+          {
+            "name": "write-unit-test",
+            "score": 2.557,
+            "lexical": 1,
+            "usageBoost": 1.066,
+            "recencyBoost": 0.492,
+            "pinBoost": 0
+          },
+          {
+            "name": "generate-api-client",
+            "score": 2.147,
+            "lexical": 1,
+            "usageBoost": 0.681,
+            "recencyBoost": 0.466,
+            "pinBoost": 0
+          }
+        ],
+        "expectedRank": 1,
+        "hitAt3": true,
+        "reciprocalRank": 1,
+        "noiseSelected": [],
+        "noiseSelectionCount": 0,
+        "noiseSelectionRate": 0,
+        "avgCandidateDescriptionChars": 56.333333333333336
+      }
+    },
+    {
+      "id": "q11",
+      "query": "generate a typed API client from an OpenAPI schema",
+      "expectedSkill": "generate-api-client",
+      "scenario": "clean",
+      "baseline": {
+        "top3": [
+          {
+            "name": "generate-api-client",
+            "score": 21.147,
+            "lexical": 20,
+            "usageBoost": 0.681,
+            "recencyBoost": 0.466,
+            "pinBoost": 0
+          },
+          {
+            "name": "database-migration",
+            "score": 4.199,
+            "lexical": 3,
+            "usageBoost": 0.728,
+            "recencyBoost": 0.471,
+            "pinBoost": 0
+          },
+          {
+            "name": "update-docs",
+            "score": 2.481,
+            "lexical": 1,
+            "usageBoost": 0.992,
+            "recencyBoost": 0.489,
+            "pinBoost": 0
+          }
+        ],
+        "expectedRank": 1,
+        "hitAt3": true,
+        "reciprocalRank": 1,
+        "noiseSelected": [],
+        "noiseSelectionCount": 0,
+        "noiseSelectionRate": 0,
+        "avgCandidateDescriptionChars": 52.333333333333336
+      },
+      "treatment": {
+        "top3": [
+          {
+            "name": "generate-api-client",
+            "score": 21.147,
+            "lexical": 20,
+            "usageBoost": 0.681,
+            "recencyBoost": 0.466,
+            "pinBoost": 0
+          },
+          {
+            "name": "database-migration",
+            "score": 4.199,
+            "lexical": 3,
+            "usageBoost": 0.728,
+            "recencyBoost": 0.471,
+            "pinBoost": 0
+          },
+          {
+            "name": "update-docs",
+            "score": 2.481,
+            "lexical": 1,
+            "usageBoost": 0.992,
+            "recencyBoost": 0.489,
+            "pinBoost": 0
+          }
+        ],
+        "expectedRank": 1,
+        "hitAt3": true,
+        "reciprocalRank": 1,
+        "noiseSelected": [],
+        "noiseSelectionCount": 0,
+        "noiseSelectionRate": 0,
+        "avgCandidateDescriptionChars": 52.333333333333336
+      }
+    },
+    {
+      "id": "q12",
+      "query": "review code changes for security vulnerabilities and unsafe input handling",
+      "expectedSkill": "review-security",
+      "scenario": "clean",
+      "baseline": {
+        "top3": [
+          {
+            "name": "review-security",
+            "score": 21.505,
+            "lexical": 20,
+            "usageBoost": 1.012,
+            "recencyBoost": 0.493,
+            "pinBoost": 0
+          },
+          {
+            "name": "git-diff-review-plus",
+            "score": 11.105,
+            "lexical": 10,
+            "usageBoost": 0.627,
+            "recencyBoost": 0.478,
+            "pinBoost": 0
+          },
+          {
+            "name": "git-diff-review",
+            "score": 8.698,
+            "lexical": 7,
+            "usageBoost": 1.202,
+            "recencyBoost": 0.496,
+            "pinBoost": 0
+          }
+        ],
+        "expectedRank": 1,
+        "hitAt3": true,
+        "reciprocalRank": 1,
+        "noiseSelected": [
+          "git-diff-review-plus"
+        ],
+        "noiseSelectionCount": 1,
+        "noiseSelectionRate": 0.3333333333333333,
+        "avgCandidateDescriptionChars": 66.33333333333333
+      },
+      "treatment": {
+        "top3": [
+          {
+            "name": "review-security",
+            "score": 21.505,
+            "lexical": 20,
+            "usageBoost": 1.012,
+            "recencyBoost": 0.493,
+            "pinBoost": 0
+          },
+          {
+            "name": "git-diff-review",
+            "score": 8.798,
+            "lexical": 7,
+            "usageBoost": 1.202,
+            "recencyBoost": 0.496,
+            "pinBoost": 0.1
+          },
+          {
+            "name": "format-code",
+            "score": 4.591,
+            "lexical": 3,
+            "usageBoost": 1.097,
+            "recencyBoost": 0.493,
+            "pinBoost": 0
+          }
+        ],
+        "expectedRank": 1,
+        "hitAt3": true,
+        "reciprocalRank": 1,
+        "noiseSelected": [],
+        "noiseSelectionCount": 0,
+        "noiseSelectionRate": 0,
+        "avgCandidateDescriptionChars": 68
+      }
+    }
+  ],
+  "limitations": [
+    "24 hand-authored synthetic skills and 12 queries are not a sample of the real dsh skill corpus.",
+    "Two queries (q01, q02) are deliberately crowded by legacy and near-duplicate tools; they are a stress case, not an estimate of how often such collisions occur in production.",
+    "Retrieval is lexical token scoring with hand-set weights; real skill selection may use embeddings, model judgment, or instructions and can behave differently.",
+    "Metrics are retrieval-only: no agent task success, latency, or end-to-end context-ablation evidence.",
+    "Near-duplicate detection uses description token Jaccard > 0.8; real skill descriptions may need a different threshold or a semantic detector.",
+    "Pinning reorders results; this simulation does not measure diversity loss or starvation of long-tail skills."
+  ]
+}

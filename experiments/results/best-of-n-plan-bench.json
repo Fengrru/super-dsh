@@ -1,0 +1,2772 @@
+{
+  "experiment": "best-of-n-plan-bench",
+  "status": "ok",
+  "generatedAt": "2026-10-18T02:24:20.046Z",
+  "startedAt": "2026-10-18T02:23:43.106Z",
+  "finishedAt": "2026-10-18T02:24:20.046Z",
+  "durationMs": 36940,
+  "model": "deepseek-chat",
+  "endpoint": "https://api.deepseek.com/chat/completions",
+  "design": {
+    "tasks": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "baselineSamplesPerTask": 2,
+    "baselineTemperature": 0.3,
+    "candidatesPerTask": 3,
+    "candidateTemperature": 0.9,
+    "judgeTemperature": 0.1,
+    "maxTokens": 1200,
+    "responseFormat": "json_object",
+    "requestTimeoutMs": 120000,
+    "retriesOnFailure": 2,
+    "scoring": {
+      "formula": "0.40 * requiredFileCoverage + 0.30 * requiredConceptCoverage + 0.15 * verification + 0.15 * validity",
+      "requiredFileCoverage": "fraction of requiredFiles present in any step files array (normalized paths)",
+      "requiredConceptCoverage": "fraction of concept groups with at least one keyword pattern hit in step titles, verification, or risks; file paths are stripped first",
+      "verification": "1 if any verification field mentions test/tests/lint/typecheck/verify, otherwise 0",
+      "validity": "fraction of unique file paths referenced anywhere in the plan that are in allowedFiles; 0 if no paths are referenced",
+      "judgeFailurePenalty": "an unparsable judge response scores 0 for the task and counts as a top-1 miss",
+      "tieRule": "any candidate tied for the highest deterministic score counts as oracle top-1"
+    },
+    "decisionThresholds": {
+      "judgeGainAtLeast": 0.1,
+      "judgeTop1AccuracyAtLeast": 0.75,
+      "tokenMultiplierBelow": 3
+    }
+  },
+  "tasks": [
+    {
+      "id": "A",
+      "title": "HTTP client retry with exponential backoff and jitter",
+      "taskSpec": {
+        "requirements": "Add resilient retries to the HTTP client in this repository.\n- Route requests through a retry loop in src/http.ts while preserving the existing request(url, options) API.\n- Implement exponential backoff with full jitter in src/retry.ts. For retry number n (1-based), the delay must be a random value in [0, min(maxDelayMs, baseDelayMs * 2^(n-1))].\n- Retry network failures, HTTP 429, and HTTP 5xx. Do not retry other 4xx responses.\n- Honor a Retry-After header for 429/503 when present, but never sleep longer than maxDelayMs.\n- Honor maxAttempts: the total number of attempts must never exceed it.\n- Keep per-attempt timeouts working; explain how timeoutMs interacts with retries.\n- Add tests for first-attempt success, retry then success, retry exhaustion, non-retryable 4xx, and delay bounds/jitter.",
+        "repoTree": "repo/\n  package.json\n  tsconfig.json\n  src/\n    config.ts\n    http.ts\n    index.ts\n    retry.ts\n  tests/\n    http.test.ts\n    retry.test.ts",
+        "keyFiles": [
+          {
+            "path": "src/http.ts",
+            "content": "export interface HttpOptions {\n  method?: 'GET' | 'POST' | 'PUT' | 'DELETE'\n  headers?: Record<string, string>\n  body?: string\n  timeoutMs?: number\n}\n\nexport async function request(url: string, options: HttpOptions = {}): Promise<Response> {\n  const response = await fetch(url, {\n    method: options.method ?? 'GET',\n    headers: options.headers,\n    body: options.body,\n  })\n  if (!response.ok) throw new Error('HTTP ' + response.status)\n  return response\n}"
+          },
+          {
+            "path": "src/retry.ts",
+            "content": "export interface RetryPolicy {\n  maxAttempts: number\n  baseDelayMs: number\n  maxDelayMs: number\n}\n\nexport function sleep(ms: number): Promise<void> {\n  return new Promise(resolve => setTimeout(resolve, ms))\n}"
+          }
+        ],
+        "requiredFiles": [
+          "src/http.ts",
+          "src/retry.ts"
+        ],
+        "allowedFiles": [
+          "package.json",
+          "tsconfig.json",
+          "src/config.ts",
+          "src/http.ts",
+          "src/index.ts",
+          "src/retry.ts",
+          "tests/http.test.ts",
+          "tests/retry.test.ts"
+        ],
+        "concepts": [
+          {
+            "name": "retry",
+            "patterns": [
+              "\\bretr(?:y|ies|ying|ied)\\b",
+              "\\breattempt"
+            ]
+          },
+          {
+            "name": "backoff",
+            "patterns": [
+              "\\bback[-\\s_]?off\\b",
+              "\\bexponential[-\\s]+(?:delay|backoff)\\b"
+            ]
+          },
+          {
+            "name": "jitter",
+            "patterns": [
+              "\\bjitter\\b",
+              "\\brandom(?:ized)?[-\\s]+(?:delay|backoff)\\b"
+            ]
+          },
+          {
+            "name": "max attempts",
+            "patterns": [
+              "\\bmax(?:imum)?[-\\s_]?(?:attempts?|retries)\\b",
+              "\\battempt[-\\s_]?(?:limit|cap|count|budget)\\b",
+              "\\bretry[-\\s_]?(?:limit|cap|budget)\\b"
+            ]
+          }
+        ]
+      },
+      "baseline": {
+        "samples": [
+          {
+            "index": 0,
+            "temperature": 0.3,
+            "schemaValid": true,
+            "parsed": {
+              "steps": [
+                {
+                  "title": "Add full-jitter exponential backoff helpers to src/retry.ts",
+                  "files": [
+                    "src/retry.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` and `npx vitest run tests/retry.test.ts`. Confirm computeBackoffDelay(n, policy) returns a value in [0, min(maxDelayMs, baseDelayMs * 2^(n-1))] for n>=1, and that sleep(ms) is unchanged. Add unit tests in tests/retry.test.ts asserting bounds across many random samples and that n=1 caps at baseDelayMs."
+                },
+                {
+                  "title": "Add Retry-After parsing and retryability classification to src/retry.ts",
+                  "files": [
+                    "src/retry.ts"
+                  ],
+                  "verification": "Run `npx vitest run tests/retry.test.ts`. Add tests for parseRetryAfter on delta-seconds and HTTP-date formats, and isRetryableStatus returning true for 429 and 5xx, false for 400/401/403/404. Verify Retry-After delays are clamped to maxDelayMs."
+                },
+                {
+                  "title": "Route src/http.ts requests through the retry loop preserving request(url, options)",
+                  "files": [
+                    "src/http.ts",
+                    "src/retry.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` and `npx vitest run tests/http.test.ts`. Confirm the exported signature request(url, options) is unchanged, network errors and 429/5xx are retried, other 4xx throw immediately, and total attempts never exceed maxAttempts."
+                },
+                {
+                  "title": "Implement per-attempt timeouts with AbortController in src/http.ts",
+                  "files": [
+                    "src/http.ts"
+                  ],
+                  "verification": "Run `npx vitest run tests/http.test.ts` with a test that mocks fetch to hang and asserts each attempt aborts after timeoutMs and that the timeout applies per attempt, not to the whole retry sequence. Document in code comments that timeoutMs bounds each individual attempt and total wall time can be up to maxAttempts * timeoutMs plus backoff sleeps."
+                },
+                {
+                  "title": "Wire retry policy defaults through src/config.ts and src/index.ts",
+                  "files": [
+                    "src/config.ts",
+                    "src/index.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` and `npx vitest run`. Confirm default RetryPolicy values (maxAttempts, baseDelayMs, maxDelayMs) are exported from config and re-exported from index without breaking existing imports."
+                },
+                {
+                  "title": "Add HTTP retry behavior tests in tests/http.test.ts",
+                  "files": [
+                    "tests/http.test.ts"
+                  ],
+                  "verification": "Run `npx vitest run tests/http.test.ts`. Cover: first-attempt success (fetch called once), retry then success (e.g. 500 then 200), retry exhaustion (all 500s, fetch called exactly maxAttempts times, final error thrown), non-retryable 4xx (fetch called once), and Retry-After honored and clamped to maxDelayMs using fake timers."
+                },
+                {
+                  "title": "Add delay bounds and jitter tests in tests/retry.test.ts",
+                  "files": [
+                    "tests/retry.test.ts"
+                  ],
+                  "verification": "Run `npx vitest run tests/retry.test.ts`. Assert delays stay within [0, min(maxDelayMs, baseDelayMs * 2^(n-1))] over many samples, that jitter produces varied values (not a constant), and that maxDelayMs caps growth for large n."
+                },
+                {
+                  "title": "Run full verification: typecheck, lint, and all tests",
+                  "files": [
+                    "package.json",
+                    "tsconfig.json",
+                    "src/http.ts",
+                    "src/retry.ts",
+                    "src/config.ts",
+                    "src/index.ts",
+                    "tests/http.test.ts",
+                    "tests/retry.test.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit`, `npm run lint` (if defined in package.json), and `npx vitest run`. All tests must pass and no type or lint errors remain."
+                }
+              ],
+              "risks": [
+                "Using real timers in tests makes backoff tests slow and flaky; fake timers must be used consistently with the sleep implementation.",
+                "Retry-After may be an HTTP-date rather than seconds; incorrect parsing could cause unbounded or zero delays, so clamping to maxDelayMs is essential.",
+                "Per-attempt timeouts mean total wall-clock time can reach maxAttempts * timeoutMs plus backoff sleeps, which may surprise callers expecting a single overall timeout.",
+                "Retrying non-idempotent methods (POST) on network failures can duplicate side effects; consider documenting or restricting retries by method.",
+                "Mocking global fetch across tests can leak state between test files; ensure mocks are restored in afterEach."
+              ]
+            },
+            "schemaIssues": [],
+            "content": "{\"steps\":[{\"title\":\"Add full-jitter exponential backoff helpers to src/retry.ts\",\"files\":[\"src/retry.ts\"],\"verification\":\"Run `npx tsc --noEmit` and `npx vitest run tests/retry.test.ts`. Confirm computeBackoffDelay(n, policy) returns a value in [0, min(maxDelayMs, baseDelayMs * 2^(n-1))] for n>=1, and that sleep(ms) is unchanged. Add unit tests in tests/retry.test.ts asserting bounds across many random samples and that n=1 caps at baseDelayMs.\"},{\"title\":\"Add Retry-After parsing and retryability classification to src/retry.ts\",\"files\":[\"src/retry.ts\"],\"verification\":\"Run `npx vitest run tests/retry.test.ts`. Add tests for parseRetryAfter on delta-seconds and HTTP-date formats, and isRetryableStatus returning true for 429 and 5xx, false for 400/401/403/404. Verify Retry-After delays are clamped to maxDelayMs.\"},{\"title\":\"Route src/http.ts requests through the retry loop preserving request(url, options)\",\"files\":[\"src/http.ts\",\"src/retry.ts\"],\"verification\":\"Run `npx tsc --noEmit` and `npx vitest run tests/http.test.ts`. Confirm the exported signature request(url, options) is unchanged, network errors and 429/5xx are retried, other 4xx throw immediately, and total attempts never exceed maxAttempts.\"},{\"title\":\"Implement per-attempt timeouts with AbortController in src/http.ts\",\"files\":[\"src/http.ts\"],\"verification\":\"Run `npx vitest run tests/http.test.ts` with a test that mocks fetch to hang and asserts each attempt aborts after timeoutMs and that the timeout applies per attempt, not to the whole retry sequence. Document in code comments that timeoutMs bounds each individual attempt and total wall time can be up to maxAttempts * timeoutMs plus backoff sleeps.\"},{\"title\":\"Wire retry policy defaults through src/config.ts and src/index.ts\",\"files\":[\"src/config.ts\",\"src/index.ts\"],\"verification\":\"Run `npx tsc --noEmit` and `npx vitest run`. Confirm default RetryPolicy values (maxAttempts, baseDelayMs, maxDelayMs) are exported from config and re-exported from index without breaking existing imports.\"},{\"title\":\"Add HTTP retry behavior tests in tests/http.test.ts\",\"files\":[\"tests/http.test.ts\"],\"verification\":\"Run `npx vitest run tests/http.test.ts`. Cover: first-attempt success (fetch called once), retry then success (e.g. 500 then 200), retry exhaustion (all 500s, fetch called exactly maxAttempts times, final error thrown), non-retryable 4xx (fetch called once), and Retry-After honored and clamped to maxDelayMs using fake timers.\"},{\"title\":\"Add delay bounds and jitter tests in tests/retry.test.ts\",\"files\":[\"tests/retry.test.ts\"],\"verification\":\"Run `npx vitest run tests/retry.test.ts`. Assert delays stay within [0, min(maxDelayMs, baseDelayMs * 2^(n-1))] over many samples, that jitter produces varied values (not a constant), and that maxDelayMs caps growth for large n.\"},{\"title\":\"Run full verification: typecheck, lint, and all tests\",\"files\":[\"package.json\",\"tsconfig.json\",\"src/http.ts\",\"src/retry.ts\",\"src/config.ts\",\"src/index.ts\",\"tests/http.test.ts\",\"tests/retry.test.ts\"],\"verification\":\"Run `npx tsc --noEmit`, `npm run lint` (if defined in package.json), and `npx vitest run`. All tests must pass and no type or lint errors remain.\"}],\"risks\":[\"Using real timers in tests makes backoff tests slow and flaky; fake timers must be used consistently with the sleep implementation.\",\"Retry-After may be an HTTP-date rather than seconds; incorrect parsing could cause unbounded or zero delays, so clamping to maxDelayMs is essential.\",\"Per-attempt timeouts mean total wall-clock time can reach maxAttempts * timeoutMs plus backoff sleeps, which may surprise callers expecting a single overall timeout.\",\"Retrying non-idempotent methods (POST) on network failures can duplicate side effects; consider documenting or restricting retries by method.\",\"Mocking global fetch across tests can leak state between test files; ensure mocks are restored in afterEach.\"]}",
+            "finishReason": "stop",
+            "score": 1,
+            "subscores": {
+              "score": 1,
+              "requiredFileCoverage": 1,
+              "conceptCoverage": 1,
+              "verification": 1,
+              "validity": 1,
+              "matchedFiles": [
+                "src/http.ts",
+                "src/retry.ts"
+              ],
+              "matchedConcepts": [
+                "retry",
+                "backoff",
+                "jitter",
+                "max attempts"
+              ],
+              "declaredFiles": [
+                "src/retry.ts",
+                "src/http.ts",
+                "src/config.ts",
+                "src/index.ts",
+                "tests/http.test.ts",
+                "tests/retry.test.ts",
+                "package.json",
+                "tsconfig.json"
+              ],
+              "referencedFiles": [
+                "src/retry.ts",
+                "tests/retry.test.ts",
+                "src/http.ts",
+                "tests/http.test.ts",
+                "src/config.ts",
+                "src/index.ts",
+                "package.json",
+                "tsconfig.json"
+              ],
+              "invalidPaths": []
+            },
+            "usage": {
+              "promptTokens": 724,
+              "completionTokens": 994,
+              "totalTokens": 1718,
+              "cacheHitTokens": 0,
+              "cacheMissTokens": 724
+            },
+            "durationMs": 4612,
+            "attempts": 1
+          },
+          {
+            "index": 1,
+            "temperature": 0.3,
+            "schemaValid": true,
+            "parsed": {
+              "steps": [
+                {
+                  "title": "Add full-jitter exponential backoff helper to src/retry.ts",
+                  "files": [
+                    "src/retry.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` to confirm types compile; add unit tests in tests/retry.test.ts asserting computeDelay(n) for n=1..k stays within [0, min(maxDelayMs, baseDelayMs*2^(n-1))] across many samples and that jitter produces varied values."
+                },
+                {
+                  "title": "Add Retry-After parsing and capped delay selection in src/retry.ts",
+                  "files": [
+                    "src/retry.ts"
+                  ],
+                  "verification": "Unit test in tests/retry.test.ts: given a Retry-After header value (seconds or HTTP date), the chosen delay equals min(parsed, maxDelayMs) and never exceeds maxDelayMs; run `npx tsc --noEmit`."
+                },
+                {
+                  "title": "Wrap fetch in retry loop in src/http.ts preserving request(url, options) API",
+                  "files": [
+                    "src/http.ts",
+                    "src/retry.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` and `npm test -- tests/http.test.ts`; confirm request signature unchanged and existing callers in src/index.ts still typecheck."
+                },
+                {
+                  "title": "Implement per-attempt timeout via AbortController in src/http.ts",
+                  "files": [
+                    "src/http.ts"
+                  ],
+                  "verification": "Test in tests/http.test.ts with a mocked fetch that never resolves and a small timeoutMs, asserting the attempt aborts and the error surfaces after maxAttempts; run `npm test -- tests/http.test.ts`."
+                },
+                {
+                  "title": "Classify retryable vs non-retryable outcomes in src/http.ts",
+                  "files": [
+                    "src/http.ts"
+                  ],
+                  "verification": "Tests in tests/http.test.ts: network throw retries, 429 retries, 500/503 retries, 400/404 do not retry (fetch called once); run `npm test -- tests/http.test.ts`."
+                },
+                {
+                  "title": "Enforce maxAttempts cap and Retry-After honoring in the loop",
+                  "files": [
+                    "src/http.ts",
+                    "src/retry.ts"
+                  ],
+                  "verification": "Test in tests/http.test.ts: persistent 500 with maxAttempts=3 results in exactly 3 fetch calls then throws; 429 with Retry-After larger than maxDelayMs sleeps at most maxDelayMs (use fake timers); run `npm test -- tests/http.test.ts`."
+                },
+                {
+                  "title": "Add full HTTP retry test suite in tests/http.test.ts",
+                  "files": [
+                    "tests/http.test.ts"
+                  ],
+                  "verification": "Cover first-attempt success, retry-then-success, retry exhaustion, non-retryable 4xx, and delay bounds/jitter using mocked fetch and fake timers; run `npm test -- tests/http.test.ts` and confirm all pass."
+                },
+                {
+                  "title": "Add retry policy tests in tests/retry.test.ts",
+                  "files": [
+                    "tests/retry.test.ts"
+                  ],
+                  "verification": "Assert delay bounds for each retry number, jitter variability, and Retry-After capping; run `npm test -- tests/retry.test.ts` and `npx tsc --noEmit`."
+                },
+                {
+                  "title": "Document timeoutMs interaction with retries in src/http.ts and src/config.ts",
+                  "files": [
+                    "src/http.ts",
+                    "src/config.ts"
+                  ],
+                  "verification": "Add JSDoc on HttpOptions.timeoutMs and retry config explaining timeoutMs applies per attempt (each attempt gets a fresh AbortController timer) while maxAttempts bounds total attempts; verify with `npx tsc --noEmit` and review rendered docs."
+                }
+              ],
+              "risks": [
+                "Fake timers plus real AbortController timers can deadlock tests if not advanced consistently; may need to inject a sleep/clock dependency.",
+                "Retry-After may be an HTTP date rather than seconds; parsing must handle both or tests will be flaky.",
+                "Retrying POST/PUT/DELETE bodies may be non-idempotent; consider restricting retries to GET or documenting the risk.",
+                "Existing callers relying on immediate throw for 5xx will now see delayed failures; behavior change could affect src/index.ts consumers.",
+                "Full jitter can produce near-zero delays, making tests that assert minimum elapsed time unreliable; assert bounds rather than exact values."
+              ]
+            },
+            "schemaIssues": [],
+            "content": "{\"steps\":[{\"title\":\"Add full-jitter exponential backoff helper to src/retry.ts\",\"files\":[\"src/retry.ts\"],\"verification\":\"Run `npx tsc --noEmit` to confirm types compile; add unit tests in tests/retry.test.ts asserting computeDelay(n) for n=1..k stays within [0, min(maxDelayMs, baseDelayMs*2^(n-1))] across many samples and that jitter produces varied values.\"},{\"title\":\"Add Retry-After parsing and capped delay selection in src/retry.ts\",\"files\":[\"src/retry.ts\"],\"verification\":\"Unit test in tests/retry.test.ts: given a Retry-After header value (seconds or HTTP date), the chosen delay equals min(parsed, maxDelayMs) and never exceeds maxDelayMs; run `npx tsc --noEmit`.\"},{\"title\":\"Wrap fetch in retry loop in src/http.ts preserving request(url, options) API\",\"files\":[\"src/http.ts\",\"src/retry.ts\"],\"verification\":\"Run `npx tsc --noEmit` and `npm test -- tests/http.test.ts`; confirm request signature unchanged and existing callers in src/index.ts still typecheck.\"},{\"title\":\"Implement per-attempt timeout via AbortController in src/http.ts\",\"files\":[\"src/http.ts\"],\"verification\":\"Test in tests/http.test.ts with a mocked fetch that never resolves and a small timeoutMs, asserting the attempt aborts and the error surfaces after maxAttempts; run `npm test -- tests/http.test.ts`.\"},{\"title\":\"Classify retryable vs non-retryable outcomes in src/http.ts\",\"files\":[\"src/http.ts\"],\"verification\":\"Tests in tests/http.test.ts: network throw retries, 429 retries, 500/503 retries, 400/404 do not retry (fetch called once); run `npm test -- tests/http.test.ts`.\"},{\"title\":\"Enforce maxAttempts cap and Retry-After honoring in the loop\",\"files\":[\"src/http.ts\",\"src/retry.ts\"],\"verification\":\"Test in tests/http.test.ts: persistent 500 with maxAttempts=3 results in exactly 3 fetch calls then throws; 429 with Retry-After larger than maxDelayMs sleeps at most maxDelayMs (use fake timers); run `npm test -- tests/http.test.ts`.\"},{\"title\":\"Add full HTTP retry test suite in tests/http.test.ts\",\"files\":[\"tests/http.test.ts\"],\"verification\":\"Cover first-attempt success, retry-then-success, retry exhaustion, non-retryable 4xx, and delay bounds/jitter using mocked fetch and fake timers; run `npm test -- tests/http.test.ts` and confirm all pass.\"},{\"title\":\"Add retry policy tests in tests/retry.test.ts\",\"files\":[\"tests/retry.test.ts\"],\"verification\":\"Assert delay bounds for each retry number, jitter variability, and Retry-After capping; run `npm test -- tests/retry.test.ts` and `npx tsc --noEmit`.\"},{\"title\":\"Document timeoutMs interaction with retries in src/http.ts and src/config.ts\",\"files\":[\"src/http.ts\",\"src/config.ts\"],\"verification\":\"Add JSDoc on HttpOptions.timeoutMs and retry config explaining timeoutMs applies per attempt (each attempt gets a fresh AbortController timer) while maxAttempts bounds total attempts; verify with `npx tsc --noEmit` and review rendered docs.\"}],\"risks\":[\"Fake timers plus real AbortController timers can deadlock tests if not advanced consistently; may need to inject a sleep/clock dependency.\",\"Retry-After may be an HTTP date rather than seconds; parsing must handle both or tests will be flaky.\",\"Retrying POST/PUT/DELETE bodies may be non-idempotent; consider restricting retries to GET or documenting the risk.\",\"Existing callers relying on immediate throw for 5xx will now see delayed failures; behavior change could affect src/index.ts consumers.\",\"Full jitter can produce near-zero delays, making tests that assert minimum elapsed time unreliable; assert bounds rather than exact values.\"]}",
+            "finishReason": "stop",
+            "score": 1,
+            "subscores": {
+              "score": 1,
+              "requiredFileCoverage": 1,
+              "conceptCoverage": 1,
+              "verification": 1,
+              "validity": 1,
+              "matchedFiles": [
+                "src/http.ts",
+                "src/retry.ts"
+              ],
+              "matchedConcepts": [
+                "retry",
+                "backoff",
+                "jitter",
+                "max attempts"
+              ],
+              "declaredFiles": [
+                "src/retry.ts",
+                "src/http.ts",
+                "tests/http.test.ts",
+                "tests/retry.test.ts",
+                "src/config.ts"
+              ],
+              "referencedFiles": [
+                "src/retry.ts",
+                "tests/retry.test.ts",
+                "src/http.ts",
+                "tests/http.test.ts",
+                "src/index.ts",
+                "src/config.ts"
+              ],
+              "invalidPaths": []
+            },
+            "usage": {
+              "promptTokens": 724,
+              "completionTokens": 904,
+              "totalTokens": 1628,
+              "cacheHitTokens": 0,
+              "cacheMissTokens": 724
+            },
+            "durationMs": 4328,
+            "attempts": 1
+          }
+        ],
+        "avgScore": 1,
+        "maxScore": 1,
+        "calls": 2,
+        "apiAttempts": 2,
+        "tokens": {
+          "promptTokens": 1448,
+          "completionTokens": 1898,
+          "totalTokens": 3346,
+          "cacheHitTokens": 0,
+          "cacheMissTokens": 1448
+        },
+        "wallMs": 4616
+      },
+      "treatment": {
+        "candidates": [
+          {
+            "index": 0,
+            "temperature": 0.9,
+            "schemaValid": true,
+            "parsed": {
+              "steps": [
+                {
+                  "title": "Add full-jitter exponential backoff helpers to retry.ts",
+                  "files": [
+                    "src/retry.ts"
+                  ],
+                  "verification": "Implement computeBackoffDelay(policy, attemptNumber) returning Math.random() * Math.min(policy.maxDelayMs, policy.baseDelayMs * 2 ** (attemptNumber - 1)) for 1-based attempt numbers, a parseRetryAfter(headerValue) helper that parses seconds or HTTP-date into ms (returning undefined when absent/invalid), and a waitForRetry(policy, attemptNumber, retryAfterMs) helper that delays min(retryAfterMs ?? computedJitter, policy.maxDelayMs) using the existing sleep(). Keep RetryPolicy and sleep exported unchanged. Verify with npx tsc --noEmit and add unit tests in tests/retry.test.ts asserting delays are within [0, min(maxDelayMs, baseDelayMs*2^(n-1))], never exceed maxDelayMs, Retry-After is honored, Retry-After above maxDelayMs is clamped, and repeated draws produce varied values (jitter)."
+                },
+                {
+                  "title": "Route request() through a bounded retry loop with per-attempt timeout",
+                  "files": [
+                    "src/http.ts",
+                    "src/retry.ts"
+                  ],
+                  "verification": "In src/http.ts keep the request(url, options) signature and add an optional retry policy (e.g. options.retry or a module-level default from src/config.ts). Wrap the fetch in a loop up to maxAttempts; use AbortController so each attempt's timeoutMs aborts only that attempt (timeout aborts count as retryable network failures; the full request may take up to maxAttempts * timeoutMs plus backoff sleeps). Retry on thrown/network errors, 429, and 5xx; return the response for 2xx; throw immediately on non-retryable 4xx. On 429/503 read Retry-After and pass it through waitForRetry so sleeps never exceed maxDelayMs. Verify with npx tsc --noEmit and npx jest tests/http.test.ts."
+                },
+                {
+                  "title": "Add HTTP retry tests covering all required scenarios",
+                  "files": [
+                    "tests/http.test.ts",
+                    "src/http.ts"
+                  ],
+                  "verification": "Add tests mocking global fetch with jest.fn and using fake timers to assert: (1) first-attempt success calls fetch exactly once; (2) 503 then 200 succeeds with two calls and a backoff sleep in bounds; (3) persistent 5xx throws after exactly maxAttempts calls with no extra sleep after the last attempt; (4) 400/404 throws after one call with no retry; (5) 429 with Retry-After waits the header value (clamped to maxDelayMs); (6) timeoutMs aborts a slow attempt via AbortController and the next attempt is made. Run npx jest tests/http.test.ts tests/retry.test.ts and npx tsc --noEmit."
+                },
+                {
+                  "title": "Wire defaults and exports",
+                  "files": [
+                    "src/config.ts",
+                    "src/index.ts",
+                    "src/http.ts"
+                  ],
+                  "verification": "Expose default retry policy values (maxAttempts, baseDelayMs, maxDelayMs, default timeoutMs) in src/config.ts, import them in src/http.ts as the default when no policy is supplied, and re-export the retry helpers/types from src/index.ts without breaking existing exports. Verify with npx tsc --noEmit and the full suite npx jest."
+                }
+              ],
+              "risks": [
+                "Per-attempt timeoutMs means total wall-clock time can reach maxAttempts * timeoutMs plus backoff; callers expecting a single timeoutMs bound may be surprised, so document this clearly.",
+                "Using real setTimeout in tests can be slow/flaky; fake timers must be advanced in lockstep with the retry loop or tests will hang.",
+                "Math.random-based jitter makes exact delay assertions impossible; tests must assert bounds/ranges rather than exact values.",
+                "Parsing Retry-After as an HTTP-date is locale/timezone sensitive and should fall back to computed backoff when invalid.",
+                "If fetch throws synchronously or the abort fires after resolution, double-settlement or unhandled rejections can occur unless AbortController is cleaned up per attempt."
+              ]
+            },
+            "schemaIssues": [],
+            "content": "{\"steps\":[{\"title\":\"Add full-jitter exponential backoff helpers to retry.ts\",\"files\":[\"src/retry.ts\"],\"verification\":\"Implement computeBackoffDelay(policy, attemptNumber) returning Math.random() * Math.min(policy.maxDelayMs, policy.baseDelayMs * 2 ** (attemptNumber - 1)) for 1-based attempt numbers, a parseRetryAfter(headerValue) helper that parses seconds or HTTP-date into ms (returning undefined when absent/invalid), and a waitForRetry(policy, attemptNumber, retryAfterMs) helper that delays min(retryAfterMs ?? computedJitter, policy.maxDelayMs) using the existing sleep(). Keep RetryPolicy and sleep exported unchanged. Verify with npx tsc --noEmit and add unit tests in tests/retry.test.ts asserting delays are within [0, min(maxDelayMs, baseDelayMs*2^(n-1))], never exceed maxDelayMs, Retry-After is honored, Retry-After above maxDelayMs is clamped, and repeated draws produce varied values (jitter).\"},{\"title\":\"Route request() through a bounded retry loop with per-attempt timeout\",\"files\":[\"src/http.ts\",\"src/retry.ts\"],\"verification\":\"In src/http.ts keep the request(url, options) signature and add an optional retry policy (e.g. options.retry or a module-level default from src/config.ts). Wrap the fetch in a loop up to maxAttempts; use AbortController so each attempt's timeoutMs aborts only that attempt (timeout aborts count as retryable network failures; the full request may take up to maxAttempts * timeoutMs plus backoff sleeps). Retry on thrown/network errors, 429, and 5xx; return the response for 2xx; throw immediately on non-retryable 4xx. On 429/503 read Retry-After and pass it through waitForRetry so sleeps never exceed maxDelayMs. Verify with npx tsc --noEmit and npx jest tests/http.test.ts.\"},{\"title\":\"Add HTTP retry tests covering all required scenarios\",\"files\":[\"tests/http.test.ts\",\"src/http.ts\"],\"verification\":\"Add tests mocking global fetch with jest.fn and using fake timers to assert: (1) first-attempt success calls fetch exactly once; (2) 503 then 200 succeeds with two calls and a backoff sleep in bounds; (3) persistent 5xx throws after exactly maxAttempts calls with no extra sleep after the last attempt; (4) 400/404 throws after one call with no retry; (5) 429 with Retry-After waits the header value (clamped to maxDelayMs); (6) timeoutMs aborts a slow attempt via AbortController and the next attempt is made. Run npx jest tests/http.test.ts tests/retry.test.ts and npx tsc --noEmit.\"},{\"title\":\"Wire defaults and exports\",\"files\":[\"src/config.ts\",\"src/index.ts\",\"src/http.ts\"],\"verification\":\"Expose default retry policy values (maxAttempts, baseDelayMs, maxDelayMs, default timeoutMs) in src/config.ts, import them in src/http.ts as the default when no policy is supplied, and re-export the retry helpers/types from src/index.ts without breaking existing exports. Verify with npx tsc --noEmit and the full suite npx jest.\"}],\"risks\":[\"Per-attempt timeoutMs means total wall-clock time can reach maxAttempts * timeoutMs plus backoff; callers expecting a single timeoutMs bound may be surprised, so document this clearly.\",\"Using real setTimeout in tests can be slow/flaky; fake timers must be advanced in lockstep with the retry loop or tests will hang.\",\"Math.random-based jitter makes exact delay assertions impossible; tests must assert bounds/ranges rather than exact values.\",\"Parsing Retry-After as an HTTP-date is locale/timezone sensitive and should fall back to computed backoff when invalid.\",\"If fetch throws synchronously or the abort fires after resolution, double-settlement or unhandled rejections can occur unless AbortController is cleaned up per attempt.\"]}",
+            "finishReason": "stop",
+            "score": 0.9786,
+            "subscores": {
+              "score": 0.9786,
+              "requiredFileCoverage": 1,
+              "conceptCoverage": 1,
+              "verification": 1,
+              "validity": 0.8571,
+              "matchedFiles": [
+                "src/http.ts",
+                "src/retry.ts"
+              ],
+              "matchedConcepts": [
+                "retry",
+                "backoff",
+                "jitter",
+                "max attempts"
+              ],
+              "declaredFiles": [
+                "src/retry.ts",
+                "src/http.ts",
+                "tests/http.test.ts",
+                "src/config.ts",
+                "src/index.ts"
+              ],
+              "referencedFiles": [
+                "retry.ts",
+                "src/retry.ts",
+                "tests/retry.test.ts",
+                "src/http.ts",
+                "src/config.ts",
+                "tests/http.test.ts",
+                "src/index.ts"
+              ],
+              "invalidPaths": [
+                "retry.ts"
+              ]
+            },
+            "usage": {
+              "promptTokens": 724,
+              "completionTokens": 896,
+              "totalTokens": 1620,
+              "cacheHitTokens": 512,
+              "cacheMissTokens": 212
+            },
+            "durationMs": 4467,
+            "attempts": 1
+          },
+          {
+            "index": 1,
+            "temperature": 0.9,
+            "schemaValid": true,
+            "parsed": {
+              "steps": [
+                {
+                  "title": "Add full-jitter exponential backoff and Retry-After helpers to src/retry.ts",
+                  "files": [
+                    "src/retry.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` to typecheck. Confirm computeBackoffDelay(attempt, policy) returns a random value in [0, min(policy.maxDelayMs, policy.baseDelayMs * 2^(attempt-1))] for 1-based attempt, and parseRetryAfter(header, now) returns capped milliseconds (never above maxDelayMs). Add unit tests in tests/retry.test.ts asserting delay bounds over many samples, that attempt=1 max is baseDelayMs, exponential growth per attempt, and that Retry-After values are honored and capped."
+                },
+                {
+                  "title": "Implement retryable-error classification and Retry-After parsing for HTTP statuses",
+                  "files": [
+                    "src/retry.ts",
+                    "src/http.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit`. Verify isRetryableStatus(status) returns true for 429 and 5xx, false for other 4xx (400,401,403,404), and that network errors from fetch are classified retryable. Add tests in tests/http.test.ts covering 429, 500/503, and 400/404 classification behavior."
+                },
+                {
+                  "title": "Refactor src/http.ts to route request() through a bounded retry loop",
+                  "files": [
+                    "src/http.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` and `npm test`. Confirm request(url, options) signature and HttpOptions are unchanged, the loop counts total attempts and never exceeds policy.maxAttempts, retries network failures/429/5xx only, throws on non-retryable 4xx immediately, and calls sleep with the computed jittered delay (or Retry-After when present, capped at maxDelayMs)."
+                },
+                {
+                  "title": "Preserve per-attempt timeoutMs using AbortController per try",
+                  "files": [
+                    "src/http.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit`. Confirm each attempt creates its own AbortController with setTimeout(timeoutMs) and clears it after the attempt, so timeoutMs applies per attempt (not to the whole retry sequence) and total wall time may be up to maxAttempts * timeoutMs plus backoff sleeps. Add a test in tests/http.test.ts simulating a timeout on one attempt followed by success to verify retries continue after a timeout."
+                },
+                {
+                  "title": "Add HTTP tests for success, retry-then-success, exhaustion, and non-retryable 4xx",
+                  "files": [
+                    "tests/http.test.ts"
+                  ],
+                  "verification": "Run `npx vitest run tests/http.test.ts` (or `npm test -- tests/http.test.ts`). Tests must mock fetch to assert: first-attempt 200 succeeds with exactly 1 call; 503 then 200 succeeds with 2 calls; persistent 500 throws after exactly maxAttempts calls; 400 throws after exactly 1 call; Retry-After header on 429 is honored and capped at maxDelayMs."
+                },
+                {
+                  "title": "Add retry jitter and delay-bound tests",
+                  "files": [
+                    "tests/retry.test.ts"
+                  ],
+                  "verification": "Run `npx vitest run tests/retry.test.ts`. Tests assert computed delays fall within [0, min(maxDelayMs, baseDelayMs * 2^(n-1))] across many samples, that jitter produces varied values (not constant), and that maxDelayMs caps growth at high attempt numbers."
+                },
+                {
+                  "title": "Run full verification suite",
+                  "files": [
+                    "package.json",
+                    "tsconfig.json",
+                    "src/index.ts"
+                  ],
+                  "verification": "Run `npm test` to execute tests/http.test.ts and tests/retry.test.ts, plus `npx tsc --noEmit` for typecheck. Confirm src/index.ts still exports request and HttpOptions unchanged and all tests pass."
+                }
+              ],
+              "risks": [
+                "Retrying non-idempotent methods (POST/PUT/DELETE) on network failures or 5xx may duplicate side effects; consider documenting this or restricting retries to idempotent methods, but the requirement asks to retry regardless so behavior change should be noted.",
+                "timeoutMs is per-attempt, so a request configured with maxAttempts > 1 can take significantly longer overall than a single timeoutMs; callers may need to budget total time.",
+                "Retry-After may be an HTTP-date rather than seconds; parseRetryAfter must handle both formats correctly and cap to maxDelayMs.",
+                "Full jitter can produce near-zero delays, so tests must avoid flakiness by asserting ranges and call counts rather than exact sleep durations, and by mocking sleep/setTimeout.",
+                "fetch mocks in tests must distinguish network errors (rejected promise) from HTTP error responses to correctly validate retry classification."
+              ]
+            },
+            "schemaIssues": [],
+            "content": "{\"steps\":[{\"title\":\"Add full-jitter exponential backoff and Retry-After helpers to src/retry.ts\",\"files\":[\"src/retry.ts\"],\"verification\":\"Run `npx tsc --noEmit` to typecheck. Confirm computeBackoffDelay(attempt, policy) returns a random value in [0, min(policy.maxDelayMs, policy.baseDelayMs * 2^(attempt-1))] for 1-based attempt, and parseRetryAfter(header, now) returns capped milliseconds (never above maxDelayMs). Add unit tests in tests/retry.test.ts asserting delay bounds over many samples, that attempt=1 max is baseDelayMs, exponential growth per attempt, and that Retry-After values are honored and capped.\"},{\"title\":\"Implement retryable-error classification and Retry-After parsing for HTTP statuses\",\"files\":[\"src/retry.ts\",\"src/http.ts\"],\"verification\":\"Run `npx tsc --noEmit`. Verify isRetryableStatus(status) returns true for 429 and 5xx, false for other 4xx (400,401,403,404), and that network errors from fetch are classified retryable. Add tests in tests/http.test.ts covering 429, 500/503, and 400/404 classification behavior.\"},{\"title\":\"Refactor src/http.ts to route request() through a bounded retry loop\",\"files\":[\"src/http.ts\"],\"verification\":\"Run `npx tsc --noEmit` and `npm test`. Confirm request(url, options) signature and HttpOptions are unchanged, the loop counts total attempts and never exceeds policy.maxAttempts, retries network failures/429/5xx only, throws on non-retryable 4xx immediately, and calls sleep with the computed jittered delay (or Retry-After when present, capped at maxDelayMs).\"},{\"title\":\"Preserve per-attempt timeoutMs using AbortController per try\",\"files\":[\"src/http.ts\"],\"verification\":\"Run `npx tsc --noEmit`. Confirm each attempt creates its own AbortController with setTimeout(timeoutMs) and clears it after the attempt, so timeoutMs applies per attempt (not to the whole retry sequence) and total wall time may be up to maxAttempts * timeoutMs plus backoff sleeps. Add a test in tests/http.test.ts simulating a timeout on one attempt followed by success to verify retries continue after a timeout.\"},{\"title\":\"Add HTTP tests for success, retry-then-success, exhaustion, and non-retryable 4xx\",\"files\":[\"tests/http.test.ts\"],\"verification\":\"Run `npx vitest run tests/http.test.ts` (or `npm test -- tests/http.test.ts`). Tests must mock fetch to assert: first-attempt 200 succeeds with exactly 1 call; 503 then 200 succeeds with 2 calls; persistent 500 throws after exactly maxAttempts calls; 400 throws after exactly 1 call; Retry-After header on 429 is honored and capped at maxDelayMs.\"},{\"title\":\"Add retry jitter and delay-bound tests\",\"files\":[\"tests/retry.test.ts\"],\"verification\":\"Run `npx vitest run tests/retry.test.ts`. Tests assert computed delays fall within [0, min(maxDelayMs, baseDelayMs * 2^(n-1))] across many samples, that jitter produces varied values (not constant), and that maxDelayMs caps growth at high attempt numbers.\"},{\"title\":\"Run full verification suite\",\"files\":[\"package.json\",\"tsconfig.json\",\"src/index.ts\"],\"verification\":\"Run `npm test` to execute tests/http.test.ts and tests/retry.test.ts, plus `npx tsc --noEmit` for typecheck. Confirm src/index.ts still exports request and HttpOptions unchanged and all tests pass.\"}],\"risks\":[\"Retrying non-idempotent methods (POST/PUT/DELETE) on network failures or 5xx may duplicate side effects; consider documenting this or restricting retries to idempotent methods, but the requirement asks to retry regardless so behavior change should be noted.\",\"timeoutMs is per-attempt, so a request configured with maxAttempts > 1 can take significantly longer overall than a single timeoutMs; callers may need to budget total time.\",\"Retry-After may be an HTTP-date rather than seconds; parseRetryAfter must handle both formats correctly and cap to maxDelayMs.\",\"Full jitter can produce near-zero delays, so tests must avoid flakiness by asserting ranges and call counts rather than exact sleep durations, and by mocking sleep/setTimeout.\",\"fetch mocks in tests must distinguish network errors (rejected promise) from HTTP error responses to correctly validate retry classification.\"]}",
+            "finishReason": "stop",
+            "score": 1,
+            "subscores": {
+              "score": 1,
+              "requiredFileCoverage": 1,
+              "conceptCoverage": 1,
+              "verification": 1,
+              "validity": 1,
+              "matchedFiles": [
+                "src/http.ts",
+                "src/retry.ts"
+              ],
+              "matchedConcepts": [
+                "retry",
+                "backoff",
+                "jitter",
+                "max attempts"
+              ],
+              "declaredFiles": [
+                "src/retry.ts",
+                "src/http.ts",
+                "tests/http.test.ts",
+                "tests/retry.test.ts",
+                "package.json",
+                "tsconfig.json",
+                "src/index.ts"
+              ],
+              "referencedFiles": [
+                "src/retry.ts",
+                "tests/retry.test.ts",
+                "src/http.ts",
+                "tests/http.test.ts",
+                "package.json",
+                "tsconfig.json",
+                "src/index.ts"
+              ],
+              "invalidPaths": []
+            },
+            "usage": {
+              "promptTokens": 724,
+              "completionTokens": 1015,
+              "totalTokens": 1739,
+              "cacheHitTokens": 512,
+              "cacheMissTokens": 212
+            },
+            "durationMs": 5199,
+            "attempts": 1
+          },
+          {
+            "index": 2,
+            "temperature": 0.9,
+            "schemaValid": true,
+            "parsed": {
+              "steps": [
+                {
+                  "title": "Extend src/retry.ts with full-jitter exponential backoff, Retry-After cap, and retry decision helpers",
+                  "files": [
+                    "src/retry.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` and `npx vitest run tests/retry.test.ts`; assert computeDelay(n) lands in [0, min(maxDelayMs, baseDelayMs * 2^(n-1))] across many samples and that Retry-After values are clamped to maxDelayMs."
+                },
+                {
+                  "title": "Add default retry policy values to src/config.ts",
+                  "files": [
+                    "src/config.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` and confirm config exports compile and are importable in src/http.ts; existing tests in tests/http.test.ts still pass with defaults."
+                },
+                {
+                  "title": "Implement per-attempt timeout in src/http.ts using AbortController and keep request(url, options) signature",
+                  "files": [
+                    "src/http.ts"
+                  ],
+                  "verification": "Run `npx vitest run tests/http.test.ts` and add a test asserting a hanging fetch rejects after timeoutMs; verify the timer is cleared and the abort signal fires once per attempt."
+                },
+                {
+                  "title": "Wrap fetch in a retry loop in src/http.ts honoring maxAttempts, retryable statuses (429, 5xx), network errors, and Retry-After",
+                  "files": [
+                    "src/http.ts",
+                    "src/retry.ts"
+                  ],
+                  "verification": "Run `npx vitest run tests/http.test.ts`; verify attempts never exceed maxAttempts, 429/503 honor Retry-After clamped to maxDelayMs, other 4xx return without retry, and successful first attempt makes exactly one fetch call."
+                },
+                {
+                  "title": "Export retry utilities from src/index.ts without breaking existing public API",
+                  "files": [
+                    "src/index.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` and import { request } plus retry helpers from the package entry in a smoke test; ensure existing exports remain unchanged."
+                },
+                {
+                  "title": "Add HTTP tests: first-attempt success, retry-then-success, retry exhaustion, non-retryable 4xx, and timeout interaction",
+                  "files": [
+                    "tests/http.test.ts"
+                  ],
+                  "verification": "Run `npx vitest run tests/http.test.ts`; use mocked fetch counting calls, assert 1 call on first success, N calls on exhaustion with final error, 1 call on 400/404, and timeoutMs applied per attempt."
+                },
+                {
+                  "title": "Add retry tests for delay bounds, full jitter distribution, and Retry-After clamping",
+                  "files": [
+                    "tests/retry.test.ts"
+                  ],
+                  "verification": "Run `npx vitest run tests/retry.test.ts`; assert delays are within exponential bounds for n=1..k, vary across samples (jitter), and Retry-After is capped at maxDelayMs."
+                }
+              ],
+              "risks": [
+                "Timeout semantics must be documented: timeoutMs applies per attempt, so total wall-clock can reach maxAttempts * timeoutMs plus backoff delays.",
+                "Full jitter uses Math.random, which is not cryptographically strong but is adequate for backoff; tests may need to mock Math.random for determinism.",
+                "Retry-After can be an HTTP-date string; parsing must be robust and clamped to maxDelayMs to avoid unbounded sleeps.",
+                "Retrying non-idempotent methods (POST) can duplicate side effects; consider restricting retries to GET/idempotent methods or gating behind an option.",
+                "AbortController timers must be cleared on every attempt to avoid leaked timers and flaky tests with fake timers."
+              ]
+            },
+            "schemaIssues": [],
+            "content": "{\"steps\":[{\"title\":\"Extend src/retry.ts with full-jitter exponential backoff, Retry-After cap, and retry decision helpers\",\"files\":[\"src/retry.ts\"],\"verification\":\"Run `npx tsc --noEmit` and `npx vitest run tests/retry.test.ts`; assert computeDelay(n) lands in [0, min(maxDelayMs, baseDelayMs * 2^(n-1))] across many samples and that Retry-After values are clamped to maxDelayMs.\"},{\"title\":\"Add default retry policy values to src/config.ts\",\"files\":[\"src/config.ts\"],\"verification\":\"Run `npx tsc --noEmit` and confirm config exports compile and are importable in src/http.ts; existing tests in tests/http.test.ts still pass with defaults.\"},{\"title\":\"Implement per-attempt timeout in src/http.ts using AbortController and keep request(url, options) signature\",\"files\":[\"src/http.ts\"],\"verification\":\"Run `npx vitest run tests/http.test.ts` and add a test asserting a hanging fetch rejects after timeoutMs; verify the timer is cleared and the abort signal fires once per attempt.\"},{\"title\":\"Wrap fetch in a retry loop in src/http.ts honoring maxAttempts, retryable statuses (429, 5xx), network errors, and Retry-After\",\"files\":[\"src/http.ts\",\"src/retry.ts\"],\"verification\":\"Run `npx vitest run tests/http.test.ts`; verify attempts never exceed maxAttempts, 429/503 honor Retry-After clamped to maxDelayMs, other 4xx return without retry, and successful first attempt makes exactly one fetch call.\"},{\"title\":\"Export retry utilities from src/index.ts without breaking existing public API\",\"files\":[\"src/index.ts\"],\"verification\":\"Run `npx tsc --noEmit` and import { request } plus retry helpers from the package entry in a smoke test; ensure existing exports remain unchanged.\"},{\"title\":\"Add HTTP tests: first-attempt success, retry-then-success, retry exhaustion, non-retryable 4xx, and timeout interaction\",\"files\":[\"tests/http.test.ts\"],\"verification\":\"Run `npx vitest run tests/http.test.ts`; use mocked fetch counting calls, assert 1 call on first success, N calls on exhaustion with final error, 1 call on 400/404, and timeoutMs applied per attempt.\"},{\"title\":\"Add retry tests for delay bounds, full jitter distribution, and Retry-After clamping\",\"files\":[\"tests/retry.test.ts\"],\"verification\":\"Run `npx vitest run tests/retry.test.ts`; assert delays are within exponential bounds for n=1..k, vary across samples (jitter), and Retry-After is capped at maxDelayMs.\"}],\"risks\":[\"Timeout semantics must be documented: timeoutMs applies per attempt, so total wall-clock can reach maxAttempts * timeoutMs plus backoff delays.\",\"Full jitter uses Math.random, which is not cryptographically strong but is adequate for backoff; tests may need to mock Math.random for determinism.\",\"Retry-After can be an HTTP-date string; parsing must be robust and clamped to maxDelayMs to avoid unbounded sleeps.\",\"Retrying non-idempotent methods (POST) can duplicate side effects; consider restricting retries to GET/idempotent methods or gating behind an option.\",\"AbortController timers must be cleared on every attempt to avoid leaked timers and flaky tests with fake timers.\"]}",
+            "finishReason": "stop",
+            "score": 1,
+            "subscores": {
+              "score": 1,
+              "requiredFileCoverage": 1,
+              "conceptCoverage": 1,
+              "verification": 1,
+              "validity": 1,
+              "matchedFiles": [
+                "src/http.ts",
+                "src/retry.ts"
+              ],
+              "matchedConcepts": [
+                "retry",
+                "backoff",
+                "jitter",
+                "max attempts"
+              ],
+              "declaredFiles": [
+                "src/retry.ts",
+                "src/config.ts",
+                "src/http.ts",
+                "src/index.ts",
+                "tests/http.test.ts",
+                "tests/retry.test.ts"
+              ],
+              "referencedFiles": [
+                "src/retry.ts",
+                "tests/retry.test.ts",
+                "src/config.ts",
+                "src/http.ts",
+                "tests/http.test.ts",
+                "src/index.ts"
+              ],
+              "invalidPaths": []
+            },
+            "usage": {
+              "promptTokens": 724,
+              "completionTokens": 766,
+              "totalTokens": 1490,
+              "cacheHitTokens": 512,
+              "cacheMissTokens": 212
+            },
+            "durationMs": 3847,
+            "attempts": 1
+          }
+        ],
+        "oracleBest": {
+          "index": 1,
+          "score": 1,
+          "tiedIndices": [
+            1,
+            2
+          ]
+        },
+        "judge": {
+          "winner": 0,
+          "reason": "All three plans cover the required files and concepts, but plan 0 is the most complete and coherent. It explicitly modifies both required files (src/http.ts and src/retry.ts) with concrete implementation details: computeBackoffDelay with the exact full-jitter formula, parseRetryAfter, waitForRetry clamped to maxDelayMs, a bounded retry loop preserving request(url, options), per-attempt AbortController timeouts, retryable classification (network, 429, 5xx, not other 4xx), and Retry-After handling. Its verification fields consistently mention typecheck and tests, and it enumerates all requested test scenarios (first-attempt success, retry-then-success, exhaustion, non-retryable 4xx, delay bounds/jitter, plus Retry-After and timeout). All referenced paths are within the allowed list. Plan 1 is also strong but splits classification into a separate step and its final step touches package.json/tsconfig.json unnecessarily; plan 2 is solid but slightly less detailed on the retry loop and Retry-After interaction. Plan 0's risks section also thoughtfully addresses timeout semantics, fake timers, jitter assertions, and AbortController cleanup, making it the best tie-breaker choice.",
+          "valid": true,
+          "issues": [],
+          "selectedScore": 0.9786,
+          "pickedOracleBest": false,
+          "oracleTopIndices": [
+            1,
+            2
+          ],
+          "temperature": 0.1,
+          "content": "{\"winner\":0,\"reason\":\"All three plans cover the required files and concepts, but plan 0 is the most complete and coherent. It explicitly modifies both required files (src/http.ts and src/retry.ts) with concrete implementation details: computeBackoffDelay with the exact full-jitter formula, parseRetryAfter, waitForRetry clamped to maxDelayMs, a bounded retry loop preserving request(url, options), per-attempt AbortController timeouts, retryable classification (network, 429, 5xx, not other 4xx), and Retry-After handling. Its verification fields consistently mention typecheck and tests, and it enumerates all requested test scenarios (first-attempt success, retry-then-success, exhaustion, non-retryable 4xx, delay bounds/jitter, plus Retry-After and timeout). All referenced paths are within the allowed list. Plan 1 is also strong but splits classification into a separate step and its final step touches package.json/tsconfig.json unnecessarily; plan 2 is solid but slightly less detailed on the retry loop and Retry-After interaction. Plan 0's risks section also thoughtfully addresses timeout semantics, fake timers, jitter assertions, and AbortController cleanup, making it the best tie-breaker choice.\"}",
+          "finishReason": "stop",
+          "usage": {
+            "promptTokens": 3567,
+            "completionTokens": 269,
+            "totalTokens": 3836,
+            "cacheHitTokens": 0,
+            "cacheMissTokens": 3567
+          },
+          "durationMs": 1750,
+          "attempts": 1
+        },
+        "calls": 4,
+        "apiAttempts": 4,
+        "tokens": {
+          "promptTokens": 5739,
+          "completionTokens": 2946,
+          "totalTokens": 8685,
+          "cacheHitTokens": 1536,
+          "cacheMissTokens": 4203
+        },
+        "wallMs": 6953
+      },
+      "judgeGain": -0.0214,
+      "oracleGain": 0,
+      "tokenMultiplier": 2.5956
+    },
+    {
+      "id": "B",
+      "title": "Cursor pagination and limit validation for the list API",
+      "taskSpec": {
+        "requirements": "Add cursor-based pagination and limit validation to the list API.\n- Extend ListRequest in src/types.ts with an optional cursor and limit.\n- In src/api/list.ts, listItems must return a stable page ordered by item id plus nextPage: string | null.\n- limit must be an integer from 1 to 100 inclusive, defaulting to 50. Reject invalid limits (0, negative, >100, non-integer, non-number) with ApiError status 400 from src/api/errors.ts.\n- The cursor must be opaque. Decode it defensively; a malformed cursor must produce ApiError status 400, never a 500.\n- nextPage must be null on the last page, otherwise a cursor that round-trips to the next item.\n- Add tests for the first page, second page, last page, invalid limits, and malformed cursors.",
+        "repoTree": "repo/\n  package.json\n  tsconfig.json\n  src/\n    server.ts\n    types.ts\n    api/\n      errors.ts\n      list.ts\n  tests/\n    list.test.ts\n    validation.test.ts",
+        "keyFiles": [
+          {
+            "path": "src/api/list.ts",
+            "content": "import type { Item, ListRequest, ListResponse } from '../types.ts'\n\nexport interface ListDeps {\n  listItems(): Promise<Item[]>\n}\n\nconst DEFAULT_LIMIT = 50\n\nexport async function listItems(input: ListRequest, deps: ListDeps): Promise<ListResponse> {\n  const limit = input.limit ?? DEFAULT_LIMIT\n  const rows = await deps.listItems()\n  return { items: rows.slice(0, limit) }\n}"
+          },
+          {
+            "path": "src/types.ts",
+            "content": "export interface Item {\n  id: string\n  name: string\n  createdAt: string\n}\n\nexport interface ListRequest {\n  limit?: number\n}\n\nexport interface ListResponse {\n  items: Item[]\n}\n\nexport class ApiError extends Error {\n  constructor(public status: number, message: string) {\n    super(message)\n  }\n}"
+          }
+        ],
+        "requiredFiles": [
+          "src/api/list.ts",
+          "src/types.ts"
+        ],
+        "allowedFiles": [
+          "package.json",
+          "tsconfig.json",
+          "src/server.ts",
+          "src/types.ts",
+          "src/api/errors.ts",
+          "src/api/list.ts",
+          "tests/list.test.ts",
+          "tests/validation.test.ts"
+        ],
+        "concepts": [
+          {
+            "name": "cursor",
+            "patterns": [
+              "\\bcursor",
+              "\\bpage[-\\s_]?token\\b",
+              "\\bpagination[-\\s_]?token\\b"
+            ]
+          },
+          {
+            "name": "limit",
+            "patterns": [
+              "\\blimit",
+              "\\bpage[-\\s_]?size\\b",
+              "\\bmax(?:imum)?[-\\s_]?(?:results|items)\\b",
+              "\\bclamp"
+            ]
+          },
+          {
+            "name": "nextPage",
+            "patterns": [
+              "\\bnext[-\\s_]?page",
+              "\\bnext[-\\s_]?cursor",
+              "\\bhas[-\\s_]?more"
+            ]
+          }
+        ]
+      },
+      "baseline": {
+        "samples": [
+          {
+            "index": 0,
+            "temperature": 0.3,
+            "schemaValid": true,
+            "parsed": {
+              "steps": [
+                {
+                  "title": "Extend ListRequest with optional cursor and limit in src/types.ts",
+                  "files": [
+                    "src/types.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` to confirm ListRequest has optional cursor?: string and limit?: number and existing usages still typecheck."
+                },
+                {
+                  "title": "Add a 400 ApiError helper in src/api/errors.ts for invalid limit and malformed cursor",
+                  "files": [
+                    "src/api/errors.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` and confirm errors.ts exports a factory that constructs ApiError with status 400; add a quick assertion in tests/validation.test.ts that the helper yields status 400."
+                },
+                {
+                  "title": "Implement limit validation (integer 1..100, default 50) in src/api/list.ts",
+                  "files": [
+                    "src/api/list.ts"
+                  ],
+                  "verification": "Run `npx jest tests/validation.test.ts` covering 0, negative, 101, 1.5, '10', null, and undefined; expect ApiError status 400 for invalid values and default 50 for undefined."
+                },
+                {
+                  "title": "Implement opaque cursor encode/decode with defensive parsing in src/api/list.ts",
+                  "files": [
+                    "src/api/list.ts"
+                  ],
+                  "verification": "Run `npx jest tests/validation.test.ts` asserting malformed cursors (bad base64, non-JSON, missing id, wrong types) throw ApiError status 400 and never 500; verify a valid cursor round-trips."
+                },
+                {
+                  "title": "Return stable id-ordered page with nextPage in listItems",
+                  "files": [
+                    "src/api/list.ts"
+                  ],
+                  "verification": "Run `npx jest tests/list.test.ts` verifying items are sorted by id, page size respects limit, nextPage is null on last page, and nextPage cursor decodes to the next item's id."
+                },
+                {
+                  "title": "Wire ListResponse to include nextPage and update server handler",
+                  "files": [
+                    "src/types.ts",
+                    "src/server.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` and `npx jest` to confirm ListResponse has nextPage: string | null and server serializes it correctly."
+                },
+                {
+                  "title": "Add pagination tests for first, second, and last page",
+                  "files": [
+                    "tests/list.test.ts"
+                  ],
+                  "verification": "Run `npx jest tests/list.test.ts` and confirm first page returns nextPage, second page continues after cursor, and last page returns nextPage null with remaining items."
+                },
+                {
+                  "title": "Add validation tests for invalid limits and malformed cursors",
+                  "files": [
+                    "tests/validation.test.ts"
+                  ],
+                  "verification": "Run `npx jest tests/validation.test.ts` and confirm all invalid limit and malformed cursor cases produce ApiError status 400."
+                },
+                {
+                  "title": "Full verification: typecheck and test suite",
+                  "files": [
+                    "package.json",
+                    "tsconfig.json"
+                  ],
+                  "verification": "Run `npm test` and `npx tsc --noEmit`; all tests pass and no type errors."
+                }
+              ],
+              "risks": [
+                "Cursor encoding format must be stable; changing it later breaks existing cursors, so document the opaque format internally.",
+                "Sorting by id assumes lexicographic string ordering; if ids are not zero-padded, ordering may surprise consumers but remains stable.",
+                "Defensive cursor decoding must catch all parse errors (base64, JSON, shape) to avoid unhandled 500s.",
+                "Limit validation must reject non-number types (strings, null) explicitly rather than relying on coercion.",
+                "Changing ListResponse shape may break existing callers; update server.ts and tests together."
+              ]
+            },
+            "schemaIssues": [],
+            "content": "{\"steps\":[{\"title\":\"Extend ListRequest with optional cursor and limit in src/types.ts\",\"files\":[\"src/types.ts\"],\"verification\":\"Run `npx tsc --noEmit` to confirm ListRequest has optional cursor?: string and limit?: number and existing usages still typecheck.\"},{\"title\":\"Add a 400 ApiError helper in src/api/errors.ts for invalid limit and malformed cursor\",\"files\":[\"src/api/errors.ts\"],\"verification\":\"Run `npx tsc --noEmit` and confirm errors.ts exports a factory that constructs ApiError with status 400; add a quick assertion in tests/validation.test.ts that the helper yields status 400.\"},{\"title\":\"Implement limit validation (integer 1..100, default 50) in src/api/list.ts\",\"files\":[\"src/api/list.ts\"],\"verification\":\"Run `npx jest tests/validation.test.ts` covering 0, negative, 101, 1.5, '10', null, and undefined; expect ApiError status 400 for invalid values and default 50 for undefined.\"},{\"title\":\"Implement opaque cursor encode/decode with defensive parsing in src/api/list.ts\",\"files\":[\"src/api/list.ts\"],\"verification\":\"Run `npx jest tests/validation.test.ts` asserting malformed cursors (bad base64, non-JSON, missing id, wrong types) throw ApiError status 400 and never 500; verify a valid cursor round-trips.\"},{\"title\":\"Return stable id-ordered page with nextPage in listItems\",\"files\":[\"src/api/list.ts\"],\"verification\":\"Run `npx jest tests/list.test.ts` verifying items are sorted by id, page size respects limit, nextPage is null on last page, and nextPage cursor decodes to the next item's id.\"},{\"title\":\"Wire ListResponse to include nextPage and update server handler\",\"files\":[\"src/types.ts\",\"src/server.ts\"],\"verification\":\"Run `npx tsc --noEmit` and `npx jest` to confirm ListResponse has nextPage: string | null and server serializes it correctly.\"},{\"title\":\"Add pagination tests for first, second, and last page\",\"files\":[\"tests/list.test.ts\"],\"verification\":\"Run `npx jest tests/list.test.ts` and confirm first page returns nextPage, second page continues after cursor, and last page returns nextPage null with remaining items.\"},{\"title\":\"Add validation tests for invalid limits and malformed cursors\",\"files\":[\"tests/validation.test.ts\"],\"verification\":\"Run `npx jest tests/validation.test.ts` and confirm all invalid limit and malformed cursor cases produce ApiError status 400.\"},{\"title\":\"Full verification: typecheck and test suite\",\"files\":[\"package.json\",\"tsconfig.json\"],\"verification\":\"Run `npm test` and `npx tsc --noEmit`; all tests pass and no type errors.\"}],\"risks\":[\"Cursor encoding format must be stable; changing it later breaks existing cursors, so document the opaque format internally.\",\"Sorting by id assumes lexicographic string ordering; if ids are not zero-padded, ordering may surprise consumers but remains stable.\",\"Defensive cursor decoding must catch all parse errors (base64, JSON, shape) to avoid unhandled 500s.\",\"Limit validation must reject non-number types (strings, null) explicitly rather than relying on coercion.\",\"Changing ListResponse shape may break existing callers; update server.ts and tests together.\"]}",
+            "finishReason": "stop",
+            "score": 0.97,
+            "subscores": {
+              "score": 0.97,
+              "requiredFileCoverage": 1,
+              "conceptCoverage": 1,
+              "verification": 1,
+              "validity": 0.8,
+              "matchedFiles": [
+                "src/api/list.ts",
+                "src/types.ts"
+              ],
+              "matchedConcepts": [
+                "cursor",
+                "limit",
+                "nextPage"
+              ],
+              "declaredFiles": [
+                "src/types.ts",
+                "src/api/errors.ts",
+                "src/api/list.ts",
+                "src/server.ts",
+                "tests/list.test.ts",
+                "tests/validation.test.ts",
+                "package.json",
+                "tsconfig.json"
+              ],
+              "referencedFiles": [
+                "src/types.ts",
+                "src/api/errors.ts",
+                "errors.ts",
+                "tests/validation.test.ts",
+                "src/api/list.ts",
+                "tests/list.test.ts",
+                "src/server.ts",
+                "package.json",
+                "tsconfig.json",
+                "server.ts"
+              ],
+              "invalidPaths": [
+                "errors.ts",
+                "server.ts"
+              ]
+            },
+            "usage": {
+              "promptTokens": 701,
+              "completionTokens": 737,
+              "totalTokens": 1438,
+              "cacheHitTokens": 0,
+              "cacheMissTokens": 701
+            },
+            "durationMs": 3799,
+            "attempts": 1
+          },
+          {
+            "index": 1,
+            "temperature": 0.3,
+            "schemaValid": true,
+            "parsed": {
+              "steps": [
+                {
+                  "title": "Extend ListRequest with cursor and limit and add ListResponse.nextPage",
+                  "files": [
+                    "src/types.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` to confirm types compile; inspect that ListRequest has optional cursor?: string and limit?: number, and ListResponse has items: Item[] plus nextPage: string | null."
+                },
+                {
+                  "title": "Add a 400 bad-request helper in errors.ts",
+                  "files": [
+                    "src/api/errors.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit`; confirm the helper constructs ApiError with status 400 and is exported for use by list.ts."
+                },
+                {
+                  "title": "Implement limit validation in listItems",
+                  "files": [
+                    "src/api/list.ts"
+                  ],
+                  "verification": "Run `npm test -- tests/validation.test.ts` to check limits 0, -1, 101, 1.5, '10', null, and undefined are handled: invalid values throw ApiError status 400, undefined defaults to 50, and 1 and 100 are accepted."
+                },
+                {
+                  "title": "Implement opaque cursor encode/decode with defensive error handling",
+                  "files": [
+                    "src/api/list.ts"
+                  ],
+                  "verification": "Run `npm test -- tests/validation.test.ts` to confirm malformed cursors (bad base64, non-JSON, missing id, wrong shape) throw ApiError status 400 and never 500; verify a valid cursor round-trips to the correct next item id."
+                },
+                {
+                  "title": "Sort items by id and return stable page plus nextPage",
+                  "files": [
+                    "src/api/list.ts"
+                  ],
+                  "verification": "Run `npm test -- tests/list.test.ts` to confirm items are ordered by id, the page respects the limit, nextPage is null on the last page, and nextPage is a cursor that decodes to the first item of the following page."
+                },
+                {
+                  "title": "Add list pagination tests for first, second, and last page",
+                  "files": [
+                    "tests/list.test.ts"
+                  ],
+                  "verification": "Run `npm test -- tests/list.test.ts`; all first-page, second-page, and last-page cases pass, including nextPage null on the final page and correct item boundaries."
+                },
+                {
+                  "title": "Add validation tests for invalid limits and malformed cursors",
+                  "files": [
+                    "tests/validation.test.ts"
+                  ],
+                  "verification": "Run `npm test -- tests/validation.test.ts`; all invalid-limit and malformed-cursor cases assert ApiError with status 400."
+                },
+                {
+                  "title": "Wire the updated list API into the server handler",
+                  "files": [
+                    "src/server.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` and `npm test`; confirm the server passes cursor and limit through to listItems and maps ApiError status 400 to a 400 response."
+                }
+              ],
+              "risks": [
+                "Cursor encoding must be deterministic and stable; changing the encoding later could break clients holding old cursors.",
+                "Sorting by id assumes ids are unique and lexicographically comparable; non-unique ids could cause duplicate or skipped items across pages.",
+                "Defensive decoding must catch all failure modes (base64 errors, JSON parse errors, missing fields) to avoid 500s.",
+                "Existing callers relying on the previous ListResponse shape may need updates now that nextPage is required."
+              ]
+            },
+            "schemaIssues": [],
+            "content": "{\"steps\":[{\"title\":\"Extend ListRequest with cursor and limit and add ListResponse.nextPage\",\"files\":[\"src/types.ts\"],\"verification\":\"Run `npx tsc --noEmit` to confirm types compile; inspect that ListRequest has optional cursor?: string and limit?: number, and ListResponse has items: Item[] plus nextPage: string | null.\"},{\"title\":\"Add a 400 bad-request helper in errors.ts\",\"files\":[\"src/api/errors.ts\"],\"verification\":\"Run `npx tsc --noEmit`; confirm the helper constructs ApiError with status 400 and is exported for use by list.ts.\"},{\"title\":\"Implement limit validation in listItems\",\"files\":[\"src/api/list.ts\"],\"verification\":\"Run `npm test -- tests/validation.test.ts` to check limits 0, -1, 101, 1.5, '10', null, and undefined are handled: invalid values throw ApiError status 400, undefined defaults to 50, and 1 and 100 are accepted.\"},{\"title\":\"Implement opaque cursor encode/decode with defensive error handling\",\"files\":[\"src/api/list.ts\"],\"verification\":\"Run `npm test -- tests/validation.test.ts` to confirm malformed cursors (bad base64, non-JSON, missing id, wrong shape) throw ApiError status 400 and never 500; verify a valid cursor round-trips to the correct next item id.\"},{\"title\":\"Sort items by id and return stable page plus nextPage\",\"files\":[\"src/api/list.ts\"],\"verification\":\"Run `npm test -- tests/list.test.ts` to confirm items are ordered by id, the page respects the limit, nextPage is null on the last page, and nextPage is a cursor that decodes to the first item of the following page.\"},{\"title\":\"Add list pagination tests for first, second, and last page\",\"files\":[\"tests/list.test.ts\"],\"verification\":\"Run `npm test -- tests/list.test.ts`; all first-page, second-page, and last-page cases pass, including nextPage null on the final page and correct item boundaries.\"},{\"title\":\"Add validation tests for invalid limits and malformed cursors\",\"files\":[\"tests/validation.test.ts\"],\"verification\":\"Run `npm test -- tests/validation.test.ts`; all invalid-limit and malformed-cursor cases assert ApiError with status 400.\"},{\"title\":\"Wire the updated list API into the server handler\",\"files\":[\"src/server.ts\"],\"verification\":\"Run `npx tsc --noEmit` and `npm test`; confirm the server passes cursor and limit through to listItems and maps ApiError status 400 to a 400 response.\"}],\"risks\":[\"Cursor encoding must be deterministic and stable; changing the encoding later could break clients holding old cursors.\",\"Sorting by id assumes ids are unique and lexicographically comparable; non-unique ids could cause duplicate or skipped items across pages.\",\"Defensive decoding must catch all failure modes (base64 errors, JSON parse errors, missing fields) to avoid 500s.\",\"Existing callers relying on the previous ListResponse shape may need updates now that nextPage is required.\"]}",
+            "finishReason": "stop",
+            "score": 0.9625,
+            "subscores": {
+              "score": 0.9625,
+              "requiredFileCoverage": 1,
+              "conceptCoverage": 1,
+              "verification": 1,
+              "validity": 0.75,
+              "matchedFiles": [
+                "src/api/list.ts",
+                "src/types.ts"
+              ],
+              "matchedConcepts": [
+                "cursor",
+                "limit",
+                "nextPage"
+              ],
+              "declaredFiles": [
+                "src/types.ts",
+                "src/api/errors.ts",
+                "src/api/list.ts",
+                "tests/list.test.ts",
+                "tests/validation.test.ts",
+                "src/server.ts"
+              ],
+              "referencedFiles": [
+                "src/types.ts",
+                "errors.ts",
+                "src/api/errors.ts",
+                "list.ts",
+                "src/api/list.ts",
+                "tests/validation.test.ts",
+                "tests/list.test.ts",
+                "src/server.ts"
+              ],
+              "invalidPaths": [
+                "errors.ts",
+                "list.ts"
+              ]
+            },
+            "usage": {
+              "promptTokens": 701,
+              "completionTokens": 674,
+              "totalTokens": 1375,
+              "cacheHitTokens": 0,
+              "cacheMissTokens": 701
+            },
+            "durationMs": 3032,
+            "attempts": 1
+          }
+        ],
+        "avgScore": 0.9663,
+        "maxScore": 0.97,
+        "calls": 2,
+        "apiAttempts": 2,
+        "tokens": {
+          "promptTokens": 1402,
+          "completionTokens": 1411,
+          "totalTokens": 2813,
+          "cacheHitTokens": 0,
+          "cacheMissTokens": 1402
+        },
+        "wallMs": 3800
+      },
+      "treatment": {
+        "candidates": [
+          {
+            "index": 0,
+            "temperature": 0.9,
+            "schemaValid": true,
+            "parsed": {
+              "steps": [
+                {
+                  "title": "Extend ListRequest with optional cursor and document response nextPage",
+                  "files": [
+                    "src/types.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` to confirm types compile; inspect src/types.ts to confirm ListRequest has optional cursor?: string and limit?: number, and ListResponse has nextPage: string | null."
+                },
+                {
+                  "title": "Add ApiError import and limit validation helper in list API",
+                  "files": [
+                    "src/api/list.ts",
+                    "src/api/errors.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` and `npm test -- validation.test.ts` after adding tests; confirm invalid limits throw ApiError with status 400 via a small node/ts check."
+                },
+                {
+                  "title": "Implement opaque cursor encode/decode with defensive error handling",
+                  "files": [
+                    "src/api/list.ts"
+                  ],
+                  "verification": "Unit check: decode(encode(cursor)) round-trips in a `npx tsc --noEmit` plus targeted test in tests/list.test.ts asserting malformed cursors throw ApiError(400) and never 500."
+                },
+                {
+                  "title": "Implement stable id-ordered pagination with nextPage in listItems",
+                  "files": [
+                    "src/api/list.ts"
+                  ],
+                  "verification": "Run `npm test -- list.test.ts` covering first page, second page, and last page; assert items sorted by id and nextPage null only on last page."
+                },
+                {
+                  "title": "Add list API pagination tests (first, second, last page)",
+                  "files": [
+                    "tests/list.test.ts"
+                  ],
+                  "verification": "Run `npm test -- list.test.ts`; all pagination cases pass and cursors round-trip to the next item."
+                },
+                {
+                  "title": "Add validation tests for invalid limits and malformed cursors",
+                  "files": [
+                    "tests/validation.test.ts"
+                  ],
+                  "verification": "Run `npm test -- validation.test.ts`; asserts ApiError status 400 for limits 0, -1, 101, 1.5, 'abc', and for malformed cursor strings."
+                }
+              ],
+              "risks": [
+                "Existing callers relying on ListResponse without nextPage may fail typecheck; update call sites in src/server.ts if needed.",
+                "Comparing items by string id assumes lexicographic ordering; ensure cursor encodes the last id deterministically.",
+                "Cursor decoding via base64/JSON may accept crafted but valid-looking values; must strictly validate shape to return 400.",
+                "Tests may need deterministic fixture data to assert stable ordering by id."
+              ]
+            },
+            "schemaIssues": [],
+            "content": "{\"steps\":[{\"title\":\"Extend ListRequest with optional cursor and document response nextPage\",\"files\":[\"src/types.ts\"],\"verification\":\"Run `npx tsc --noEmit` to confirm types compile; inspect src/types.ts to confirm ListRequest has optional cursor?: string and limit?: number, and ListResponse has nextPage: string | null.\"},{\"title\":\"Add ApiError import and limit validation helper in list API\",\"files\":[\"src/api/list.ts\",\"src/api/errors.ts\"],\"verification\":\"Run `npx tsc --noEmit` and `npm test -- validation.test.ts` after adding tests; confirm invalid limits throw ApiError with status 400 via a small node/ts check.\"},{\"title\":\"Implement opaque cursor encode/decode with defensive error handling\",\"files\":[\"src/api/list.ts\"],\"verification\":\"Unit check: decode(encode(cursor)) round-trips in a `npx tsc --noEmit` plus targeted test in tests/list.test.ts asserting malformed cursors throw ApiError(400) and never 500.\"},{\"title\":\"Implement stable id-ordered pagination with nextPage in listItems\",\"files\":[\"src/api/list.ts\"],\"verification\":\"Run `npm test -- list.test.ts` covering first page, second page, and last page; assert items sorted by id and nextPage null only on last page.\"},{\"title\":\"Add list API pagination tests (first, second, last page)\",\"files\":[\"tests/list.test.ts\"],\"verification\":\"Run `npm test -- list.test.ts`; all pagination cases pass and cursors round-trip to the next item.\"},{\"title\":\"Add validation tests for invalid limits and malformed cursors\",\"files\":[\"tests/validation.test.ts\"],\"verification\":\"Run `npm test -- validation.test.ts`; asserts ApiError status 400 for limits 0, -1, 101, 1.5, 'abc', and for malformed cursor strings.\"}],\"risks\":[\"Existing callers relying on ListResponse without nextPage may fail typecheck; update call sites in src/server.ts if needed.\",\"Comparing items by string id assumes lexicographic ordering; ensure cursor encodes the last id deterministically.\",\"Cursor decoding via base64/JSON may accept crafted but valid-looking values; must strictly validate shape to return 400.\",\"Tests may need deterministic fixture data to assert stable ordering by id.\"]}",
+            "finishReason": "stop",
+            "score": 0.9625,
+            "subscores": {
+              "score": 0.9625,
+              "requiredFileCoverage": 1,
+              "conceptCoverage": 1,
+              "verification": 1,
+              "validity": 0.75,
+              "matchedFiles": [
+                "src/api/list.ts",
+                "src/types.ts"
+              ],
+              "matchedConcepts": [
+                "cursor",
+                "limit",
+                "nextPage"
+              ],
+              "declaredFiles": [
+                "src/types.ts",
+                "src/api/list.ts",
+                "src/api/errors.ts",
+                "tests/list.test.ts",
+                "tests/validation.test.ts"
+              ],
+              "referencedFiles": [
+                "src/types.ts",
+                "src/api/list.ts",
+                "src/api/errors.ts",
+                "validation.test.ts",
+                "tests/list.test.ts",
+                "list.test.ts",
+                "tests/validation.test.ts",
+                "src/server.ts"
+              ],
+              "invalidPaths": [
+                "validation.test.ts",
+                "list.test.ts"
+              ]
+            },
+            "usage": {
+              "promptTokens": 701,
+              "completionTokens": 505,
+              "totalTokens": 1206,
+              "cacheHitTokens": 512,
+              "cacheMissTokens": 189
+            },
+            "durationMs": 2699,
+            "attempts": 1
+          },
+          {
+            "index": 1,
+            "temperature": 0.9,
+            "schemaValid": true,
+            "parsed": {
+              "steps": [
+                {
+                  "title": "Extend ListRequest and ListResponse types with cursor and nextPage",
+                  "files": [
+                    "src/types.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` to confirm types compile; confirm ListRequest has optional cursor?: string and optional limit?: number, and ListResponse has items: Item[] plus nextPage: string | null."
+                },
+                {
+                  "title": "Add cursor encode/decode helpers and limit validation in list API",
+                  "files": [
+                    "src/api/list.ts",
+                    "src/api/errors.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit`; write unit assertions that decode of a malformed cursor throws ApiError with status 400 and that invalid limits (0, -1, 101, 1.5, '10') throw ApiError 400."
+                },
+                {
+                  "title": "Implement stable id-ordered pagination with nextPage in listItems",
+                  "files": [
+                    "src/api/list.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` and the list tests via `npm test -- tests/list.test.ts`; verify first page returns items sorted by id and nextPage non-null, second page continues after cursor, and last page returns nextPage null."
+                },
+                {
+                  "title": "Wire ApiError 400 responses from src/api/errors.ts into the server handler",
+                  "files": [
+                    "src/server.ts",
+                    "src/api/errors.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` and start server via `npm start`; curl the list endpoint with limit=0 and an invalid cursor and confirm HTTP 400 JSON error, and confirm malformed cursor never yields 500."
+                },
+                {
+                  "title": "Add list pagination tests for first, second, and last page",
+                  "files": [
+                    "tests/list.test.ts"
+                  ],
+                  "verification": "Run `npm test -- tests/list.test.ts`; assert ordering by id, cursor round-trip to next item, and nextPage null on the final page."
+                },
+                {
+                  "title": "Add validation tests for invalid limits and malformed cursors",
+                  "files": [
+                    "tests/validation.test.ts"
+                  ],
+                  "verification": "Run `npm test -- tests/validation.test.ts`; assert ApiError status 400 for limits 0, negative, 101, 1.5, and non-number, plus malformed/forged cursors, and assert no 500 is produced."
+                }
+              ],
+              "risks": [
+                "Changing ListResponse to require nextPage may break existing callers or tests that construct ListResponse without it; update all usages within allowed files.",
+                "Cursor opacity: if the cursor is a plain id, clients may tamper with it; though the spec only requires defensive decode, ensure malformed input is caught and mapped to ApiError 400.",
+                "Ordering by id must be deterministic; ensure the sort is applied before slicing and cursor lookup, otherwise pages may duplicate or skip items.",
+                "Limit validation must reject non-number and non-integer values before use; typeof checks must run prior to arithmetic to avoid coercion bugs.",
+                "Server error mapping must be updated so thrown ApiError instances surface as 400 rather than being swallowed into a 500."
+              ]
+            },
+            "schemaIssues": [],
+            "content": "{\"steps\":[{\"title\":\"Extend ListRequest and ListResponse types with cursor and nextPage\",\"files\":[\"src/types.ts\"],\"verification\":\"Run `npx tsc --noEmit` to confirm types compile; confirm ListRequest has optional cursor?: string and optional limit?: number, and ListResponse has items: Item[] plus nextPage: string | null.\"},{\"title\":\"Add cursor encode/decode helpers and limit validation in list API\",\"files\":[\"src/api/list.ts\",\"src/api/errors.ts\"],\"verification\":\"Run `npx tsc --noEmit`; write unit assertions that decode of a malformed cursor throws ApiError with status 400 and that invalid limits (0, -1, 101, 1.5, '10') throw ApiError 400.\"},{\"title\":\"Implement stable id-ordered pagination with nextPage in listItems\",\"files\":[\"src/api/list.ts\"],\"verification\":\"Run `npx tsc --noEmit` and the list tests via `npm test -- tests/list.test.ts`; verify first page returns items sorted by id and nextPage non-null, second page continues after cursor, and last page returns nextPage null.\"},{\"title\":\"Wire ApiError 400 responses from src/api/errors.ts into the server handler\",\"files\":[\"src/server.ts\",\"src/api/errors.ts\"],\"verification\":\"Run `npx tsc --noEmit` and start server via `npm start`; curl the list endpoint with limit=0 and an invalid cursor and confirm HTTP 400 JSON error, and confirm malformed cursor never yields 500.\"},{\"title\":\"Add list pagination tests for first, second, and last page\",\"files\":[\"tests/list.test.ts\"],\"verification\":\"Run `npm test -- tests/list.test.ts`; assert ordering by id, cursor round-trip to next item, and nextPage null on the final page.\"},{\"title\":\"Add validation tests for invalid limits and malformed cursors\",\"files\":[\"tests/validation.test.ts\"],\"verification\":\"Run `npm test -- tests/validation.test.ts`; assert ApiError status 400 for limits 0, negative, 101, 1.5, and non-number, plus malformed/forged cursors, and assert no 500 is produced.\"}],\"risks\":[\"Changing ListResponse to require nextPage may break existing callers or tests that construct ListResponse without it; update all usages within allowed files.\",\"Cursor opacity: if the cursor is a plain id, clients may tamper with it; though the spec only requires defensive decode, ensure malformed input is caught and mapped to ApiError 400.\",\"Ordering by id must be deterministic; ensure the sort is applied before slicing and cursor lookup, otherwise pages may duplicate or skip items.\",\"Limit validation must reject non-number and non-integer values before use; typeof checks must run prior to arithmetic to avoid coercion bugs.\",\"Server error mapping must be updated so thrown ApiError instances surface as 400 rather than being swallowed into a 500.\"]}",
+            "finishReason": "stop",
+            "score": 1,
+            "subscores": {
+              "score": 1,
+              "requiredFileCoverage": 1,
+              "conceptCoverage": 1,
+              "verification": 1,
+              "validity": 1,
+              "matchedFiles": [
+                "src/api/list.ts",
+                "src/types.ts"
+              ],
+              "matchedConcepts": [
+                "cursor",
+                "limit",
+                "nextPage"
+              ],
+              "declaredFiles": [
+                "src/types.ts",
+                "src/api/list.ts",
+                "src/api/errors.ts",
+                "src/server.ts",
+                "tests/list.test.ts",
+                "tests/validation.test.ts"
+              ],
+              "referencedFiles": [
+                "src/types.ts",
+                "src/api/list.ts",
+                "src/api/errors.ts",
+                "tests/list.test.ts",
+                "src/server.ts",
+                "tests/validation.test.ts"
+              ],
+              "invalidPaths": []
+            },
+            "usage": {
+              "promptTokens": 701,
+              "completionTokens": 639,
+              "totalTokens": 1340,
+              "cacheHitTokens": 512,
+              "cacheMissTokens": 189
+            },
+            "durationMs": 3088,
+            "attempts": 1
+          },
+          {
+            "index": 2,
+            "temperature": 0.9,
+            "schemaValid": true,
+            "parsed": {
+              "steps": [
+                {
+                  "title": "Extend ListRequest/ListResponse types with cursor, limit, and nextPage",
+                  "files": [
+                    "src/types.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` to confirm ListRequest has optional cursor?: string and limit?: number, and ListResponse has items: Item[] plus nextPage: string | null. Existing code compiles after updating any callers."
+                },
+                {
+                  "title": "Add validation helper for limit in list API using ApiError",
+                  "files": [
+                    "src/api/errors.ts",
+                    "src/api/list.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` and manually exercise listItems with limit values 0, -1, 101, 1.5, '5', null; each must throw ApiError with status 400. Run `npm test -- tests/validation.test.ts`."
+                },
+                {
+                  "title": "Implement opaque cursor encode/decode with defensive error handling",
+                  "files": [
+                    "src/api/list.ts"
+                  ],
+                  "verification": "Add encodeCursor/decodeCursor helpers using JSON plus base64 with try/catch; malformed input like 'not-a-cursor' or '%%%' must throw ApiError(400) not a TypeError. Verify via `npm test -- tests/validation.test.ts` covering malformed cursors."
+                },
+                {
+                  "title": "Implement stable pagination sorted by item id and nextPage computation",
+                  "files": [
+                    "src/api/list.ts"
+                  ],
+                  "verification": "In listItems sort rows by id ascending, apply cursor to filter items with id > cursor.id, slice to limit, and set nextPage to encodeCursor(nextItem.id) when more rows remain, else null. Run `npx tsc --noEmit` and `npm test -- tests/list.test.ts`."
+                },
+                {
+                  "title": "Add tests for first, second, and last page pagination",
+                  "files": [
+                    "tests/list.test.ts"
+                  ],
+                  "verification": "Add tests that create a fixture set, call listItems with no cursor (expect first N items and non-null nextPage), then with that nextPage (expect subsequent items), and on the final page expect nextPage === null and complete coverage without duplicates. Run `npm test -- tests/list.test.ts`."
+                },
+                {
+                  "title": "Add tests for invalid limits and malformed cursors",
+                  "files": [
+                    "tests/validation.test.ts"
+                  ],
+                  "verification": "Add tests asserting ApiError with status 400 for limits 0, -1, 101, 1.5, '5', and undefined-invalid, plus malformed cursors like 'not-a-cursor' and '%%%%'. Run `npm test -- tests/validation.test.ts` and ensure no unhandled 500-style errors."
+                },
+                {
+                  "title": "Verify full build, typecheck, and test suite",
+                  "files": [
+                    "package.json",
+                    "tsconfig.json",
+                    "src/server.ts"
+                  ],
+                  "verification": "Run `npm run build` if present, `npx tsc --noEmit`, and `npm test` to confirm all suites pass and server wiring still compiles with the updated ListResponse shape."
+                }
+              ],
+              "risks": [
+                "Cursor encoded with base64 JSON is technically decodable by clients; treat as opaque but avoid exposing sensitive fields inside the payload.",
+                "Sorting by item id changes prior insertion-order behavior; downstream consumers relying on createdAt ordering may see different results.",
+                "Callers of listItems currently reading only items must handle the new required nextPage field; TypeScript strict mode will surface these but runtime JSON consumers may ignore it.",
+                "Duplicate or non-unique item ids would break cursor round-tripping; assumes ids are unique and lexicographically sortable as strings."
+              ]
+            },
+            "schemaIssues": [],
+            "content": "{\"steps\":[{\"title\":\"Extend ListRequest/ListResponse types with cursor, limit, and nextPage\",\"files\":[\"src/types.ts\"],\"verification\":\"Run `npx tsc --noEmit` to confirm ListRequest has optional cursor?: string and limit?: number, and ListResponse has items: Item[] plus nextPage: string | null. Existing code compiles after updating any callers.\"},{\"title\":\"Add validation helper for limit in list API using ApiError\",\"files\":[\"src/api/errors.ts\",\"src/api/list.ts\"],\"verification\":\"Run `npx tsc --noEmit` and manually exercise listItems with limit values 0, -1, 101, 1.5, '5', null; each must throw ApiError with status 400. Run `npm test -- tests/validation.test.ts`.\"},{\"title\":\"Implement opaque cursor encode/decode with defensive error handling\",\"files\":[\"src/api/list.ts\"],\"verification\":\"Add encodeCursor/decodeCursor helpers using JSON plus base64 with try/catch; malformed input like 'not-a-cursor' or '%%%' must throw ApiError(400) not a TypeError. Verify via `npm test -- tests/validation.test.ts` covering malformed cursors.\"},{\"title\":\"Implement stable pagination sorted by item id and nextPage computation\",\"files\":[\"src/api/list.ts\"],\"verification\":\"In listItems sort rows by id ascending, apply cursor to filter items with id > cursor.id, slice to limit, and set nextPage to encodeCursor(nextItem.id) when more rows remain, else null. Run `npx tsc --noEmit` and `npm test -- tests/list.test.ts`.\"},{\"title\":\"Add tests for first, second, and last page pagination\",\"files\":[\"tests/list.test.ts\"],\"verification\":\"Add tests that create a fixture set, call listItems with no cursor (expect first N items and non-null nextPage), then with that nextPage (expect subsequent items), and on the final page expect nextPage === null and complete coverage without duplicates. Run `npm test -- tests/list.test.ts`.\"},{\"title\":\"Add tests for invalid limits and malformed cursors\",\"files\":[\"tests/validation.test.ts\"],\"verification\":\"Add tests asserting ApiError with status 400 for limits 0, -1, 101, 1.5, '5', and undefined-invalid, plus malformed cursors like 'not-a-cursor' and '%%%%'. Run `npm test -- tests/validation.test.ts` and ensure no unhandled 500-style errors.\"},{\"title\":\"Verify full build, typecheck, and test suite\",\"files\":[\"package.json\",\"tsconfig.json\",\"src/server.ts\"],\"verification\":\"Run `npm run build` if present, `npx tsc --noEmit`, and `npm test` to confirm all suites pass and server wiring still compiles with the updated ListResponse shape.\"}],\"risks\":[\"Cursor encoded with base64 JSON is technically decodable by clients; treat as opaque but avoid exposing sensitive fields inside the payload.\",\"Sorting by item id changes prior insertion-order behavior; downstream consumers relying on createdAt ordering may see different results.\",\"Callers of listItems currently reading only items must handle the new required nextPage field; TypeScript strict mode will surface these but runtime JSON consumers may ignore it.\",\"Duplicate or non-unique item ids would break cursor round-tripping; assumes ids are unique and lexicographically sortable as strings.\"]}",
+            "finishReason": "stop",
+            "score": 1,
+            "subscores": {
+              "score": 1,
+              "requiredFileCoverage": 1,
+              "conceptCoverage": 1,
+              "verification": 1,
+              "validity": 1,
+              "matchedFiles": [
+                "src/api/list.ts",
+                "src/types.ts"
+              ],
+              "matchedConcepts": [
+                "cursor",
+                "limit",
+                "nextPage"
+              ],
+              "declaredFiles": [
+                "src/types.ts",
+                "src/api/errors.ts",
+                "src/api/list.ts",
+                "tests/list.test.ts",
+                "tests/validation.test.ts",
+                "package.json",
+                "tsconfig.json",
+                "src/server.ts"
+              ],
+              "referencedFiles": [
+                "src/types.ts",
+                "src/api/errors.ts",
+                "src/api/list.ts",
+                "tests/validation.test.ts",
+                "tests/list.test.ts",
+                "package.json",
+                "tsconfig.json",
+                "src/server.ts"
+              ],
+              "invalidPaths": []
+            },
+            "usage": {
+              "promptTokens": 701,
+              "completionTokens": 739,
+              "totalTokens": 1440,
+              "cacheHitTokens": 512,
+              "cacheMissTokens": 189
+            },
+            "durationMs": 3838,
+            "attempts": 1
+          }
+        ],
+        "oracleBest": {
+          "index": 1,
+          "score": 1,
+          "tiedIndices": [
+            1,
+            2
+          ]
+        },
+        "judge": {
+          "winner": 2,
+          "reason": "All three plans cover the required files and concepts, but plan 2 is the most complete and coherent. It explicitly extends ListRequest with cursor and limit and ListResponse with nextPage, validates limits (including non-number/null) with ApiError 400, implements opaque base64/JSON cursor encode/decode with try/catch mapping malformed cursors to 400, and describes stable id-ordered pagination with nextPage round-tripping. Its verification mentions typecheck, tests, and full suite, and it includes the requested first/second/last page, invalid limit, and malformed cursor tests. All referenced paths are in the allowed list. Plan 1 is also strong but adds server wiring beyond the core requirement; plan 0 is solid but slightly less explicit on defensive cursor shape validation and full-suite verification.",
+          "valid": true,
+          "issues": [],
+          "selectedScore": 1,
+          "pickedOracleBest": true,
+          "oracleTopIndices": [
+            1,
+            2
+          ],
+          "temperature": 0.1,
+          "content": "{\"winner\":2,\"reason\":\"All three plans cover the required files and concepts, but plan 2 is the most complete and coherent. It explicitly extends ListRequest with cursor and limit and ListResponse with nextPage, validates limits (including non-number/null) with ApiError 400, implements opaque base64/JSON cursor encode/decode with try/catch mapping malformed cursors to 400, and describes stable id-ordered pagination with nextPage round-tripping. Its verification mentions typecheck, tests, and full suite, and it includes the requested first/second/last page, invalid limit, and malformed cursor tests. All referenced paths are in the allowed list. Plan 1 is also strong but adds server wiring beyond the core requirement; plan 0 is solid but slightly less explicit on defensive cursor shape validation and full-suite verification.\"}",
+          "finishReason": "stop",
+          "usage": {
+            "promptTokens": 2753,
+            "completionTokens": 173,
+            "totalTokens": 2926,
+            "cacheHitTokens": 0,
+            "cacheMissTokens": 2753
+          },
+          "durationMs": 1598,
+          "attempts": 1
+        },
+        "calls": 4,
+        "apiAttempts": 4,
+        "tokens": {
+          "promptTokens": 4856,
+          "completionTokens": 2056,
+          "totalTokens": 6912,
+          "cacheHitTokens": 1536,
+          "cacheMissTokens": 3320
+        },
+        "wallMs": 5452
+      },
+      "judgeGain": 0.0337,
+      "oracleGain": 0.0337,
+      "tokenMultiplier": 2.4572
+    },
+    {
+      "id": "C",
+      "title": "Fix auth token refresh: dedupe concurrent refreshes and handle expiry",
+      "taskSpec": {
+        "requirements": "Fix token refresh in the authentication module.\n- getAccessToken() in src/auth.ts currently refreshes separately for every concurrent caller.\n- Deduplicate concurrent refreshes: while a refresh is in flight, all callers must await the same promise and receive the same new token.\n- Treat a token as expired when Date.now() >= expiresAt - skewMs with skewMs = 30_000, so a token that will expire during the request is refreshed first.\n- On refresh success, update the cached token and resolve every waiter. On failure, reject every waiter with the same error, clear the in-flight promise, and allow a later call to retry.\n- Never deadlock: clear the in-flight state in a finally block.\n- Preserve the public getAccessToken() signature and the existing test setup.\n- Add or update tests in src/auth.test.ts for: 10 concurrent callers cause exactly one store.refresh call; an expired token refreshes; a token inside the 30-second skew refreshes; a fresh token does not refresh; a failed refresh clears state and a later attempt succeeds.",
+        "repoTree": "repo/\n  package.json\n  tsconfig.json\n  src/\n    auth.ts\n    auth.test.ts\n    token-store.ts\n    types.ts",
+        "keyFiles": [
+          {
+            "path": "src/auth.ts",
+            "content": "import { store } from './token-store.ts'\nimport type { TokenSet } from './types.ts'\n\nlet cached: TokenSet | null = null\n\nexport async function getAccessToken(): Promise<string> {\n  if (cached !== null && cached.expiresAt > Date.now()) {\n    return cached.accessToken\n  }\n  const refreshed = await store.refresh(cached?.refreshToken ?? '')\n  cached = {\n    accessToken: refreshed.access_token,\n    refreshToken: refreshed.refresh_token ?? cached?.refreshToken ?? '',\n    expiresAt: Date.now() + refreshed.expires_in * 1000,\n  }\n  return cached.accessToken\n}"
+          },
+          {
+            "path": "src/auth.test.ts",
+            "content": "import { expect, mock, test } from 'bun:test'\nimport { getAccessToken } from './auth.ts'\nimport { store } from './token-store.ts'\n\ntest('concurrent callers share one refresh', async () => {\n  // Currently fails: every concurrent getAccessToken() call invokes store.refresh.\n  const refresh = mock(async () => ({\n    access_token: 'new-token',\n    refresh_token: 'new-refresh',\n    expires_in: 3600,\n  }))\n  store.refresh = refresh\n\n  const tokens = await Promise.all(Array.from({ length: 10 }, () => getAccessToken()))\n\n  expect(tokens.every(token => token === 'new-token')).toBe(true)\n  expect(refresh).toHaveBeenCalledTimes(1)\n})"
+          }
+        ],
+        "requiredFiles": [
+          "src/auth.ts",
+          "src/auth.test.ts"
+        ],
+        "allowedFiles": [
+          "package.json",
+          "tsconfig.json",
+          "src/auth.ts",
+          "src/auth.test.ts",
+          "src/token-store.ts",
+          "src/types.ts"
+        ],
+        "concepts": [
+          {
+            "name": "refresh",
+            "patterns": [
+              "\\brefresh",
+              "\\brenew"
+            ]
+          },
+          {
+            "name": "concurrent",
+            "patterns": [
+              "\\bconcurr",
+              "\\bin[-\\s_]?flight\\b",
+              "\\bdedup",
+              "\\bsingle[-\\s_]?flight\\b",
+              "\\bshared[-\\s]+(?:promise|in[-\\s_]?flight)",
+              "\\bmutex\\b"
+            ]
+          },
+          {
+            "name": "expiry",
+            "patterns": [
+              "\\bexpir",
+              "\\bstale\\b",
+              "\\bttl\\b",
+              "\\bdeadline\\b"
+            ]
+          }
+        ]
+      },
+      "baseline": {
+        "samples": [
+          {
+            "index": 0,
+            "temperature": 0.3,
+            "schemaValid": true,
+            "parsed": {
+              "steps": [
+                {
+                  "title": "Add in-flight refresh deduplication and 30s skew expiry check in src/auth.ts",
+                  "files": [
+                    "src/auth.ts"
+                  ],
+                  "verification": "Run `bun test src/auth.test.ts` and `bunx tsc --noEmit`; confirm getAccessToken signature unchanged and concurrent callers share one promise."
+                },
+                {
+                  "title": "Implement refresh promise lifecycle: cache update on success, shared rejection on failure, finally cleanup",
+                  "files": [
+                    "src/auth.ts"
+                  ],
+                  "verification": "Run `bun test src/auth.test.ts`; verify failed refresh rejects all waiters with same error, in-flight promise is cleared in finally, and a subsequent call retries successfully."
+                },
+                {
+                  "title": "Add tests for concurrent dedupe, expired refresh, skew refresh, fresh no-refresh, and failure recovery",
+                  "files": [
+                    "src/auth.test.ts"
+                  ],
+                  "verification": "Run `bun test src/auth.test.ts` and confirm all five scenarios pass, including exactly one store.refresh call for 10 concurrent callers."
+                },
+                {
+                  "title": "Reset module state between tests to avoid cached token leakage",
+                  "files": [
+                    "src/auth.test.ts",
+                    "src/auth.ts"
+                  ],
+                  "verification": "Run `bun test src/auth.test.ts` repeatedly; confirm tests are order-independent and no cross-test cached token causes false passes."
+                }
+              ],
+              "risks": [
+                "Module-level cached/in-flight state can leak between tests unless reset; may require exporting a test-only reset helper or using dynamic imports.",
+                "Mocking store.refresh in tests may not restore original implementation, affecting later tests.",
+                "Clock-based skew logic depends on Date.now(); tests using fake timers must be consistent with implementation.",
+                "If refresh_token is empty on first call, store.refresh may fail; failure path must still clear in-flight state to avoid deadlock."
+              ]
+            },
+            "schemaIssues": [],
+            "content": "{\"steps\":[{\"title\":\"Add in-flight refresh deduplication and 30s skew expiry check in src/auth.ts\",\"files\":[\"src/auth.ts\"],\"verification\":\"Run `bun test src/auth.test.ts` and `bunx tsc --noEmit`; confirm getAccessToken signature unchanged and concurrent callers share one promise.\"},{\"title\":\"Implement refresh promise lifecycle: cache update on success, shared rejection on failure, finally cleanup\",\"files\":[\"src/auth.ts\"],\"verification\":\"Run `bun test src/auth.test.ts`; verify failed refresh rejects all waiters with same error, in-flight promise is cleared in finally, and a subsequent call retries successfully.\"},{\"title\":\"Add tests for concurrent dedupe, expired refresh, skew refresh, fresh no-refresh, and failure recovery\",\"files\":[\"src/auth.test.ts\"],\"verification\":\"Run `bun test src/auth.test.ts` and confirm all five scenarios pass, including exactly one store.refresh call for 10 concurrent callers.\"},{\"title\":\"Reset module state between tests to avoid cached token leakage\",\"files\":[\"src/auth.test.ts\",\"src/auth.ts\"],\"verification\":\"Run `bun test src/auth.test.ts` repeatedly; confirm tests are order-independent and no cross-test cached token causes false passes.\"}] ,\"risks\":[\"Module-level cached/in-flight state can leak between tests unless reset; may require exporting a test-only reset helper or using dynamic imports.\",\"Mocking store.refresh in tests may not restore original implementation, affecting later tests.\",\"Clock-based skew logic depends on Date.now(); tests using fake timers must be consistent with implementation.\",\"If refresh_token is empty on first call, store.refresh may fail; failure path must still clear in-flight state to avoid deadlock.\"]}",
+            "finishReason": "stop",
+            "score": 1,
+            "subscores": {
+              "score": 1,
+              "requiredFileCoverage": 1,
+              "conceptCoverage": 1,
+              "verification": 1,
+              "validity": 1,
+              "matchedFiles": [
+                "src/auth.ts",
+                "src/auth.test.ts"
+              ],
+              "matchedConcepts": [
+                "refresh",
+                "concurrent",
+                "expiry"
+              ],
+              "declaredFiles": [
+                "src/auth.ts",
+                "src/auth.test.ts"
+              ],
+              "referencedFiles": [
+                "src/auth.ts",
+                "src/auth.test.ts"
+              ],
+              "invalidPaths": []
+            },
+            "usage": {
+              "promptTokens": 853,
+              "completionTokens": 371,
+              "totalTokens": 1224,
+              "cacheHitTokens": 0,
+              "cacheMissTokens": 853
+            },
+            "durationMs": 2425,
+            "attempts": 1
+          },
+          {
+            "index": 1,
+            "temperature": 0.3,
+            "schemaValid": false,
+            "parsed": {
+              "steps": [
+                {
+                  "title": "Add module-level in-flight refresh promise and skew constant to src/auth.ts",
+                  "files": [
+                    "src/auth.ts"
+                  ],
+                  "verification": "Typecheck with `bunx tsc --noEmit` (or `bun run typecheck` if defined in package.json); confirm getAccessToken signature is unchanged and new module-level `let inFlight: Promise<TokenSet> | null = null` plus `const skewMs = 30_000` compile cleanly."
+                },
+                {
+                  "title": "Implement expiry check with 30s skew in getAccessToken",
+                  "files": [
+                    "src/auth.ts"
+                  ],
+                  "verification": "Run `bun test src/auth.test.ts`; the 'fresh token does not refresh' and 'token inside 30-second skew refreshes' tests must pass, confirming the condition is `cached.expiresAt - skewMs > Date.now()` for the fast path."
+                },
+                {
+                  "title": "Deduplicate concurrent refreshes via shared in-flight promise",
+                  "files": [
+                    "src/auth.ts"
+                  ],
+                  "verification": "Run `bun test src/auth.test.ts`; the 'concurrent callers share one refresh' test must pass with `refresh` called exactly once and all 10 callers receiving 'new-token'."
+                },
+                {
+                  "title": "Clear in-flight state in finally and propagate failures to all waiters",
+                  "files": [
+                    "src/auth.ts"
+                  ],
+                  "verification": "Run `bun test src/auth.test.ts`; the 'failed refresh clears state and later attempt succeeds' test must pass, showing the first batch rejects with the same error and a subsequent call retries store.refresh successfully."
+                },
+                {
+                  "title": "Add tests for dedupe, expiry, skew, fresh token, and failure recovery",
+                  "files": [
+                    "src/auth.test.ts"
+                  ],
+                  "verification": "Run `bun test src/auth.test.ts` and confirm all five scenarios pass; also run `bun test` for the full suite and `bunx tsc --noEmit` for typecheck."
+                }
+              ],
+              "risks": []
+            },
+            "schemaIssues": [
+              "risks is not an array"
+            ],
+            "content": "{\"steps\":[{\"title\":\"Add module-level in-flight refresh promise and skew constant to src/auth.ts\",\"files\":[\"src/auth.ts\"],\"verification\":\"Typecheck with `bunx tsc --noEmit` (or `bun run typecheck` if defined in package.json); confirm getAccessToken signature is unchanged and new module-level `let inFlight: Promise<TokenSet> | null = null` plus `const skewMs = 30_000` compile cleanly.\"},{\"title\":\"Implement expiry check with 30s skew in getAccessToken\",\"files\":[\"src/auth.ts\"],\"verification\":\"Run `bun test src/auth.test.ts`; the 'fresh token does not refresh' and 'token inside 30-second skew refreshes' tests must pass, confirming the condition is `cached.expiresAt - skewMs > Date.now()` for the fast path.\"},{\"title\":\"Deduplicate concurrent refreshes via shared in-flight promise\",\"files\":[\"src/auth.ts\"],\"verification\":\"Run `bun test src/auth.test.ts`; the 'concurrent callers share one refresh' test must pass with `refresh` called exactly once and all 10 callers receiving 'new-token'.\"},{\"title\":\"Clear in-flight state in finally and propagate failures to all waiters\",\"files\":[\"src/auth.ts\"],\"verification\":\"Run `bun test src/auth.test.ts`; the 'failed refresh clears state and later attempt succeeds' test must pass, showing the first batch rejects with the same error and a subsequent call retries store.refresh successfully.\"},{\"title\":\"Add tests for dedupe, expiry, skew, fresh token, and failure recovery\",\"files\":[\"src/auth.test.ts\"],\"verification\":\"Run `bun test src/auth.test.ts` and confirm all five scenarios pass; also run `bun test` for the full suite and `bunx tsc --noEmit` for typecheck.\"}]}",
+            "finishReason": "stop",
+            "score": 1,
+            "subscores": {
+              "score": 1,
+              "requiredFileCoverage": 1,
+              "conceptCoverage": 1,
+              "verification": 1,
+              "validity": 1,
+              "matchedFiles": [
+                "src/auth.ts",
+                "src/auth.test.ts"
+              ],
+              "matchedConcepts": [
+                "refresh",
+                "concurrent",
+                "expiry"
+              ],
+              "declaredFiles": [
+                "src/auth.ts",
+                "src/auth.test.ts"
+              ],
+              "referencedFiles": [
+                "src/auth.ts",
+                "package.json",
+                "src/auth.test.ts"
+              ],
+              "invalidPaths": []
+            },
+            "usage": {
+              "promptTokens": 853,
+              "completionTokens": 408,
+              "totalTokens": 1261,
+              "cacheHitTokens": 0,
+              "cacheMissTokens": 853
+            },
+            "durationMs": 2391,
+            "attempts": 1
+          }
+        ],
+        "avgScore": 1,
+        "maxScore": 1,
+        "calls": 2,
+        "apiAttempts": 2,
+        "tokens": {
+          "promptTokens": 1706,
+          "completionTokens": 779,
+          "totalTokens": 2485,
+          "cacheHitTokens": 0,
+          "cacheMissTokens": 1706
+        },
+        "wallMs": 2426
+      },
+      "treatment": {
+        "candidates": [
+          {
+            "index": 0,
+            "temperature": 0.9,
+            "schemaValid": true,
+            "parsed": {
+              "steps": [
+                {
+                  "title": "Add in-flight refresh promise state and skew constant to src/auth.ts",
+                  "files": [
+                    "src/auth.ts"
+                  ],
+                  "verification": "Run `bunx tsc --noEmit` to confirm the new module-level `let refreshInFlight: Promise<TokenSet> | null = null` and `const skewMs = 30_000` typecheck without errors."
+                },
+                {
+                  "title": "Implement expiry-with-skew check and deduplicated refresh in getAccessToken()",
+                  "files": [
+                    "src/auth.ts"
+                  ],
+                  "verification": "Run `bun test src/auth.test.ts` and confirm the existing concurrent-callers test passes with exactly one store.refresh call."
+                },
+                {
+                  "title": "Wrap refresh in shared promise with finally-based cleanup and shared rejection",
+                  "files": [
+                    "src/auth.ts"
+                  ],
+                  "verification": "Run `bun test src/auth.test.ts` and `bunx tsc --noEmit`; confirm no unhandled rejection warnings and that failed refresh allows a subsequent retry."
+                },
+                {
+                  "title": "Add tests for 10 concurrent callers, expired token, skew window, fresh token, and failure recovery",
+                  "files": [
+                    "src/auth.test.ts"
+                  ],
+                  "verification": "Run `bun test src/auth.test.ts` and confirm all new test cases pass, including exactly one refresh for 10 concurrent callers and a second refresh after a failure."
+                },
+                {
+                  "title": "Add test reset hook or use dynamic imports/reset between tests to avoid cached-token leakage",
+                  "files": [
+                    "src/auth.test.ts",
+                    "src/auth.ts"
+                  ],
+                  "verification": "Run `bun test src/auth.test.ts` repeatedly to confirm tests are isolated and deterministic across runs."
+                },
+                {
+                  "title": "Run full verification: typecheck and test suite",
+                  "files": [
+                    "src/auth.ts",
+                    "src/auth.test.ts"
+                  ],
+                  "verification": "Run `bunx tsc --noEmit` and `bun test` from the repo root and confirm both exit 0."
+                }
+              ],
+              "risks": [
+                "Module-level cached token persists across tests, causing test order dependence unless a reset mechanism is added (e.g., exported reset for tests or fresh module import per test).",
+                "Assigning store.refresh in tests via mock may leak into other tests if not restored after each test.",
+                "If refreshInFlight is not cleared in a finally block, a rejected refresh would deadlock future calls.",
+                "Using Date.now() >= expiresAt - skewMs with skewMs larger than token lifetime could cause constant refresh loops for very short-lived tokens, though store.refresh still runs.",
+                "Concurrent callers that arrive after caches update but before finally clears in-flight may await a resolved promise and receive the same token, which is acceptable but must not trigger a second refresh."
+              ]
+            },
+            "schemaIssues": [],
+            "content": "{\"steps\":[{\"title\":\"Add in-flight refresh promise state and skew constant to src/auth.ts\",\"files\":[\"src/auth.ts\"],\"verification\":\"Run `bunx tsc --noEmit` to confirm the new module-level `let refreshInFlight: Promise<TokenSet> | null = null` and `const skewMs = 30_000` typecheck without errors.\"},{\"title\":\"Implement expiry-with-skew check and deduplicated refresh in getAccessToken()\",\"files\":[\"src/auth.ts\"],\"verification\":\"Run `bun test src/auth.test.ts` and confirm the existing concurrent-callers test passes with exactly one store.refresh call.\"},{\"title\":\"Wrap refresh in shared promise with finally-based cleanup and shared rejection\",\"files\":[\"src/auth.ts\"],\"verification\":\"Run `bun test src/auth.test.ts` and `bunx tsc --noEmit`; confirm no unhandled rejection warnings and that failed refresh allows a subsequent retry.\"},{\"title\":\"Add tests for 10 concurrent callers, expired token, skew window, fresh token, and failure recovery\",\"files\":[\"src/auth.test.ts\"],\"verification\":\"Run `bun test src/auth.test.ts` and confirm all new test cases pass, including exactly one refresh for 10 concurrent callers and a second refresh after a failure.\"},{\"title\":\"Add test reset hook or use dynamic imports/reset between tests to avoid cached-token leakage\",\"files\":[\"src/auth.test.ts\",\"src/auth.ts\"],\"verification\":\"Run `bun test src/auth.test.ts` repeatedly to confirm tests are isolated and deterministic across runs.\"},{\"title\":\"Run full verification: typecheck and test suite\",\"files\":[\"src/auth.ts\",\"src/auth.test.ts\"],\"verification\":\"Run `bunx tsc --noEmit` and `bun test` from the repo root and confirm both exit 0.\"}],\"risks\":[\"Module-level cached token persists across tests, causing test order dependence unless a reset mechanism is added (e.g., exported reset for tests or fresh module import per test).\",\"Assigning store.refresh in tests via mock may leak into other tests if not restored after each test.\",\"If refreshInFlight is not cleared in a finally block, a rejected refresh would deadlock future calls.\",\"Using Date.now() >= expiresAt - skewMs with skewMs larger than token lifetime could cause constant refresh loops for very short-lived tokens, though store.refresh still runs.\",\"Concurrent callers that arrive after caches update but before finally clears in-flight may await a resolved promise and receive the same token, which is acceptable but must not trigger a second refresh.\"]}",
+            "finishReason": "stop",
+            "score": 1,
+            "subscores": {
+              "score": 1,
+              "requiredFileCoverage": 1,
+              "conceptCoverage": 1,
+              "verification": 1,
+              "validity": 1,
+              "matchedFiles": [
+                "src/auth.ts",
+                "src/auth.test.ts"
+              ],
+              "matchedConcepts": [
+                "refresh",
+                "concurrent",
+                "expiry"
+              ],
+              "declaredFiles": [
+                "src/auth.ts",
+                "src/auth.test.ts"
+              ],
+              "referencedFiles": [
+                "src/auth.ts",
+                "src/auth.test.ts"
+              ],
+              "invalidPaths": []
+            },
+            "usage": {
+              "promptTokens": 853,
+              "completionTokens": 556,
+              "totalTokens": 1409,
+              "cacheHitTokens": 640,
+              "cacheMissTokens": 213
+            },
+            "durationMs": 3074,
+            "attempts": 1
+          },
+          {
+            "index": 1,
+            "temperature": 0.9,
+            "schemaValid": true,
+            "parsed": {
+              "steps": [
+                {
+                  "title": "Add in-flight refresh deduplication with skew-aware expiry to getAccessToken",
+                  "files": [
+                    "src/auth.ts"
+                  ],
+                  "verification": "Run `bun test src/auth.test.ts` and `bunx tsc --noEmit`; confirm concurrent callers share one promise and the public getAccessToken(): Promise<string> signature is unchanged."
+                },
+                {
+                  "title": "Introduce module-level constants (skewMs = 30_000) and a single in-flight promise variable",
+                  "files": [
+                    "src/auth.ts"
+                  ],
+                  "verification": "Typecheck with `bunx tsc --noEmit` and confirm via code review that the skew constant is 30_000 and the in-flight promise is a single module-scoped variable."
+                },
+                {
+                  "title": "Implement expiry check as Date.now() >= expiresAt - skewMs before returning cached token",
+                  "files": [
+                    "src/auth.ts"
+                  ],
+                  "verification": "Covered by new tests for expired, within-skew, and fresh tokens; run `bun test src/auth.test.ts`."
+                },
+                {
+                  "title": "On refresh success update cached token and resolve all waiters; on failure reject all waiters with the same error and clear in-flight state in finally",
+                  "files": [
+                    "src/auth.ts"
+                  ],
+                  "verification": "Run `bun test src/auth.test.ts` including the failure-recovery test that asserts a later call succeeds after a rejected refresh, and `bunx tsc --noEmit`."
+                },
+                {
+                  "title": "Add tests: 10 concurrent callers trigger exactly one store.refresh and receive the same token",
+                  "files": [
+                    "src/auth.test.ts"
+                  ],
+                  "verification": "Run `bun test src/auth.test.ts` and confirm the concurrent test asserts refresh called once and all tokens equal 'new-token'."
+                },
+                {
+                  "title": "Add tests: expired token refreshes, token inside 30s skew refreshes, fresh token does not refresh",
+                  "files": [
+                    "src/auth.test.ts"
+                  ],
+                  "verification": "Run `bun test src/auth.test.ts`; assert store.refresh call counts of 1 for expired and within-skew cases and 0 for the fresh case."
+                },
+                {
+                  "title": "Add test: failed refresh clears in-flight state and a subsequent attempt retries successfully",
+                  "files": [
+                    "src/auth.test.ts"
+                  ],
+                  "verification": "Run `bun test src/auth.test.ts`; assert the first refresh rejects with the same error for all waiters and a later getAccessToken call invokes store.refresh again and resolves."
+                }
+              ],
+              "risks": [
+                "Test isolation: the module-level cached token and in-flight promise persist across tests; tests may need to reset state or be ordered carefully to avoid cross-test contamination.",
+                "Mocking store.refresh by reassignment relies on the store object shape in src/token-store.ts; changing store to a frozen or differently exported form could break tests.",
+                "Clock sensitivity: skew tests using real Date.now may be flaky; prefer controlling time or using expiresAt values offset by large margins.",
+                "Unhandled rejection warnings if a failed in-flight promise is shared before waiters attach; ensure waiters attach in the same tick."
+              ]
+            },
+            "schemaIssues": [],
+            "content": "{\"steps\":[{\"title\":\"Add in-flight refresh deduplication with skew-aware expiry to getAccessToken\",\"files\":[\"src/auth.ts\"],\"verification\":\"Run `bun test src/auth.test.ts` and `bunx tsc --noEmit`; confirm concurrent callers share one promise and the public getAccessToken(): Promise<string> signature is unchanged.\"},{\"title\":\"Introduce module-level constants (skewMs = 30_000) and a single in-flight promise variable\",\"files\":[\"src/auth.ts\"],\"verification\":\"Typecheck with `bunx tsc --noEmit` and confirm via code review that the skew constant is 30_000 and the in-flight promise is a single module-scoped variable.\"},{\"title\":\"Implement expiry check as Date.now() >= expiresAt - skewMs before returning cached token\",\"files\":[\"src/auth.ts\"],\"verification\":\"Covered by new tests for expired, within-skew, and fresh tokens; run `bun test src/auth.test.ts`.\"},{\"title\":\"On refresh success update cached token and resolve all waiters; on failure reject all waiters with the same error and clear in-flight state in finally\",\"files\":[\"src/auth.ts\"],\"verification\":\"Run `bun test src/auth.test.ts` including the failure-recovery test that asserts a later call succeeds after a rejected refresh, and `bunx tsc --noEmit`.\"},{\"title\":\"Add tests: 10 concurrent callers trigger exactly one store.refresh and receive the same token\",\"files\":[\"src/auth.test.ts\"],\"verification\":\"Run `bun test src/auth.test.ts` and confirm the concurrent test asserts refresh called once and all tokens equal 'new-token'.\"},{\"title\":\"Add tests: expired token refreshes, token inside 30s skew refreshes, fresh token does not refresh\",\"files\":[\"src/auth.test.ts\"],\"verification\":\"Run `bun test src/auth.test.ts`; assert store.refresh call counts of 1 for expired and within-skew cases and 0 for the fresh case.\"},{\"title\":\"Add test: failed refresh clears in-flight state and a subsequent attempt retries successfully\",\"files\":[\"src/auth.test.ts\"],\"verification\":\"Run `bun test src/auth.test.ts`; assert the first refresh rejects with the same error for all waiters and a later getAccessToken call invokes store.refresh again and resolves.\"}],\"risks\":[\"Test isolation: the module-level cached token and in-flight promise persist across tests; tests may need to reset state or be ordered carefully to avoid cross-test contamination.\",\"Mocking store.refresh by reassignment relies on the store object shape in src/token-store.ts; changing store to a frozen or differently exported form could break tests.\",\"Clock sensitivity: skew tests using real Date.now may be flaky; prefer controlling time or using expiresAt values offset by large margins.\",\"Unhandled rejection warnings if a failed in-flight promise is shared before waiters attach; ensure waiters attach in the same tick.\"]}",
+            "finishReason": "stop",
+            "score": 1,
+            "subscores": {
+              "score": 1,
+              "requiredFileCoverage": 1,
+              "conceptCoverage": 1,
+              "verification": 1,
+              "validity": 1,
+              "matchedFiles": [
+                "src/auth.ts",
+                "src/auth.test.ts"
+              ],
+              "matchedConcepts": [
+                "refresh",
+                "concurrent",
+                "expiry"
+              ],
+              "declaredFiles": [
+                "src/auth.ts",
+                "src/auth.test.ts"
+              ],
+              "referencedFiles": [
+                "src/auth.ts",
+                "src/auth.test.ts",
+                "src/token-store.ts"
+              ],
+              "invalidPaths": []
+            },
+            "usage": {
+              "promptTokens": 853,
+              "completionTokens": 637,
+              "totalTokens": 1490,
+              "cacheHitTokens": 640,
+              "cacheMissTokens": 213
+            },
+            "durationMs": 3072,
+            "attempts": 1
+          },
+          {
+            "index": 2,
+            "temperature": 0.9,
+            "schemaValid": true,
+            "parsed": {
+              "steps": [
+                {
+                  "title": "Add skew constant and module-level in-flight promise state in src/auth.ts",
+                  "files": [
+                    "src/auth.ts"
+                  ],
+                  "verification": "Run `bunx tsc --noEmit` and `bun test src/auth.test.ts` to confirm the module still compiles and existing behavior is unchanged before logic changes."
+                },
+                {
+                  "title": "Implement expiry check using Date.now() >= expiresAt - 30_000 skew in getAccessToken",
+                  "files": [
+                    "src/auth.ts"
+                  ],
+                  "verification": "Run `bun test src/auth.test.ts` after adding a skew test asserting a token expiring in 10s triggers exactly one store.refresh call."
+                },
+                {
+                  "title": "Deduplicate concurrent refreshes by sharing a single in-flight promise across all callers",
+                  "files": [
+                    "src/auth.ts"
+                  ],
+                  "verification": "Run `bun test src/auth.test.ts` and confirm the 10-concurrent-callers test asserts store.refresh was called exactly once and all tokens are 'new-token'."
+                },
+                {
+                  "title": "Clear in-flight state in a finally block and on failure reject all waiters with the same error while allowing later retries",
+                  "files": [
+                    "src/auth.ts"
+                  ],
+                  "verification": "Run `bun test src/auth.test.ts` with a test where the first refresh rejects, asserting all concurrent callers reject with the same error, then a subsequent getAccessToken succeeds with one additional store.refresh call."
+                },
+                {
+                  "title": "Replace the single concurrent test with a full test suite covering all required scenarios",
+                  "files": [
+                    "src/auth.test.ts"
+                  ],
+                  "verification": "Run `bun test src/auth.test.ts` and confirm tests pass for: 10 concurrent callers cause one refresh; expired token refreshes; token within 30s skew refreshes; fresh token does not refresh; failed refresh clears state and later attempt succeeds."
+                },
+                {
+                  "title": "Run full typecheck and test suite to validate no regressions",
+                  "files": [
+                    "src/auth.ts",
+                    "src/auth.test.ts"
+                  ],
+                  "verification": "Run `bunx tsc --noEmit` and `bun test` and confirm typecheck is clean and all tests pass."
+                }
+              ],
+              "risks": [
+                "Module-level cached and in-flight state persists across tests; tests must reset state between cases (e.g. by triggering a fresh refresh or using a fresh module import) to avoid order-dependent failures.",
+                "Assumption that the first-ever call with no cached token has refreshToken '' and store.refresh handles empty refresh tokens; changing dedupe may alter which refreshToken is passed if cached is null at call time.",
+                "Mocking store.refresh in tests depends on it being a mutable property on the exported store object; typing must permit reassignment without breaking tsc.",
+                "Clock-based tests using Date.now() may be flaky if real time advances; prefer tokens with large margins or fake timers if available.",
+                "Concurrent callers awaiting a rejected promise must not cause unhandled rejections; ensure the shared promise is awaited/caught by all waiters."
+              ]
+            },
+            "schemaIssues": [],
+            "content": "{\"steps\":[{\"title\":\"Add skew constant and module-level in-flight promise state in src/auth.ts\",\"files\":[\"src/auth.ts\"],\"verification\":\"Run `bunx tsc --noEmit` and `bun test src/auth.test.ts` to confirm the module still compiles and existing behavior is unchanged before logic changes.\"},{\"title\":\"Implement expiry check using Date.now() >= expiresAt - 30_000 skew in getAccessToken\",\"files\":[\"src/auth.ts\"],\"verification\":\"Run `bun test src/auth.test.ts` after adding a skew test asserting a token expiring in 10s triggers exactly one store.refresh call.\"},{\"title\":\"Deduplicate concurrent refreshes by sharing a single in-flight promise across all callers\",\"files\":[\"src/auth.ts\"],\"verification\":\"Run `bun test src/auth.test.ts` and confirm the 10-concurrent-callers test asserts store.refresh was called exactly once and all tokens are 'new-token'.\"},{\"title\":\"Clear in-flight state in a finally block and on failure reject all waiters with the same error while allowing later retries\",\"files\":[\"src/auth.ts\"],\"verification\":\"Run `bun test src/auth.test.ts` with a test where the first refresh rejects, asserting all concurrent callers reject with the same error, then a subsequent getAccessToken succeeds with one additional store.refresh call.\"},{\"title\":\"Replace the single concurrent test with a full test suite covering all required scenarios\",\"files\":[\"src/auth.test.ts\"],\"verification\":\"Run `bun test src/auth.test.ts` and confirm tests pass for: 10 concurrent callers cause one refresh; expired token refreshes; token within 30s skew refreshes; fresh token does not refresh; failed refresh clears state and later attempt succeeds.\"},{\"title\":\"Run full typecheck and test suite to validate no regressions\",\"files\":[\"src/auth.ts\",\"src/auth.test.ts\"],\"verification\":\"Run `bunx tsc --noEmit` and `bun test` and confirm typecheck is clean and all tests pass.\"}],\"risks\":[\"Module-level cached and in-flight state persists across tests; tests must reset state between cases (e.g. by triggering a fresh refresh or using a fresh module import) to avoid order-dependent failures.\",\"Assumption that the first-ever call with no cached token has refreshToken '' and store.refresh handles empty refresh tokens; changing dedupe may alter which refreshToken is passed if cached is null at call time.\",\"Mocking store.refresh in tests depends on it being a mutable property on the exported store object; typing must permit reassignment without breaking tsc.\",\"Clock-based tests using Date.now() may be flaky if real time advances; prefer tokens with large margins or fake timers if available.\",\"Concurrent callers awaiting a rejected promise must not cause unhandled rejections; ensure the shared promise is awaited/caught by all waiters.\"]}",
+            "finishReason": "stop",
+            "score": 1,
+            "subscores": {
+              "score": 1,
+              "requiredFileCoverage": 1,
+              "conceptCoverage": 1,
+              "verification": 1,
+              "validity": 1,
+              "matchedFiles": [
+                "src/auth.ts",
+                "src/auth.test.ts"
+              ],
+              "matchedConcepts": [
+                "refresh",
+                "concurrent",
+                "expiry"
+              ],
+              "declaredFiles": [
+                "src/auth.ts",
+                "src/auth.test.ts"
+              ],
+              "referencedFiles": [
+                "src/auth.ts",
+                "src/auth.test.ts"
+              ],
+              "invalidPaths": []
+            },
+            "usage": {
+              "promptTokens": 853,
+              "completionTokens": 619,
+              "totalTokens": 1472,
+              "cacheHitTokens": 640,
+              "cacheMissTokens": 213
+            },
+            "durationMs": 3201,
+            "attempts": 1
+          }
+        ],
+        "oracleBest": {
+          "index": 0,
+          "score": 1,
+          "tiedIndices": [
+            0,
+            1,
+            2
+          ]
+        },
+        "judge": {
+          "winner": 1,
+          "reason": "All three plans cover both required files and all required concepts (refresh, concurrent, expiry) with valid allowed paths. Plan 1 is the most coherent: it cleanly separates the auth.ts implementation into ordered steps (dedupe, skew constant, expiry check, success/failure/finally handling) and then adds each requested test as its own step, explicitly asserting the exact behaviors the rubric demands (one refresh for 10 concurrent callers, same token, refresh counts of 1 for expired and within-skew, 0 for fresh, and retry after failure). Its verification fields consistently mention tests and typecheck. Plan 0 is also strong but adds an extra step introducing a test reset hook/export in src/auth.ts, which slightly risks altering the public surface and adds complexity beyond the task. Plan 2 is solid but slightly less explicit about the same-error rejection for all waiters and the finally cleanup in its step titles. Plan 1 best balances completeness, validity, and feasibility.",
+          "valid": true,
+          "issues": [],
+          "selectedScore": 1,
+          "pickedOracleBest": true,
+          "oracleTopIndices": [
+            0,
+            1,
+            2
+          ],
+          "temperature": 0.1,
+          "content": "{\"winner\":1,\"reason\":\"All three plans cover both required files and all required concepts (refresh, concurrent, expiry) with valid allowed paths. Plan 1 is the most coherent: it cleanly separates the auth.ts implementation into ordered steps (dedupe, skew constant, expiry check, success/failure/finally handling) and then adds each requested test as its own step, explicitly asserting the exact behaviors the rubric demands (one refresh for 10 concurrent callers, same token, refresh counts of 1 for expired and within-skew, 0 for fresh, and retry after failure). Its verification fields consistently mention tests and typecheck. Plan 0 is also strong but adds an extra step introducing a test reset hook/export in src/auth.ts, which slightly risks altering the public surface and adds complexity beyond the task. Plan 2 is solid but slightly less explicit about the same-error rejection for all waiters and the finally cleanup in its step titles. Plan 1 best balances completeness, validity, and feasibility.\"}",
+          "finishReason": "stop",
+          "usage": {
+            "promptTokens": 2696,
+            "completionTokens": 209,
+            "totalTokens": 2905,
+            "cacheHitTokens": 0,
+            "cacheMissTokens": 2696
+          },
+          "durationMs": 1618,
+          "attempts": 1
+        },
+        "calls": 4,
+        "apiAttempts": 4,
+        "tokens": {
+          "promptTokens": 5255,
+          "completionTokens": 2021,
+          "totalTokens": 7276,
+          "cacheHitTokens": 1920,
+          "cacheMissTokens": 3335
+        },
+        "wallMs": 4821
+      },
+      "judgeGain": 0,
+      "oracleGain": 0,
+      "tokenMultiplier": 2.928
+    },
+    {
+      "id": "D",
+      "title": "Structured JSON logging with request IDs",
+      "taskSpec": {
+        "requirements": "Add structured JSON logging and request IDs to the server.\n- Rewrite src/logger.ts so every record is one line of JSON with at least timestamp (ISO 8601), level, message, requestId, and any extra fields merged in. Do not use string concatenation for the record.\n- Support debug/info/warn/error levels with a threshold from LOG_LEVEL (default info). Make the output sink injectable for tests; default to stdout.\n- In src/request-context.ts, store the current request ID in AsyncLocalStorage. Use the incoming x-request-id header when present, otherwise generate one with crypto.randomUUID().\n- In src/server.ts, run each request inside the request context, include the request ID in every log record, return it as the x-request-id response header, and include requestId in error response bodies.\n- Add tests in tests/logger.test.ts and tests/server.test.ts for JSON shape / one line per record, level filtering, request ID propagation, honoring an incoming x-request-id, and returning a generated request ID.",
+        "repoTree": "repo/\n  package.json\n  tsconfig.json\n  src/\n    logger.ts\n    request-context.ts\n    server.ts\n  tests/\n    logger.test.ts\n    server.test.ts",
+        "keyFiles": [
+          {
+            "path": "src/logger.ts",
+            "content": "export type LogLevel = 'debug' | 'info' | 'warn' | 'error'\n\nexport function log(level: LogLevel, message: string, fields: Record<string, unknown> = {}): void {\n  console.log('[' + level + '] ' + message, fields)\n}"
+          },
+          {
+            "path": "src/server.ts",
+            "content": "import { log } from './logger.ts'\n\nexport function handleRequest(req: Request): Response {\n  log('info', 'request ' + req.method + ' ' + new URL(req.url).pathname)\n  return new Response('ok')\n}"
+          }
+        ],
+        "requiredFiles": [
+          "src/logger.ts",
+          "src/server.ts"
+        ],
+        "allowedFiles": [
+          "package.json",
+          "tsconfig.json",
+          "src/logger.ts",
+          "src/request-context.ts",
+          "src/server.ts",
+          "tests/logger.test.ts",
+          "tests/server.test.ts"
+        ],
+        "concepts": [
+          {
+            "name": "JSON",
+            "patterns": [
+              "\\bjson\\b",
+              "\\bstructured[-\\s]?log",
+              "\\bjsonl\\b"
+            ]
+          },
+          {
+            "name": "requestId",
+            "patterns": [
+              "\\b(?:request|correlation|trace)[-\\s_]?id\\b"
+            ]
+          },
+          {
+            "name": "level",
+            "patterns": [
+              "\\blevels?\\b",
+              "\\bseverity\\b",
+              "\\bdebug[-\\s_/]+info[-\\s_/]+warn"
+            ]
+          }
+        ]
+      },
+      "baseline": {
+        "samples": [
+          {
+            "index": 0,
+            "temperature": 0.3,
+            "schemaValid": true,
+            "parsed": {
+              "steps": [
+                {
+                  "title": "Rewrite logger.ts for structured JSON output with level threshold and injectable sink",
+                  "files": [
+                    "src/logger.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` to typecheck; inspect that log() builds a single object (timestamp, level, message, requestId, ...fields) and passes JSON.stringify(record) to the sink once, with no string concatenation of the record."
+                },
+                {
+                  "title": "Implement request-context.ts using AsyncLocalStorage with x-request-id or crypto.randomUUID()",
+                  "files": [
+                    "src/request-context.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit`; add/execute tests/logger.test.ts and tests/server.test.ts cases that call the context helper and assert the stored ID equals the incoming header or matches a UUID pattern."
+                },
+                {
+                  "title": "Update server.ts to run each request in context, log with requestId, set x-request-id response header, and include requestId in error bodies",
+                  "files": [
+                    "src/server.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` and `npm test`; call handleRequest with and without an x-request-id header and assert the response header and error body requestId match the context ID."
+                },
+                {
+                  "title": "Add logger tests for JSON shape, one line per record, level filtering, and sink injection",
+                  "files": [
+                    "tests/logger.test.ts"
+                  ],
+                  "verification": "Run `npm test -- tests/logger.test.ts` (or the project test command) and confirm assertions on single-line JSON, required keys, merged fields, LOG_LEVEL threshold behavior, and captured sink output."
+                },
+                {
+                  "title": "Add server tests for request ID propagation, honoring incoming x-request-id, and generated ID return",
+                  "files": [
+                    "tests/server.test.ts"
+                  ],
+                  "verification": "Run `npm test -- tests/server.test.ts` and confirm tests assert log records carry the requestId, an incoming x-request-id is echoed, and a generated UUID is returned when absent."
+                },
+                {
+                  "title": "Verify package.json and tsconfig.json support the new modules and test runner",
+                  "files": [
+                    "package.json",
+                    "tsconfig.json"
+                  ],
+                  "verification": "Run `npm test` and `npx tsc --noEmit`; confirm no missing dependencies or config errors for AsyncLocalStorage, crypto.randomUUID, and the test files."
+                }
+              ],
+              "risks": [
+                "AsyncLocalStorage requires Node's async_hooks; ensure the runtime/tsconfig target supports it and tests run in a compatible environment.",
+                "Existing callers of log() may rely on the old signature; keep the (level, message, fields) signature backward compatible.",
+                "LOG_LEVEL parsing must handle invalid values gracefully, defaulting to info, to avoid silently dropping logs.",
+                "Tests capturing stdout must restore the original sink to avoid cross-test interference.",
+                "Error response bodies must remain valid JSON and include requestId without breaking existing response contracts."
+              ]
+            },
+            "schemaIssues": [],
+            "content": "{\"steps\":[{\"title\":\"Rewrite logger.ts for structured JSON output with level threshold and injectable sink\",\"files\":[\"src/logger.ts\"],\"verification\":\"Run `npx tsc --noEmit` to typecheck; inspect that log() builds a single object (timestamp, level, message, requestId, ...fields) and passes JSON.stringify(record) to the sink once, with no string concatenation of the record.\"},{\"title\":\"Implement request-context.ts using AsyncLocalStorage with x-request-id or crypto.randomUUID()\",\"files\":[\"src/request-context.ts\"],\"verification\":\"Run `npx tsc --noEmit`; add/execute tests/logger.test.ts and tests/server.test.ts cases that call the context helper and assert the stored ID equals the incoming header or matches a UUID pattern.\"},{\"title\":\"Update server.ts to run each request in context, log with requestId, set x-request-id response header, and include requestId in error bodies\",\"files\":[\"src/server.ts\"],\"verification\":\"Run `npx tsc --noEmit` and `npm test`; call handleRequest with and without an x-request-id header and assert the response header and error body requestId match the context ID.\"},{\"title\":\"Add logger tests for JSON shape, one line per record, level filtering, and sink injection\",\"files\":[\"tests/logger.test.ts\"],\"verification\":\"Run `npm test -- tests/logger.test.ts` (or the project test command) and confirm assertions on single-line JSON, required keys, merged fields, LOG_LEVEL threshold behavior, and captured sink output.\"},{\"title\":\"Add server tests for request ID propagation, honoring incoming x-request-id, and generated ID return\",\"files\":[\"tests/server.test.ts\"],\"verification\":\"Run `npm test -- tests/server.test.ts` and confirm tests assert log records carry the requestId, an incoming x-request-id is echoed, and a generated UUID is returned when absent.\"},{\"title\":\"Verify package.json and tsconfig.json support the new modules and test runner\",\"files\":[\"package.json\",\"tsconfig.json\"],\"verification\":\"Run `npm test` and `npx tsc --noEmit`; confirm no missing dependencies or config errors for AsyncLocalStorage, crypto.randomUUID, and the test files.\"}],\"risks\":[\"AsyncLocalStorage requires Node's async_hooks; ensure the runtime/tsconfig target supports it and tests run in a compatible environment.\",\"Existing callers of log() may rely on the old signature; keep the (level, message, fields) signature backward compatible.\",\"LOG_LEVEL parsing must handle invalid values gracefully, defaulting to info, to avoid silently dropping logs.\",\"Tests capturing stdout must restore the original sink to avoid cross-test interference.\",\"Error response bodies must remain valid JSON and include requestId without breaking existing response contracts.\"]}",
+            "finishReason": "stop",
+            "score": 0.955,
+            "subscores": {
+              "score": 0.955,
+              "requiredFileCoverage": 1,
+              "conceptCoverage": 1,
+              "verification": 1,
+              "validity": 0.7,
+              "matchedFiles": [
+                "src/logger.ts",
+                "src/server.ts"
+              ],
+              "matchedConcepts": [
+                "JSON",
+                "requestId",
+                "level"
+              ],
+              "declaredFiles": [
+                "src/logger.ts",
+                "src/request-context.ts",
+                "src/server.ts",
+                "tests/logger.test.ts",
+                "tests/server.test.ts",
+                "package.json",
+                "tsconfig.json"
+              ],
+              "referencedFiles": [
+                "logger.ts",
+                "src/logger.ts",
+                "request-context.ts",
+                "src/request-context.ts",
+                "tests/logger.test.ts",
+                "tests/server.test.ts",
+                "server.ts",
+                "src/server.ts",
+                "package.json",
+                "tsconfig.json"
+              ],
+              "invalidPaths": [
+                "logger.ts",
+                "request-context.ts",
+                "server.ts"
+              ]
+            },
+            "usage": {
+              "promptTokens": 669,
+              "completionTokens": 600,
+              "totalTokens": 1269,
+              "cacheHitTokens": 0,
+              "cacheMissTokens": 669
+            },
+            "durationMs": 3298,
+            "attempts": 1
+          },
+          {
+            "index": 1,
+            "temperature": 0.3,
+            "schemaValid": true,
+            "parsed": {
+              "steps": [
+                {
+                  "title": "Rewrite logger with structured JSON records, level threshold, and injectable sink",
+                  "files": [
+                    "src/logger.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` to typecheck; confirm log() builds a single object (timestamp ISO 8601, level, message, requestId, ...fields) and serializes with JSON.stringify, no string concatenation."
+                },
+                {
+                  "title": "Add AsyncLocalStorage-based request context with x-request-id or crypto.randomUUID()",
+                  "files": [
+                    "src/request-context.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit`; verify runWithRequestId stores the id in AsyncLocalStorage and getRequestId returns the incoming header value when provided, otherwise a generated UUID."
+                },
+                {
+                  "title": "Integrate request context and JSON logging into server handler",
+                  "files": [
+                    "src/server.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit`; verify handleRequest wraps work in runWithRequestId, logs include requestId, response sets x-request-id header, and error bodies include requestId."
+                },
+                {
+                  "title": "Write logger tests for JSON shape, one line per record, and level filtering",
+                  "files": [
+                    "tests/logger.test.ts"
+                  ],
+                  "verification": "Run `npx vitest run tests/logger.test.ts` (or the repo's test command) and confirm assertions on single-line JSON, required keys, merged fields, and LOG_LEVEL threshold filtering pass."
+                },
+                {
+                  "title": "Write server tests for request ID propagation, incoming header, and generated ID",
+                  "files": [
+                    "tests/server.test.ts"
+                  ],
+                  "verification": "Run `npx vitest run tests/server.test.ts` and confirm tests for x-request-id echo, generated UUID when absent, requestId in logs, and requestId in error bodies pass."
+                },
+                {
+                  "title": "Verify package scripts and tsconfig support new modules and tests",
+                  "files": [
+                    "package.json",
+                    "tsconfig.json"
+                  ],
+                  "verification": "Run the full test suite and typecheck via package.json scripts (e.g. `npm test` and `npx tsc --noEmit`) to confirm no config changes are needed or that any added ones work."
+                }
+              ],
+              "risks": [
+                "AsyncLocalStorage requires Node's async_hooks; ensure the runtime and tsconfig target support it and that tests run in a compatible environment.",
+                "Changing log() output format may break existing consumers that parse the old bracketed string format.",
+                "LOG_LEVEL parsing must handle invalid values gracefully to avoid silently dropping all logs.",
+                "Tests capturing stdout must restore the injectable sink to avoid cross-test leakage."
+              ]
+            },
+            "schemaIssues": [],
+            "content": "{\"steps\":[{\"title\":\"Rewrite logger with structured JSON records, level threshold, and injectable sink\",\"files\":[\"src/logger.ts\"],\"verification\":\"Run `npx tsc --noEmit` to typecheck; confirm log() builds a single object (timestamp ISO 8601, level, message, requestId, ...fields) and serializes with JSON.stringify, no string concatenation.\"},{\"title\":\"Add AsyncLocalStorage-based request context with x-request-id or crypto.randomUUID()\",\"files\":[\"src/request-context.ts\"],\"verification\":\"Run `npx tsc --noEmit`; verify runWithRequestId stores the id in AsyncLocalStorage and getRequestId returns the incoming header value when provided, otherwise a generated UUID.\"},{\"title\":\"Integrate request context and JSON logging into server handler\",\"files\":[\"src/server.ts\"],\"verification\":\"Run `npx tsc --noEmit`; verify handleRequest wraps work in runWithRequestId, logs include requestId, response sets x-request-id header, and error bodies include requestId.\"},{\"title\":\"Write logger tests for JSON shape, one line per record, and level filtering\",\"files\":[\"tests/logger.test.ts\"],\"verification\":\"Run `npx vitest run tests/logger.test.ts` (or the repo's test command) and confirm assertions on single-line JSON, required keys, merged fields, and LOG_LEVEL threshold filtering pass.\"},{\"title\":\"Write server tests for request ID propagation, incoming header, and generated ID\",\"files\":[\"tests/server.test.ts\"],\"verification\":\"Run `npx vitest run tests/server.test.ts` and confirm tests for x-request-id echo, generated UUID when absent, requestId in logs, and requestId in error bodies pass.\"},{\"title\":\"Verify package scripts and tsconfig support new modules and tests\",\"files\":[\"package.json\",\"tsconfig.json\"],\"verification\":\"Run the full test suite and typecheck via package.json scripts (e.g. `npm test` and `npx tsc --noEmit`) to confirm no config changes are needed or that any added ones work.\"}],\"risks\":[\"AsyncLocalStorage requires Node's async_hooks; ensure the runtime and tsconfig target support it and that tests run in a compatible environment.\",\"Changing log() output format may break existing consumers that parse the old bracketed string format.\",\"LOG_LEVEL parsing must handle invalid values gracefully to avoid silently dropping all logs.\",\"Tests capturing stdout must restore the injectable sink to avoid cross-test leakage.\"]}",
+            "finishReason": "stop",
+            "score": 1,
+            "subscores": {
+              "score": 1,
+              "requiredFileCoverage": 1,
+              "conceptCoverage": 1,
+              "verification": 1,
+              "validity": 1,
+              "matchedFiles": [
+                "src/logger.ts",
+                "src/server.ts"
+              ],
+              "matchedConcepts": [
+                "JSON",
+                "requestId",
+                "level"
+              ],
+              "declaredFiles": [
+                "src/logger.ts",
+                "src/request-context.ts",
+                "src/server.ts",
+                "tests/logger.test.ts",
+                "tests/server.test.ts",
+                "package.json",
+                "tsconfig.json"
+              ],
+              "referencedFiles": [
+                "src/logger.ts",
+                "src/request-context.ts",
+                "src/server.ts",
+                "tests/logger.test.ts",
+                "tests/server.test.ts",
+                "package.json",
+                "tsconfig.json"
+              ],
+              "invalidPaths": []
+            },
+            "usage": {
+              "promptTokens": 669,
+              "completionTokens": 534,
+              "totalTokens": 1203,
+              "cacheHitTokens": 0,
+              "cacheMissTokens": 669
+            },
+            "durationMs": 3062,
+            "attempts": 1
+          }
+        ],
+        "avgScore": 0.9775,
+        "maxScore": 1,
+        "calls": 2,
+        "apiAttempts": 2,
+        "tokens": {
+          "promptTokens": 1338,
+          "completionTokens": 1134,
+          "totalTokens": 2472,
+          "cacheHitTokens": 0,
+          "cacheMissTokens": 1338
+        },
+        "wallMs": 3298
+      },
+      "treatment": {
+        "candidates": [
+          {
+            "index": 0,
+            "temperature": 0.9,
+            "schemaValid": true,
+            "parsed": {
+              "steps": [
+                {
+                  "title": "Rewrite logger.ts for structured JSON output with injectable sink and LOG_LEVEL threshold",
+                  "files": [
+                    "src/logger.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` to typecheck; then run `npx vitest run tests/logger.test.ts` and assert each output line parses as JSON with timestamp/level/message/requestId and merged fields."
+                },
+                {
+                  "title": "Implement request-context.ts using AsyncLocalStorage with incoming x-request-id or crypto.randomUUID()",
+                  "files": [
+                    "src/request-context.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit`; add unit assertions in tests/server.test.ts verifying the context returns the incoming header value when supplied and a valid UUID otherwise."
+                },
+                {
+                  "title": "Update logger.ts to read requestId from request context and include it in every record",
+                  "files": [
+                    "src/logger.ts"
+                  ],
+                  "verification": "Run `npx vitest run tests/logger.test.ts`; verify records emitted inside a request context carry the matching requestId and records outside it use null/undefined consistently."
+                },
+                {
+                  "title": "Wrap server.ts request handling in the request context, log with requestId, and set x-request-id response header",
+                  "files": [
+                    "src/server.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` and `npx vitest run tests/server.test.ts`; assert the response has x-request-id and logs contain the same requestId."
+                },
+                {
+                  "title": "Include requestId in error response bodies from server.ts",
+                  "files": [
+                    "src/server.ts"
+                  ],
+                  "verification": "Run `npx vitest run tests/server.test.ts` with an error-triggering request and assert the JSON body contains the requestId matching the x-request-id header."
+                },
+                {
+                  "title": "Add logger tests covering JSON shape, one line per record, and level filtering",
+                  "files": [
+                    "tests/logger.test.ts"
+                  ],
+                  "verification": "Run `npx vitest run tests/logger.test.ts` and confirm tests pass for single-line JSON output and LOG_LEVEL threshold behavior."
+                },
+                {
+                  "title": "Add server tests for request ID propagation, honoring incoming x-request-id, and returning generated request ID",
+                  "files": [
+                    "tests/server.test.ts"
+                  ],
+                  "verification": "Run `npx vitest run tests/server.test.ts` and confirm all request-ID scenarios pass."
+                },
+                {
+                  "title": "Verify package.json and tsconfig.json support the new modules and test runner",
+                  "files": [
+                    "package.json",
+                    "tsconfig.json"
+                  ],
+                  "verification": "Run `npm test` and `npx tsc --noEmit` to confirm scripts and compiler options are compatible with AsyncLocalStorage and the new tests."
+                }
+              ],
+              "risks": [
+                "AsyncLocalStorage requires Node's async_hooks; non-Node runtimes may need a fallback or explicit runtime configuration.",
+                "Tests injecting a custom sink must reset module state between tests to avoid cross-test log leakage.",
+                "LOG_LEVEL parsing must handle invalid values safely (fallback to info) to avoid silent log loss.",
+                "Changing logger output shape may break any existing consumers expecting the previous bracket-prefixed format.",
+                "Concurrent requests sharing a module-level logger must rely on AsyncLocalStorage correctly to avoid requestId bleed across requests."
+              ]
+            },
+            "schemaIssues": [],
+            "content": "{\"steps\":[{\"title\":\"Rewrite logger.ts for structured JSON output with injectable sink and LOG_LEVEL threshold\",\"files\":[\"src/logger.ts\"],\"verification\":\"Run `npx tsc --noEmit` to typecheck; then run `npx vitest run tests/logger.test.ts` and assert each output line parses as JSON with timestamp/level/message/requestId and merged fields.\"},{\"title\":\"Implement request-context.ts using AsyncLocalStorage with incoming x-request-id or crypto.randomUUID()\",\"files\":[\"src/request-context.ts\"],\"verification\":\"Run `npx tsc --noEmit`; add unit assertions in tests/server.test.ts verifying the context returns the incoming header value when supplied and a valid UUID otherwise.\"},{\"title\":\"Update logger.ts to read requestId from request context and include it in every record\",\"files\":[\"src/logger.ts\"],\"verification\":\"Run `npx vitest run tests/logger.test.ts`; verify records emitted inside a request context carry the matching requestId and records outside it use null/undefined consistently.\"},{\"title\":\"Wrap server.ts request handling in the request context, log with requestId, and set x-request-id response header\",\"files\":[\"src/server.ts\"],\"verification\":\"Run `npx tsc --noEmit` and `npx vitest run tests/server.test.ts`; assert the response has x-request-id and logs contain the same requestId.\"},{\"title\":\"Include requestId in error response bodies from server.ts\",\"files\":[\"src/server.ts\"],\"verification\":\"Run `npx vitest run tests/server.test.ts` with an error-triggering request and assert the JSON body contains the requestId matching the x-request-id header.\"},{\"title\":\"Add logger tests covering JSON shape, one line per record, and level filtering\",\"files\":[\"tests/logger.test.ts\"],\"verification\":\"Run `npx vitest run tests/logger.test.ts` and confirm tests pass for single-line JSON output and LOG_LEVEL threshold behavior.\"},{\"title\":\"Add server tests for request ID propagation, honoring incoming x-request-id, and returning generated request ID\",\"files\":[\"tests/server.test.ts\"],\"verification\":\"Run `npx vitest run tests/server.test.ts` and confirm all request-ID scenarios pass.\"},{\"title\":\"Verify package.json and tsconfig.json support the new modules and test runner\",\"files\":[\"package.json\",\"tsconfig.json\"],\"verification\":\"Run `npm test` and `npx tsc --noEmit` to confirm scripts and compiler options are compatible with AsyncLocalStorage and the new tests.\"}],\"risks\":[\"AsyncLocalStorage requires Node's async_hooks; non-Node runtimes may need a fallback or explicit runtime configuration.\",\"Tests injecting a custom sink must reset module state between tests to avoid cross-test log leakage.\",\"LOG_LEVEL parsing must handle invalid values safely (fallback to info) to avoid silent log loss.\",\"Changing logger output shape may break any existing consumers expecting the previous bracket-prefixed format.\",\"Concurrent requests sharing a module-level logger must rely on AsyncLocalStorage correctly to avoid requestId bleed across requests.\"]}",
+            "finishReason": "stop",
+            "score": 0.955,
+            "subscores": {
+              "score": 0.955,
+              "requiredFileCoverage": 1,
+              "conceptCoverage": 1,
+              "verification": 1,
+              "validity": 0.7,
+              "matchedFiles": [
+                "src/logger.ts",
+                "src/server.ts"
+              ],
+              "matchedConcepts": [
+                "JSON",
+                "requestId",
+                "level"
+              ],
+              "declaredFiles": [
+                "src/logger.ts",
+                "src/request-context.ts",
+                "src/server.ts",
+                "tests/logger.test.ts",
+                "tests/server.test.ts",
+                "package.json",
+                "tsconfig.json"
+              ],
+              "referencedFiles": [
+                "logger.ts",
+                "src/logger.ts",
+                "tests/logger.test.ts",
+                "request-context.ts",
+                "src/request-context.ts",
+                "tests/server.test.ts",
+                "server.ts",
+                "src/server.ts",
+                "package.json",
+                "tsconfig.json"
+              ],
+              "invalidPaths": [
+                "logger.ts",
+                "request-context.ts",
+                "server.ts"
+              ]
+            },
+            "usage": {
+              "promptTokens": 669,
+              "completionTokens": 666,
+              "totalTokens": 1335,
+              "cacheHitTokens": 512,
+              "cacheMissTokens": 157
+            },
+            "durationMs": 3376,
+            "attempts": 1
+          },
+          {
+            "index": 1,
+            "temperature": 0.9,
+            "schemaValid": true,
+            "parsed": {
+              "steps": [
+                {
+                  "title": "Rewrite src/logger.ts for structured JSON logging",
+                  "files": [
+                    "src/logger.ts"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` to confirm types compile. Add logger tests that assert each log call captures exactly one JSON line (no internal newlines), parse it, and check timestamp/level/message/requestId keys plus merged extra fields."
+                },
+                {
+                  "title": "Add injectable sink and LOG_LEVEL threshold to logger",
+                  "files": [
+                    "src/logger.ts"
+                  ],
+                  "verification": "In tests/logger.test.ts, inject a custom sink collecting strings, set LOG_LEVEL=info and confirm debug is filtered while info/warn/error are emitted; set LOG_LEVEL=debug and confirm debug passes. Run `npm test -- tests/logger.test.ts`."
+                },
+                {
+                  "title": "Implement AsyncLocalStorage request context in src/request-context.ts",
+                  "files": [
+                    "src/request-context.ts"
+                  ],
+                  "verification": "Import runWithRequestId/getRequestId in tests; assert getRequestId() returns undefined outside the context and the set value (including async continuations) inside it. Run `npx tsc --noEmit`."
+                },
+                {
+                  "title": "Wire request context and x-request-id handling into src/server.ts",
+                  "files": [
+                    "src/server.ts"
+                  ],
+                  "verification": "In tests/server.test.ts, call handleRequest with an x-request-id header and assert the response x-request-id header echoes it; omit the header and assert a generated UUID is returned. Also assert a captured log record contains the same requestId."
+                },
+                {
+                  "title": "Include requestId in server error responses",
+                  "files": [
+                    "src/server.ts"
+                  ],
+                  "verification": "Add a server test that triggers the error path and asserts the JSON body contains requestId matching the x-request-id response header. Run `npm test -- tests/server.test.ts`."
+                },
+                {
+                  "title": "Update tests for logging and request ID behavior",
+                  "files": [
+                    "tests/logger.test.ts",
+                    "tests/server.test.ts"
+                  ],
+                  "verification": "Run `npm test` and confirm all logger and server tests pass, including one-line JSON shape, level filtering, requestId propagation, honored incoming header, and generated ID cases."
+                },
+                {
+                  "title": "Verify config supports new modules",
+                  "files": [
+                    "tsconfig.json",
+                    "package.json"
+                  ],
+                  "verification": "Run `npx tsc --noEmit` and `npm test`; confirm AsyncLocalStorage and crypto imports resolve and no build or dependency errors occur."
+                }
+              ],
+              "risks": [
+                "Existing logger callers may rely on the old human-readable format; downstream log parsers could break with JSON output.",
+                "AsyncLocalStorage context may not propagate across some async boundaries or streaming responses, causing missing requestId in logs.",
+                "Generating UUIDs requires the crypto.randomUUID global; older Node versions may need an import fallback.",
+                "LOG_LEVEL parsing must handle invalid or case variations gracefully to avoid silently dropping logs."
+              ]
+            },
+            "schemaIssues": [],
+            "content": "{\"steps\":[{\"title\":\"Rewrite src/logger.ts for structured JSON logging\",\"files\":[\"src/logger.ts\"],\"verification\":\"Run `npx tsc --noEmit` to confirm types compile. Add logger tests that assert each log call captures exactly one JSON line (no internal newlines), parse it, and check timestamp/level/message/requestId keys plus merged extra fields.\"},{\"title\":\"Add injectable sink and LOG_LEVEL threshold to logger\",\"files\":[\"src/logger.ts\"],\"verification\":\"In tests/logger.test.ts, inject a custom sink collecting strings, set LOG_LEVEL=info and confirm debug is filtered while info/warn/error are emitted; set LOG_LEVEL=debug and confirm debug passes. Run `npm test -- tests/logger.test.ts`.\"},{\"title\":\"Implement AsyncLocalStorage request context in src/request-context.ts\",\"files\":[\"src/request-context.ts\"],\"verification\":\"Import runWithRequestId/getRequestId in tests; assert getRequestId() returns undefined outside the context and the set value (including async continuations) inside it. Run `npx tsc --noEmit`.\"},{\"title\":\"Wire request context and x-request-id handling into src/server.ts\",\"files\":[\"src/server.ts\"],\"verification\":\"In tests/server.test.ts, call handleRequest with an x-request-id header and assert the response x-request-id header echoes it; omit the header and assert a generated UUID is returned. Also assert a captured log record contains the same requestId.\"},{\"title\":\"Include requestId in server error responses\",\"files\":[\"src/server.ts\"],\"verification\":\"Add a server test that triggers the error path and asserts the JSON body contains requestId matching the x-request-id response header. Run `npm test -- tests/server.test.ts`.\"},{\"title\":\"Update tests for logging and request ID behavior\",\"files\":[\"tests/logger.test.ts\",\"tests/server.test.ts\"],\"verification\":\"Run `npm test` and confirm all logger and server tests pass, including one-line JSON shape, level filtering, requestId propagation, honored incoming header, and generated ID cases.\"},{\"title\":\"Verify config supports new modules\",\"files\":[\"tsconfig.json\",\"package.json\"],\"verification\":\"Run `npx tsc --noEmit` and `npm test`; confirm AsyncLocalStorage and crypto imports resolve and no build or dependency errors occur.\"}],\"risks\":[\"Existing logger callers may rely on the old human-readable format; downstream log parsers could break with JSON output.\",\"AsyncLocalStorage context may not propagate across some async boundaries or streaming responses, causing missing requestId in logs.\",\"Generating UUIDs requires the crypto.randomUUID global; older Node versions may need an import fallback.\",\"LOG_LEVEL parsing must handle invalid or case variations gracefully to avoid silently dropping logs.\"]}",
+            "finishReason": "stop",
+            "score": 1,
+            "subscores": {
+              "score": 1,
+              "requiredFileCoverage": 1,
+              "conceptCoverage": 1,
+              "verification": 1,
+              "validity": 1,
+              "matchedFiles": [
+                "src/logger.ts",
+                "src/server.ts"
+              ],
+              "matchedConcepts": [
+                "JSON",
+                "requestId",
+                "level"
+              ],
+              "declaredFiles": [
+                "src/logger.ts",
+                "src/request-context.ts",
+                "src/server.ts",
+                "tests/logger.test.ts",
+                "tests/server.test.ts",
+                "tsconfig.json",
+                "package.json"
+              ],
+              "referencedFiles": [
+                "src/logger.ts",
+                "tests/logger.test.ts",
+                "src/request-context.ts",
+                "src/server.ts",
+                "tests/server.test.ts",
+                "tsconfig.json",
+                "package.json"
+              ],
+              "invalidPaths": []
+            },
+            "usage": {
+              "promptTokens": 669,
+              "completionTokens": 596,
+              "totalTokens": 1265,
+              "cacheHitTokens": 512,
+              "cacheMissTokens": 157
+            },
+            "durationMs": 3801,
+            "attempts": 1
+          },
+          {
+            "index": 2,
+            "temperature": 0.9,
+            "schemaValid": true,
+            "parsed": {
+              "steps": [
+                {
+                  "title": "Rewrite logger as structured JSON with level threshold and injectable sink",
+                  "files": [
+                    "src/logger.ts"
+                  ],
+                  "verification": "Run npx tsc --noEmit to typecheck; in tests/logger.test.ts assert output is a single JSON line with timestamp, level, message, requestId, and merged fields, and that a console sink can be injected."
+                },
+                {
+                  "title": "Add AsyncLocalStorage request context with x-request-id support",
+                  "files": [
+                    "src/request-context.ts"
+                  ],
+                  "verification": "Run npx tsc --noEmit; add unit assertions that running a callback inside the context exposes its requestId and that an incoming header value is preserved while a missing header yields a crypto.randomUUID() value."
+                },
+                {
+                  "title": "Integrate context into server and log/response headers",
+                  "files": [
+                    "src/server.ts",
+                    "src/logger.ts"
+                  ],
+                  "verification": "Run tests in tests/server.test.ts asserting the x-request-id response header matches the log record requestId, incoming header is honored, and generated ID appears in error response bodies; run npx tsc --noEmit."
+                },
+                {
+                  "title": "Write logger tests for JSON shape, single-line output, and level filtering",
+                  "files": [
+                    "tests/logger.test.ts"
+                  ],
+                  "verification": "Run npx vitest run tests/logger.test.ts (or the repo test command) and confirm all assertions pass."
+                },
+                {
+                  "title": "Write server tests for request ID propagation and error bodies",
+                  "files": [
+                    "tests/server.test.ts"
+                  ],
+                  "verification": "Run npx vitest run tests/server.test.ts and confirm outbound header/body requestId consistency and incoming header honoring."
+                }
+              ],
+              "risks": [
+                "Existing tests or callers relying on the current non-JSON console.log output may break.",
+                "AsyncLocalStorage context may not propagate to async callbacks if the server handler does not await properly.",
+                "LOG_LEVEL parsing must handle invalid or case-varied values without throwing.",
+                "Injecting the sink must default to stdout in production to avoid silent log loss."
+              ]
+            },
+            "schemaIssues": [],
+            "content": "{\"steps\":[{\"title\":\"Rewrite logger as structured JSON with level threshold and injectable sink\",\"files\":[\"src/logger.ts\"],\"verification\":\"Run npx tsc --noEmit to typecheck; in tests/logger.test.ts assert output is a single JSON line with timestamp, level, message, requestId, and merged fields, and that a console sink can be injected.\"},{\"title\":\"Add AsyncLocalStorage request context with x-request-id support\",\"files\":[\"src/request-context.ts\"],\"verification\":\"Run npx tsc --noEmit; add unit assertions that running a callback inside the context exposes its requestId and that an incoming header value is preserved while a missing header yields a crypto.randomUUID() value.\"},{\"title\":\"Integrate context into server and log/response headers\",\"files\":[\"src/server.ts\",\"src/logger.ts\"],\"verification\":\"Run tests in tests/server.test.ts asserting the x-request-id response header matches the log record requestId, incoming header is honored, and generated ID appears in error response bodies; run npx tsc --noEmit.\"},{\"title\":\"Write logger tests for JSON shape, single-line output, and level filtering\",\"files\":[\"tests/logger.test.ts\"],\"verification\":\"Run npx vitest run tests/logger.test.ts (or the repo test command) and confirm all assertions pass.\"},{\"title\":\"Write server tests for request ID propagation and error bodies\",\"files\":[\"tests/server.test.ts\"],\"verification\":\"Run npx vitest run tests/server.test.ts and confirm outbound header/body requestId consistency and incoming header honoring.\"}],\"risks\":[\"Existing tests or callers relying on the current non-JSON console.log output may break.\",\"AsyncLocalStorage context may not propagate to async callbacks if the server handler does not await properly.\",\"LOG_LEVEL parsing must handle invalid or case-varied values without throwing.\",\"Injecting the sink must default to stdout in production to avoid silent log loss.\"]}",
+            "finishReason": "stop",
+            "score": 1,
+            "subscores": {
+              "score": 1,
+              "requiredFileCoverage": 1,
+              "conceptCoverage": 1,
+              "verification": 1,
+              "validity": 1,
+              "matchedFiles": [
+                "src/logger.ts",
+                "src/server.ts"
+              ],
+              "matchedConcepts": [
+                "JSON",
+                "requestId",
+                "level"
+              ],
+              "declaredFiles": [
+                "src/logger.ts",
+                "src/request-context.ts",
+                "src/server.ts",
+                "tests/logger.test.ts",
+                "tests/server.test.ts"
+              ],
+              "referencedFiles": [
+                "src/logger.ts",
+                "tests/logger.test.ts",
+                "src/request-context.ts",
+                "src/server.ts",
+                "tests/server.test.ts"
+              ],
+              "invalidPaths": []
+            },
+            "usage": {
+              "promptTokens": 669,
+              "completionTokens": 415,
+              "totalTokens": 1084,
+              "cacheHitTokens": 512,
+              "cacheMissTokens": 157
+            },
+            "durationMs": 2770,
+            "attempts": 1
+          }
+        ],
+        "oracleBest": {
+          "index": 1,
+          "score": 1,
+          "tiedIndices": [
+            1,
+            2
+          ]
+        },
+        "judge": {
+          "winner": 1,
+          "reason": "Plan 1 is the most complete and coherent. It explicitly covers all required files (src/logger.ts, src/server.ts, src/request-context.ts, tests/logger.test.ts, tests/server.test.ts, plus package.json/tsconfig.json) and all required concepts (JSON, requestId, level). Its verification fields consistently mention typecheck and the specific requested tests (JSON shape/one line per record, level filtering, request ID propagation, honoring incoming x-request-id, generated ID). All referenced paths are in the allowed list, so validity is high. Steps are ordered logically (logger, context, server wiring, error bodies, tests, config) and risks address realistic edge cases like AsyncLocalStorage propagation, crypto.randomUUID availability, and LOG_LEVEL parsing. Plan 0 is also strong but splits logger work across steps and adds a redundant config step; Plan 2 is shorter and omits explicit config verification and some test detail.",
+          "valid": true,
+          "issues": [],
+          "selectedScore": 1,
+          "pickedOracleBest": true,
+          "oracleTopIndices": [
+            1,
+            2
+          ],
+          "temperature": 0.1,
+          "content": "{\"winner\":1,\"reason\":\"Plan 1 is the most complete and coherent. It explicitly covers all required files (src/logger.ts, src/server.ts, src/request-context.ts, tests/logger.test.ts, tests/server.test.ts, plus package.json/tsconfig.json) and all required concepts (JSON, requestId, level). Its verification fields consistently mention typecheck and the specific requested tests (JSON shape/one line per record, level filtering, request ID propagation, honoring incoming x-request-id, generated ID). All referenced paths are in the allowed list, so validity is high. Steps are ordered logically (logger, context, server wiring, error bodies, tests, config) and risks address realistic edge cases like AsyncLocalStorage propagation, crypto.randomUUID availability, and LOG_LEVEL parsing. Plan 0 is also strong but splits logger work across steps and adds a redundant config step; Plan 2 is shorter and omits explicit config verification and some test detail.\"}",
+          "finishReason": "stop",
+          "usage": {
+            "promptTokens": 2582,
+            "completionTokens": 201,
+            "totalTokens": 2783,
+            "cacheHitTokens": 0,
+            "cacheMissTokens": 2582
+          },
+          "durationMs": 1766,
+          "attempts": 1
+        },
+        "calls": 4,
+        "apiAttempts": 4,
+        "tokens": {
+          "promptTokens": 4589,
+          "completionTokens": 1878,
+          "totalTokens": 6467,
+          "cacheHitTokens": 1536,
+          "cacheMissTokens": 3053
+        },
+        "wallMs": 5570
+      },
+      "judgeGain": 0.0225,
+      "oracleGain": 0.0225,
+      "tokenMultiplier": 2.6161
+    }
+  ],
+  "summary": {
+    "taskCount": 4,
+    "baselineAvg": 0.986,
+    "baselineMaxAvg": 0.9925,
+    "judgeAvg": 0.9947,
+    "oracleAvg": 1,
+    "judgeTop1Accuracy": 0.75,
+    "tokenMultiplier": 2.6394,
+    "judgeGain": 0.0087,
+    "oracleGain": 0.014,
+    "totalLogicalCalls": 24,
+    "totalApiAttempts": 24,
+    "totalTokens": {
+      "promptTokens": 26333,
+      "completionTokens": 14123,
+      "totalTokens": 40456,
+      "cacheHitTokens": 6528,
+      "cacheMissTokens": 19805
+    },
+    "wallMs": 36940
+  },
+  "decision": "do-not-add",
+  "decisionRule": "add-opt-in only if (judgeAvg - baselineAvg >= 0.10) AND (judgeTop1Accuracy >= 0.75) AND (tokenMultiplier < 3), where tokenMultiplier = all treatment tokens / all baseline tokens (3 candidates + 1 judge vs 2 baseline samples). Otherwise do-not-add. A low judge top-1 accuracy vetoes oracle gains because an unreliable judge cannot capture them.",
+  "decisionChecks": {
+    "judgeGainAtLeast010": false,
+    "judgeTop1AtLeast075": true,
+    "tokenMultiplierBelow3": true
+  },
+  "decisionNotes": [
+    "judgeAvg - baselineAvg = 0.0087, below the 0.10 threshold",
+    "oracle headroom is only 0.0140; even a perfect judge could not reach +0.10"
+  ]
+}

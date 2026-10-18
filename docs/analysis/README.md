@@ -30,7 +30,7 @@
 | 会话便签 | awesome `notes-manager` | 修复路径穿越/坏行/无效压缩 |
 | 错误修复记忆 | awesome `healix` 思路 | 归一化错误签名 + 跨会话 hint + post-execute 注入；重写匹配 |
 | 日志归档保留 | awesome `archiver` 思路 | gzip + SHA-256 manifest + 校验删除/恢复；修复路径穿越 |
-| repo map | awesome `codegraph` 思路 | 轻量 regex 索引重写，修复同名符号/缓存问题 |
+| repo map + `search_code` | awesome `codegraph`/`agentic-search` 思路 | 轻量 regex 索引重写，修复同名符号/缓存；`search_code` 基于 E8 实验（hit@5 80%→100%）加入 |
 | 版本化知识库 | awesome `knowledge-vault` 思路 | JSONL 版本链、trust、TTL、tombstone |
 | effects 账本 + 恢复计划 | nexus `effects`/`recovery` | intent/commit、`effect_reconcile`/`effect_resolve`、重启对账、kill-9 验证 |
 | artifact store | nexus `vault` | SHA-256 内容寻址、原子写、重验 |

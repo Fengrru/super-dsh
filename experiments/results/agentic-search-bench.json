@@ -1,0 +1,723 @@
+{
+  "experiment": "agentic-search-bench",
+  "generatedAt": "2026-10-18T02:24:15.840Z",
+  "hypothesis": "An intent -> tool orchestration over repo_map/find_symbol/impact_of finds the right files more often than lexical grep on definition and caller queries, without making per-query latency prohibitive.",
+  "fixture": {
+    "files": 12,
+    "fileList": [
+      "src/auth/login.ts",
+      "src/auth/middleware.ts",
+      "src/auth/session.ts",
+      "src/config/defaults.ts",
+      "src/config/index.ts",
+      "src/config/loader.ts",
+      "src/http/client.ts",
+      "src/http/retry.ts",
+      "src/http/server.ts",
+      "src/legacy/session.ts",
+      "src/utils/logger.ts",
+      "src/utils/sleep.ts"
+    ],
+    "queries": 15,
+    "queryKinds": {
+      "definition": 5,
+      "caller": 5,
+      "text": 5
+    },
+    "expectedFilesPerQuery": "1-2",
+    "coldIndexBuildMs": 164.7678
+  },
+  "methodology": {
+    "baseline": "Recursive TS scan per query; case-insensitive substring counts of meaningful query tokens (stopwords removed); top 5 by count, ties by path.",
+    "treatment": {
+      "definition": "find_symbol(name), definition files in returned order",
+      "caller": "impact_of(symbol, depth=1), direct referencing files",
+      "text": "repo_map(query) files followed by lexical grep fallback, merged and deduplicated"
+    },
+    "classification": "where ... defined -> definition; who calls ... -> caller; otherwise text",
+    "ranking": "Merged unique files truncated to top 5.",
+    "timing": "Mean of 25 warm runs per query after one repo_map warm-up call. Cold index build measured separately.",
+    "mrr": "Reciprocal rank of the first expected file within the top 5 (0 if absent)."
+  },
+  "baseline": {
+    "hits": 12,
+    "queries": 15,
+    "hitAt5": 0.8,
+    "mrr": 0.7,
+    "avgLatencyMs": 2.5619
+  },
+  "treatment": {
+    "hits": 15,
+    "queries": 15,
+    "hitAt5": 1,
+    "mrr": 0.9,
+    "avgLatencyMs": 3.497
+  },
+  "perKind": [
+    {
+      "kind": "definition",
+      "queries": 5,
+      "baselineHitAt5": 0.4,
+      "treatmentHitAt5": 1,
+      "baselineMrr": 0.3,
+      "treatmentMrr": 1
+    },
+    {
+      "kind": "caller",
+      "queries": 5,
+      "baselineHitAt5": 1,
+      "treatmentHitAt5": 1,
+      "baselineMrr": 0.8,
+      "treatmentMrr": 0.7
+    },
+    {
+      "kind": "text",
+      "queries": 5,
+      "baselineHitAt5": 1,
+      "treatmentHitAt5": 1,
+      "baselineMrr": 1,
+      "treatmentMrr": 1
+    }
+  ],
+  "delta": {
+    "hitAt5": 0.2,
+    "mrr": 0.2,
+    "latencyRatio": 1.365,
+    "latencyMultiplier": 1.365
+  },
+  "decisionRules": {
+    "required": "hit@5 delta >= 0.15 AND MRR higher AND treatment latency < 3x baseline",
+    "criteria": {
+      "hitAt5DeltaAtLeast015": true,
+      "mrrHigher": true,
+      "latencyUnder3x": true
+    }
+  },
+  "decision": "add-search-tool",
+  "queries": [
+    {
+      "id": "def-validate-session",
+      "kind": "definition",
+      "query": "where is validateSession defined",
+      "symbol": "validateSession",
+      "expectedFiles": [
+        "src/auth/session.ts",
+        "src/legacy/session.ts"
+      ],
+      "baseline": {
+        "top5": [
+          "src/auth/login.ts",
+          "src/auth/middleware.ts",
+          "src/http/client.ts",
+          "src/http/retry.ts",
+          "src/http/server.ts"
+        ],
+        "expectedRanks": {
+          "src/auth/session.ts": null,
+          "src/legacy/session.ts": null
+        },
+        "hitAt5": false,
+        "reciprocalRank": 0,
+        "latencyMs": 5.8117
+      },
+      "treatment": {
+        "top5": [
+          "src/auth/session.ts",
+          "src/legacy/session.ts"
+        ],
+        "expectedRanks": {
+          "src/auth/session.ts": 1,
+          "src/legacy/session.ts": 2
+        },
+        "hitAt5": true,
+        "reciprocalRank": 1,
+        "latencyMs": 10.3931,
+        "toolCalls": [
+          "find_symbol"
+        ]
+      }
+    },
+    {
+      "id": "def-load-config",
+      "kind": "definition",
+      "query": "where is loadConfig defined",
+      "symbol": "loadConfig",
+      "expectedFiles": [
+        "src/config/index.ts",
+        "src/config/loader.ts"
+      ],
+      "baseline": {
+        "top5": [
+          "src/auth/session.ts",
+          "src/config/defaults.ts",
+          "src/http/client.ts",
+          "src/http/retry.ts",
+          "src/http/server.ts"
+        ],
+        "expectedRanks": {
+          "src/config/index.ts": null,
+          "src/config/loader.ts": null
+        },
+        "hitAt5": false,
+        "reciprocalRank": 0,
+        "latencyMs": 5.525
+      },
+      "treatment": {
+        "top5": [
+          "src/config/index.ts",
+          "src/config/loader.ts"
+        ],
+        "expectedRanks": {
+          "src/config/index.ts": 1,
+          "src/config/loader.ts": 2
+        },
+        "hitAt5": true,
+        "reciprocalRank": 1,
+        "latencyMs": 2.3669,
+        "toolCalls": [
+          "find_symbol"
+        ]
+      }
+    },
+    {
+      "id": "def-sleep",
+      "kind": "definition",
+      "query": "where is sleep defined",
+      "symbol": "sleep",
+      "expectedFiles": [
+        "src/http/retry.ts",
+        "src/utils/sleep.ts"
+      ],
+      "baseline": {
+        "top5": [
+          "src/utils/sleep.ts",
+          "src/http/server.ts",
+          "src/http/client.ts",
+          "src/http/retry.ts"
+        ],
+        "expectedRanks": {
+          "src/http/retry.ts": 4,
+          "src/utils/sleep.ts": 1
+        },
+        "hitAt5": true,
+        "reciprocalRank": 1,
+        "latencyMs": 2.5942
+      },
+      "treatment": {
+        "top5": [
+          "src/utils/sleep.ts",
+          "src/http/retry.ts"
+        ],
+        "expectedRanks": {
+          "src/http/retry.ts": 2,
+          "src/utils/sleep.ts": 1
+        },
+        "hitAt5": true,
+        "reciprocalRank": 1,
+        "latencyMs": 2.1997,
+        "toolCalls": [
+          "find_symbol"
+        ]
+      }
+    },
+    {
+      "id": "def-request",
+      "kind": "definition",
+      "query": "where is request defined",
+      "symbol": "request",
+      "expectedFiles": [
+        "src/http/client.ts"
+      ],
+      "baseline": {
+        "top5": [
+          "src/http/retry.ts",
+          "src/http/client.ts",
+          "src/http/server.ts",
+          "src/config/defaults.ts",
+          "src/config/index.ts"
+        ],
+        "expectedRanks": {
+          "src/http/client.ts": 2
+        },
+        "hitAt5": true,
+        "reciprocalRank": 0.5,
+        "latencyMs": 1.4006
+      },
+      "treatment": {
+        "top5": [
+          "src/http/client.ts",
+          "src/http/server.ts",
+          "src/http/retry.ts"
+        ],
+        "expectedRanks": {
+          "src/http/client.ts": 1
+        },
+        "hitAt5": true,
+        "reciprocalRank": 1,
+        "latencyMs": 1.2151,
+        "toolCalls": [
+          "find_symbol"
+        ]
+      }
+    },
+    {
+      "id": "def-refresh-session",
+      "kind": "definition",
+      "query": "where is refreshSession defined",
+      "symbol": "refreshSession",
+      "expectedFiles": [
+        "src/auth/session.ts"
+      ],
+      "baseline": {
+        "top5": [
+          "src/auth/middleware.ts",
+          "src/http/client.ts",
+          "src/http/retry.ts",
+          "src/http/server.ts",
+          "src/utils/sleep.ts"
+        ],
+        "expectedRanks": {
+          "src/auth/session.ts": null
+        },
+        "hitAt5": false,
+        "reciprocalRank": 0,
+        "latencyMs": 1.3625
+      },
+      "treatment": {
+        "top5": [
+          "src/auth/session.ts"
+        ],
+        "expectedRanks": {
+          "src/auth/session.ts": 1
+        },
+        "hitAt5": true,
+        "reciprocalRank": 1,
+        "latencyMs": 0.9791,
+        "toolCalls": [
+          "find_symbol"
+        ]
+      }
+    },
+    {
+      "id": "call-validate-session",
+      "kind": "caller",
+      "query": "who calls validateSession",
+      "symbol": "validateSession",
+      "expectedFiles": [
+        "src/auth/login.ts",
+        "src/auth/middleware.ts"
+      ],
+      "baseline": {
+        "top5": [
+          "src/auth/login.ts",
+          "src/auth/middleware.ts",
+          "src/http/client.ts",
+          "src/http/retry.ts",
+          "src/http/server.ts"
+        ],
+        "expectedRanks": {
+          "src/auth/login.ts": 1,
+          "src/auth/middleware.ts": 2
+        },
+        "hitAt5": true,
+        "reciprocalRank": 1,
+        "latencyMs": 0.9379
+      },
+      "treatment": {
+        "top5": [
+          "src/auth/login.ts",
+          "src/auth/middleware.ts",
+          "src/http/client.ts",
+          "src/http/retry.ts",
+          "src/http/server.ts"
+        ],
+        "expectedRanks": {
+          "src/auth/login.ts": 1,
+          "src/auth/middleware.ts": 2
+        },
+        "hitAt5": true,
+        "reciprocalRank": 1,
+        "latencyMs": 1.0355,
+        "toolCalls": [
+          "impact_of"
+        ]
+      }
+    },
+    {
+      "id": "call-load-config",
+      "kind": "caller",
+      "query": "who calls loadConfig",
+      "symbol": "loadConfig",
+      "expectedFiles": [
+        "src/http/client.ts",
+        "src/auth/session.ts"
+      ],
+      "baseline": {
+        "top5": [
+          "src/auth/session.ts",
+          "src/config/defaults.ts",
+          "src/http/client.ts",
+          "src/http/retry.ts",
+          "src/http/server.ts"
+        ],
+        "expectedRanks": {
+          "src/http/client.ts": 3,
+          "src/auth/session.ts": 1
+        },
+        "hitAt5": true,
+        "reciprocalRank": 1,
+        "latencyMs": 1.1028
+      },
+      "treatment": {
+        "top5": [
+          "src/auth/session.ts",
+          "src/config/defaults.ts",
+          "src/http/retry.ts",
+          "src/http/server.ts",
+          "src/http/client.ts"
+        ],
+        "expectedRanks": {
+          "src/http/client.ts": 5,
+          "src/auth/session.ts": 1
+        },
+        "hitAt5": true,
+        "reciprocalRank": 1,
+        "latencyMs": 1.3211,
+        "toolCalls": [
+          "impact_of"
+        ]
+      }
+    },
+    {
+      "id": "call-sleep",
+      "kind": "caller",
+      "query": "who calls sleep",
+      "symbol": "sleep",
+      "expectedFiles": [
+        "src/http/server.ts"
+      ],
+      "baseline": {
+        "top5": [
+          "src/utils/sleep.ts",
+          "src/http/server.ts",
+          "src/http/client.ts",
+          "src/http/retry.ts"
+        ],
+        "expectedRanks": {
+          "src/http/server.ts": 2
+        },
+        "hitAt5": true,
+        "reciprocalRank": 0.5,
+        "latencyMs": 1.0138
+      },
+      "treatment": {
+        "top5": [
+          "src/http/client.ts",
+          "src/http/server.ts"
+        ],
+        "expectedRanks": {
+          "src/http/server.ts": 2
+        },
+        "hitAt5": true,
+        "reciprocalRank": 0.5,
+        "latencyMs": 1.0416,
+        "toolCalls": [
+          "impact_of"
+        ]
+      }
+    },
+    {
+      "id": "call-log-message",
+      "kind": "caller",
+      "query": "who calls logMessage",
+      "symbol": "logMessage",
+      "expectedFiles": [
+        "src/http/client.ts",
+        "src/http/server.ts"
+      ],
+      "baseline": {
+        "top5": [
+          "src/auth/login.ts",
+          "src/http/client.ts",
+          "src/http/server.ts",
+          "src/utils/logger.ts"
+        ],
+        "expectedRanks": {
+          "src/http/client.ts": 2,
+          "src/http/server.ts": 3
+        },
+        "hitAt5": true,
+        "reciprocalRank": 0.5,
+        "latencyMs": 1.5274
+      },
+      "treatment": {
+        "top5": [
+          "src/auth/login.ts",
+          "src/http/client.ts",
+          "src/http/server.ts"
+        ],
+        "expectedRanks": {
+          "src/http/client.ts": 2,
+          "src/http/server.ts": 3
+        },
+        "hitAt5": true,
+        "reciprocalRank": 0.5,
+        "latencyMs": 1.0352,
+        "toolCalls": [
+          "impact_of"
+        ]
+      }
+    },
+    {
+      "id": "call-request",
+      "kind": "caller",
+      "query": "who calls request",
+      "symbol": "request",
+      "expectedFiles": [
+        "src/http/retry.ts",
+        "src/http/server.ts"
+      ],
+      "baseline": {
+        "top5": [
+          "src/http/retry.ts",
+          "src/http/client.ts",
+          "src/http/server.ts",
+          "src/config/defaults.ts",
+          "src/config/index.ts"
+        ],
+        "expectedRanks": {
+          "src/http/retry.ts": 1,
+          "src/http/server.ts": 3
+        },
+        "hitAt5": true,
+        "reciprocalRank": 1,
+        "latencyMs": 4.5804
+      },
+      "treatment": {
+        "top5": [
+          "src/config/defaults.ts",
+          "src/http/retry.ts",
+          "src/http/server.ts",
+          "src/utils/sleep.ts"
+        ],
+        "expectedRanks": {
+          "src/http/retry.ts": 2,
+          "src/http/server.ts": 3
+        },
+        "hitAt5": true,
+        "reciprocalRank": 0.5,
+        "latencyMs": 3.1258,
+        "toolCalls": [
+          "impact_of"
+        ]
+      }
+    },
+    {
+      "id": "text-timeout-handling",
+      "kind": "text",
+      "query": "timeout handling",
+      "expectedFiles": [
+        "src/config/defaults.ts",
+        "src/http/retry.ts"
+      ],
+      "baseline": {
+        "top5": [
+          "src/config/defaults.ts",
+          "src/http/retry.ts",
+          "src/config/index.ts",
+          "src/http/client.ts",
+          "src/http/server.ts"
+        ],
+        "expectedRanks": {
+          "src/config/defaults.ts": 1,
+          "src/http/retry.ts": 2
+        },
+        "hitAt5": true,
+        "reciprocalRank": 1,
+        "latencyMs": 3.0622
+      },
+      "treatment": {
+        "top5": [
+          "src/config/defaults.ts",
+          "src/http/retry.ts",
+          "src/config/index.ts",
+          "src/http/client.ts",
+          "src/http/server.ts"
+        ],
+        "expectedRanks": {
+          "src/config/defaults.ts": 1,
+          "src/http/retry.ts": 2
+        },
+        "hitAt5": true,
+        "reciprocalRank": 1,
+        "latencyMs": 8.6493,
+        "toolCalls": [
+          "repo_map",
+          "grep-fallback"
+        ]
+      }
+    },
+    {
+      "id": "text-retry-policy",
+      "kind": "text",
+      "query": "retry policy",
+      "expectedFiles": [
+        "src/http/retry.ts",
+        "src/config/defaults.ts"
+      ],
+      "baseline": {
+        "top5": [
+          "src/http/retry.ts",
+          "src/config/defaults.ts",
+          "src/http/client.ts"
+        ],
+        "expectedRanks": {
+          "src/http/retry.ts": 1,
+          "src/config/defaults.ts": 2
+        },
+        "hitAt5": true,
+        "reciprocalRank": 1,
+        "latencyMs": 3.9772
+      },
+      "treatment": {
+        "top5": [
+          "src/http/retry.ts",
+          "src/config/defaults.ts",
+          "src/http/client.ts"
+        ],
+        "expectedRanks": {
+          "src/http/retry.ts": 1,
+          "src/config/defaults.ts": 2
+        },
+        "hitAt5": true,
+        "reciprocalRank": 1,
+        "latencyMs": 8.1144,
+        "toolCalls": [
+          "repo_map",
+          "grep-fallback"
+        ]
+      }
+    },
+    {
+      "id": "text-authentication-middleware",
+      "kind": "text",
+      "query": "authentication middleware",
+      "expectedFiles": [
+        "src/auth/middleware.ts",
+        "src/http/server.ts"
+      ],
+      "baseline": {
+        "top5": [
+          "src/auth/middleware.ts",
+          "src/http/server.ts"
+        ],
+        "expectedRanks": {
+          "src/auth/middleware.ts": 1,
+          "src/http/server.ts": 2
+        },
+        "hitAt5": true,
+        "reciprocalRank": 1,
+        "latencyMs": 2.2154
+      },
+      "treatment": {
+        "top5": [
+          "src/auth/middleware.ts",
+          "src/http/server.ts"
+        ],
+        "expectedRanks": {
+          "src/auth/middleware.ts": 1,
+          "src/http/server.ts": 2
+        },
+        "hitAt5": true,
+        "reciprocalRank": 1,
+        "latencyMs": 4.0589,
+        "toolCalls": [
+          "repo_map",
+          "grep-fallback"
+        ]
+      }
+    },
+    {
+      "id": "text-token-expiration",
+      "kind": "text",
+      "query": "token expiration",
+      "expectedFiles": [
+        "src/auth/session.ts",
+        "src/legacy/session.ts"
+      ],
+      "baseline": {
+        "top5": [
+          "src/auth/session.ts",
+          "src/legacy/session.ts",
+          "src/auth/middleware.ts",
+          "src/auth/login.ts"
+        ],
+        "expectedRanks": {
+          "src/auth/session.ts": 1,
+          "src/legacy/session.ts": 2
+        },
+        "hitAt5": true,
+        "reciprocalRank": 1,
+        "latencyMs": 1.7117
+      },
+      "treatment": {
+        "top5": [
+          "src/auth/session.ts",
+          "src/legacy/session.ts",
+          "src/auth/middleware.ts",
+          "src/auth/login.ts"
+        ],
+        "expectedRanks": {
+          "src/auth/session.ts": 1,
+          "src/legacy/session.ts": 2
+        },
+        "hitAt5": true,
+        "reciprocalRank": 1,
+        "latencyMs": 3.0386,
+        "toolCalls": [
+          "repo_map",
+          "grep-fallback"
+        ]
+      }
+    },
+    {
+      "id": "text-rate-limiting",
+      "kind": "text",
+      "query": "rate limiting",
+      "expectedFiles": [
+        "src/http/client.ts",
+        "src/http/server.ts"
+      ],
+      "baseline": {
+        "top5": [
+          "src/http/client.ts",
+          "src/http/server.ts"
+        ],
+        "expectedRanks": {
+          "src/http/client.ts": 1,
+          "src/http/server.ts": 2
+        },
+        "hitAt5": true,
+        "reciprocalRank": 1,
+        "latencyMs": 1.6058
+      },
+      "treatment": {
+        "top5": [
+          "src/http/client.ts",
+          "src/http/server.ts"
+        ],
+        "expectedRanks": {
+          "src/http/client.ts": 1,
+          "src/http/server.ts": 2
+        },
+        "hitAt5": true,
+        "reciprocalRank": 1,
+        "latencyMs": 3.8814,
+        "toolCalls": [
+          "repo_map",
+          "grep-fallback"
+        ]
+      }
+    }
+  ]
+}
