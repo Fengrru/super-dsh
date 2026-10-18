@@ -13,15 +13,11 @@ on:
 
 permissions:
   contents: write
-  id-token: write
 
 jobs:
-  publish:
+  release:
     runs-on: ubuntu-latest
     env:
-      # When this secret is absent, the workflow still creates the GitHub
-      # release; add NPM_TOKEN and re-run to publish the package.
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
@@ -33,7 +29,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          registry-url: https://registry.npmjs.org
       - uses: pnpm/action-setup@v4
         with:
           version: 10
@@ -45,11 +40,6 @@ jobs:
           bun test
           bun run build
           bun run smoke:install
-      - name: Publish to npm
-        if: env.NPM_TOKEN != ''
-        run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Create GitHub release
         run: |
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then

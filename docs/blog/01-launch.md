@@ -128,7 +128,7 @@ coding 没有赢下任何一个任务，却贵了约 37% 输入 token。所以�
 
 ## 安装
 
-当前是 0.1.0。npm 包发布前，可以从源码安装：
+当前是 0.1.0。SuperDSH 从 GitHub 分发，不发布到 npm；从源码安装：
 
 ```sh
 git clone https://github.com/Fengrru/super-dsh
@@ -151,7 +151,7 @@ dsh plugin --profile headless add /absolute/path/to/super-dsh
 dsh --profile headless --patch ./super-dsh.patch.yml --json "修复失败的测试"
 ```
 
-npm 包名是 `dsh-super`；发布后可以用 `dsh plugin add dsh-super`。发布状态见仓库 README。
+项目从 GitHub 分发，不发布 npm 包；安装和升级都使用 Git checkout 或本地 tarball。
 
 ## 已知限制
 

@@ -3,9 +3,9 @@
 ## Status
 
 - Version: `0.1.0`
-- Tag: `v0.1.0` (frozen; do not move it)
+- Tag: `v0.1.0` (frozen)
 - GitHub release: <https://github.com/Fengrru/super-dsh/releases/tag/v0.1.0>
-- npm: **not published yet** (`dsh-super@0.1.0` returns 404)
+- Distribution: **GitHub only; no npm registry publication**
 - Latest CI and Release workflow: see the badges in the README
 
 ## Repository metadata
@@ -16,43 +16,45 @@ Set on GitHub → repository → About:
 - **Topics:** `dsh`, `deepseek-harness`, `ai-agent`, `agent-reliability`, `typescript`, `plugin`, `memory`, `audit`, `crash-recovery`
 - **Website:** the GitHub release page or the project blog index.
 
-## Publish the npm package
+## Distribution policy
 
-The Release workflow skips npm publishing when `NPM_TOKEN` is empty, so the GitHub release can exist without a package. To publish:
+SuperDSH is installed from a Git checkout or a local tarball; the project has
+decided **not to publish to npm**.
 
-1. Log in to npm as the package owner:
-   ```sh
-   npm login
-   npm whoami
-   ```
-   The name `dsh-super` must be available (it was at the time of the first release).
-2. Add an npm automation token to the GitHub repository as the `NPM_TOKEN` secret:
-   - GitHub → Settings → Secrets and variables → Actions → New repository secret.
-3. Run the **Release** workflow manually:
-   - Actions → Release → Run workflow → tag `v0.1.0`.
-   - The workflow checks out the tag, runs typecheck/tests/build/install smoke,
-     publishes with provenance, and leaves the existing GitHub release in place.
-4. Verify:
-   ```sh
-   npm view dsh-super@0.1.0 version
-   npm pack dsh-super@0.1.0 --dry-run
-   ```
-5. In a clean `DSH_HOME`, install and call a tool:
-   ```sh
-   dsh plugin --profile headless add dsh-super
-   dsh --profile headless --json "Use artifact_put to store 'release-ok' and artifact_verify the hash."
-   ```
+- `package.json` is marked `"private": true` so an accidental `npm publish`
+  cannot create a registry release.
+- The release workflow creates a GitHub release only. It does not require an
+  `NPM_TOKEN`.
+- `npm pack` remains a local packaging/test command. `bun run smoke:install`
+  uses it to verify that the file set installs through `dsh plugin add`.
 
-If npm publishing fails after the tag is moved or a new version is needed, **do not
-move `v0.1.0`**. Bump to `0.1.1`, commit, tag, and publish that.
+## Release workflow
+
+1. Ensure CI passes on the commit.
+2. Update `CHANGELOG.md` and the version in `package.json`.
+3. Run the local gates:
+   ```sh
+   bun run typecheck
+   bun test
+   bun run build
+   bun run smoke:install
+   ```
+4. Commit, create an annotated tag, and push both:
+   ```sh
+   git tag -a vX.Y.Z -m "SuperDSH X.Y.Z"
+   git push origin master
+   git push origin vX.Y.Z
+   ```
+5. The Release workflow checks out the tag, runs the same gates, and creates a
+   GitHub release. It can also be run manually with the tag input.
 
 ## Release invariants
 
-- A published npm version is immutable; never reuse a version number.
-- A published Git tag is immutable; never force-push it.
-- The GitHub release and npm package must point at the same commit.
-- Do not publish a package that skipped CI on its tag.
-- `bun run smoke:install` must pass before publishing.
+- A published Git tag is immutable; do not force-push it.
+- The GitHub release and tag must point at the same commit.
+- Do not release a commit whose tag CI did not pass.
+- `bun run smoke:install` must pass before tagging.
+- No npm registry publication; do not add `NPM_TOKEN` or an `npm publish` step.
 
 ## Package contents
 

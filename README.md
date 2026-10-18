@@ -41,24 +41,19 @@ The fuzzy matcher is adapted from [`awesome-agent-infra`](https://github.com/Fen
 
 ## Install
 
-Published package (after the npm package is published):
+SuperDSH is distributed from GitHub; it is not published to npm. Build it locally:
 
 ```sh
-dsh plugin --profile headless add dsh-super
-```
-
-`dsh plugin add` uses `pnpm`; install it and make sure it is on `PATH` before adding the plugin.
-
-Local development build:
-
-```sh
-git clone https://github.com/Fengrru/super-dsh.git   # once published
+git clone https://github.com/Fengrru/super-dsh.git
 cd super-dsh
 bun install        # no runtime dependencies; build/test toolchain only
 bun run build      # emits dist/index.js
 bun test           # 222 deterministic checks
-bun run smoke:install  # pack → install → profile check
+dsh plugin --profile headless add /absolute/path/to/super-dsh
 ```
+
+`dsh plugin add` uses `pnpm`; make sure `pnpm` is on `PATH`. No npm registry
+package is required.
 
 Local overlay:
 

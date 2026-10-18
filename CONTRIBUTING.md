@@ -67,10 +67,10 @@ protocol are libraries, not a sandbox; do not describe them as one.
 ## Releases
 
 Release tags use `vX.Y.Z`. The GitHub Actions release workflow runs the test,
-typecheck, build, and install smoke, publishes to npm, and creates a GitHub
-release. It requires an `NPM_TOKEN` repository secret and a published
-`dsh-super` package name. The workflow does not run on ordinary pushes. See
-[`docs/release.md`](docs/release.md) for the full runbook.
+typecheck, build, and install smoke, then creates a GitHub release. SuperDSH is
+distributed from GitHub and is **not published to npm**; the package is marked
+private to prevent an accidental registry publish. The workflow does not run on
+ordinary pushes. See [`docs/release.md`](docs/release.md) for the full runbook.
 
 ## License
 

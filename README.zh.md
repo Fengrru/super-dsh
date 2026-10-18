@@ -41,24 +41,18 @@ dsh 的插件机制很强，但公共组合仍有执行空白：
 
 ## 安装
 
-发布后的 npm 包（npm 包发布后）：
+SuperDSH 从 GitHub 分发，不发布到 npm。本地构建：
 
 ```sh
-dsh plugin --profile headless add dsh-super
-```
-
-`dsh plugin add` 依赖 `pnpm`；安装插件前请确保 `pnpm` 在 `PATH` 中。
-
-本地开发构建：
-
-```sh
-git clone https://github.com/Fengrru/super-dsh.git   # 发布后
+git clone https://github.com/Fengrru/super-dsh.git
 cd super-dsh
 bun install        # 无运行时依赖，仅构建/测试需要
 bun run build      # 生成 dist/index.js
 bun test           # 222 个确定性检查
-bun run smoke:install  # 打包 → 安装 → profile 检查
+dsh plugin --profile headless add /absolute/path/to/super-dsh
 ```
+
+`dsh plugin add` 依赖 `pnpm`；请确保 `pnpm` 在 `PATH` 中。不需要 npm registry 包。
 
 本地 overlay：
 
