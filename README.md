@@ -120,7 +120,7 @@ The project is organized around a simple rule: **a capability is a default only 
 | Cross-session memory (2 pairs) | 0/2 recalled | **2/2 recalled** | Accept |
 | Verification gate (4 seeded tasks) | 4/4 pass | 4/4 pass | No gain; keep opt-in |
 
-Full methodology, corpus definitions, and raw result files are in [`docs/experiments.md`](docs/experiments.md) and [`experiments/`](experiments/).
+Full methodology, corpus definitions, and raw result files are in [`docs/experiments.md`](docs/experiments.md) and [`experiments/`](experiments/). A full, item-by-item assessment of every package in `awesome-agent-infra` and every component in `nexus-runtime` (88 items) is in [`docs/analysis/`](docs/analysis/README.md), including integration seams, prerequisites, effort, and experiments.
 
 Reproduce:
 
@@ -148,6 +148,7 @@ bun run experiment:agent
 - The audit chain is unkeyed. It detects accidental edits, deletions, truncation, and reordering; an attacker with write access who recomputes the entire chain and anchor can forge a consistent ledger. Use an external WORM sink or signatures for an adversarial threat model.
 - The verification gate runs a single configured command from the session's working directory. On Windows it terminates the process tree with `taskkill`.
 - The agent-level experiments are small samples (2 memory pairs, 4 seeded verification tasks) and use one model; they are evidence, not a benchmark leaderboard.
+- The 88-item full analysis is a roadmap, not a claim that every item is implemented. Version 0.1.0 ships only `fuzzy_edit`, project memory, the audit ledger, and the opt-in verification gate.
 
 ## Credits
 

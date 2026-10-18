@@ -120,7 +120,7 @@ config:
 | 跨会话记忆（2 组） | 0/2 召回 | **2/2 召回** | 接受 |
 | 验证闸门（4 个种子任务） | 4/4 通过 | 4/4 通过 | 无提升；保持可选 |
 
-完整方法、语料定义和原始结果见 [`docs/experiments.md`](docs/experiments.md) 与 [`experiments/`](experiments/)。
+完整方法、语料定义和原始结果见 [`docs/experiments.md`](docs/experiments.md) 与 [`experiments/`](experiments/)。对两个来源项目全部 88 个组件（48 个包 + 40 个 nexus 组件）的逐项分析、接入 seam、前置修复、工作量和实验设计见 [`docs/analysis/`](docs/analysis/README.md)。
 
 复现：
 
@@ -148,6 +148,7 @@ bun run experiment:agent
 - 审计链没有密钥。它能检测意外修改、删除、截断和重排；拥有写权限的攻击者若重算整条链和 anchor，可以伪造一致账本。对抗性威胁模型请接入外部 WORM 存储或签名。
 - 验证闸门只执行一个配置命令；Windows 上用 `taskkill` 终止进程树。
 - Agent 级实验样本很小（2 组记忆、4 个验证任务），且只用一个模型；它是证据，不是排行榜。
+- 88 项全量分析是路线图，不等于全部已实现。0.1.0 只交付 `fuzzy_edit`、项目记忆、审计账本和可选的验证闸门。
 
 ## 致谢
 

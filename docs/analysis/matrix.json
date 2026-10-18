@@ -1,0 +1,635 @@
+{
+  "generatedAt": "2026-10-18T00:48:52.254Z",
+  "counts": {
+    "awesome-agent-infra": {
+      "A": 3,
+      "B": 16,
+      "C": 18,
+      "D": 11
+    },
+    "nexus-runtime": {
+      "A": 1,
+      "B": 9,
+      "C": 11,
+      "D": 19
+    }
+  },
+  "items": [
+    {
+      "source": "awesome-agent-infra",
+      "category": "file-patch",
+      "name": "fuzzy-patch",
+      "verdict": "A",
+      "effort": "S"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "file-patch",
+      "name": "txn-fs",
+      "verdict": "B",
+      "effort": "M"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "code-intel",
+      "name": "codegraph",
+      "verdict": "B",
+      "effort": "M"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "code-intel",
+      "name": "mcp-codegraph",
+      "verdict": "B",
+      "effort": "S"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "memory",
+      "name": "agent-memory",
+      "verdict": "B",
+      "effort": "M"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "memory",
+      "name": "memory-engine-v2",
+      "verdict": "C",
+      "effort": "M"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "memory",
+      "name": "memory-graph",
+      "verdict": "B",
+      "effort": "M"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "memory",
+      "name": "embedding",
+      "verdict": "B",
+      "effort": "M"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "memory",
+      "name": "internal-tfidf",
+      "verdict": "B",
+      "effort": "S"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "memory",
+      "name": "project-memory",
+      "verdict": "B",
+      "effort": "S"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "memory",
+      "name": "agent-checkpoint",
+      "verdict": "C",
+      "effort": "M"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "memory",
+      "name": "checkpoint-writer",
+      "verdict": "B",
+      "effort": "M"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "memory",
+      "name": "notes-manager",
+      "verdict": "B",
+      "effort": "S"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "memory",
+      "name": "knowledge-vault",
+      "verdict": "B",
+      "effort": "M"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "memory",
+      "name": "retrieval-feedback",
+      "verdict": "A",
+      "effort": "S"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "memory",
+      "name": "evidence-log",
+      "verdict": "B",
+      "effort": "S"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "memory",
+      "name": "history-compact",
+      "verdict": "A",
+      "effort": "S"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "safety",
+      "name": "valid8",
+      "verdict": "B",
+      "effort": "M"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "safety",
+      "name": "guardrail",
+      "verdict": "C",
+      "effort": "S"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "safety",
+      "name": "healix",
+      "verdict": "C",
+      "effort": "M"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "safety",
+      "name": "goal-verifier",
+      "verdict": "D",
+      "effort": "M"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "safety",
+      "name": "confidence-gate",
+      "verdict": "C",
+      "effort": "S"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "safety",
+      "name": "hallucination-detector",
+      "verdict": "D",
+      "effort": "M"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "safety",
+      "name": "code-sandbox",
+      "verdict": "D",
+      "effort": "M"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "search-reasoning",
+      "name": "agentic-search",
+      "verdict": "C",
+      "effort": "M"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "search-reasoning",
+      "name": "reasoning-search",
+      "verdict": "C",
+      "effort": "L"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "search-reasoning",
+      "name": "pomdp-planner",
+      "verdict": "C",
+      "effort": "L"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "search-reasoning",
+      "name": "process-reward",
+      "verdict": "D",
+      "effort": "M"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "search-reasoning",
+      "name": "agent-metacog",
+      "verdict": "C",
+      "effort": "M"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "orchestration",
+      "name": "taskdag",
+      "verdict": "C",
+      "effort": "S"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "orchestration",
+      "name": "state-machine",
+      "verdict": "C",
+      "effort": "M"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "orchestration",
+      "name": "event-bus",
+      "verdict": "D",
+      "effort": "S"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "orchestration",
+      "name": "worker",
+      "verdict": "D",
+      "effort": "M"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "orchestration",
+      "name": "dynamic-workflow",
+      "verdict": "D",
+      "effort": "L"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "orchestration",
+      "name": "llm-dag-generator",
+      "verdict": "C",
+      "effort": "M"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "orchestration",
+      "name": "lifecycle-manager",
+      "verdict": "C",
+      "effort": "S"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "orchestration",
+      "name": "max-mode-sampler",
+      "verdict": "B",
+      "effort": "M"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "orchestration",
+      "name": "branch",
+      "verdict": "D",
+      "effort": "M"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "self-evolution",
+      "name": "skillforge",
+      "verdict": "C",
+      "effort": "M"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "self-evolution",
+      "name": "skill-curator",
+      "verdict": "C",
+      "effort": "S"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "self-evolution",
+      "name": "dreamdistill",
+      "verdict": "C",
+      "effort": "L"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "self-evolution",
+      "name": "learning-nudge",
+      "verdict": "B",
+      "effort": "M"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "infra",
+      "name": "cycle-controller",
+      "verdict": "C",
+      "effort": "S"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "infra",
+      "name": "tracing",
+      "verdict": "D",
+      "effort": "S"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "infra",
+      "name": "replay",
+      "verdict": "D",
+      "effort": "S"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "infra",
+      "name": "archiver",
+      "verdict": "B",
+      "effort": "M"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "infra",
+      "name": "mcp-client",
+      "verdict": "D",
+      "effort": "S"
+    },
+    {
+      "source": "awesome-agent-infra",
+      "category": "infra",
+      "name": "engine-db",
+      "verdict": "C",
+      "effort": "M"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "core",
+      "name": "state-machine",
+      "verdict": "C",
+      "effort": "M"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "core",
+      "name": "event-types-causal-vector",
+      "verdict": "B",
+      "effort": "M"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "core",
+      "name": "protocol-serialization",
+      "verdict": "B",
+      "effort": "S"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "core",
+      "name": "checkpoint-schema",
+      "verdict": "C",
+      "effort": "S"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "core",
+      "name": "recovery",
+      "verdict": "C",
+      "effort": "M"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "core",
+      "name": "session-driver",
+      "verdict": "D",
+      "effort": "M"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "core",
+      "name": "export",
+      "verdict": "B",
+      "effort": "M"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "core",
+      "name": "memory",
+      "verdict": "C",
+      "effort": "S"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "core",
+      "name": "migration",
+      "verdict": "D",
+      "effort": "L"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "core",
+      "name": "golden-tests",
+      "verdict": "B",
+      "effort": "S"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "safety-cost",
+      "name": "llm-proxy",
+      "verdict": "C",
+      "effort": "M"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "safety-cost",
+      "name": "effects-ledger",
+      "verdict": "A",
+      "effort": "M"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "safety-cost",
+      "name": "content-vault",
+      "verdict": "B",
+      "effort": "M"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "safety-cost",
+      "name": "wasm-worker",
+      "verdict": "D",
+      "effort": "L"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "safety-cost",
+      "name": "entropy-controller",
+      "verdict": "C",
+      "effort": "S"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "safety-cost",
+      "name": "capability-token",
+      "verdict": "B",
+      "effort": "S"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "safety-cost",
+      "name": "sandbox-policy",
+      "verdict": "D",
+      "effort": "L"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "storage-transport",
+      "name": "event-store-schema",
+      "verdict": "C",
+      "effort": "S"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "storage-transport",
+      "name": "sqlite-event-store",
+      "verdict": "C",
+      "effort": "M"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "storage-transport",
+      "name": "postgres-event-store",
+      "verdict": "D",
+      "effort": "L"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "storage-transport",
+      "name": "nexus-rpc",
+      "verdict": "B",
+      "effort": "M"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "storage-transport",
+      "name": "nexus-cli",
+      "verdict": "D",
+      "effort": "L"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "orchestration-ops",
+      "name": "local-scheduler",
+      "verdict": "C",
+      "effort": "S"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "orchestration-ops",
+      "name": "docker-scheduler",
+      "verdict": "D",
+      "effort": "L"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "orchestration-ops",
+      "name": "k8s-scheduler",
+      "verdict": "D",
+      "effort": "L"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "orchestration-ops",
+      "name": "coordinator",
+      "verdict": "D",
+      "effort": "L"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "orchestration-ops",
+      "name": "message-bus",
+      "verdict": "D",
+      "effort": "L"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "orchestration-ops",
+      "name": "metrics",
+      "verdict": "C",
+      "effort": "S"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "orchestration-ops",
+      "name": "temporal",
+      "verdict": "D",
+      "effort": "L"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "orchestration-ops",
+      "name": "phoenix-tests",
+      "verdict": "B",
+      "effort": "M"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "workers-sdk",
+      "name": "python-worker",
+      "verdict": "B",
+      "effort": "M"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "workers-sdk",
+      "name": "node-worker",
+      "verdict": "D",
+      "effort": "S"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "workers-sdk",
+      "name": "rust-worker",
+      "verdict": "D",
+      "effort": "M"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "workers-sdk",
+      "name": "python-sdk",
+      "verdict": "D",
+      "effort": "L"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "workers-sdk",
+      "name": "node-sdk",
+      "verdict": "D",
+      "effort": "L"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "workers-sdk",
+      "name": "rust-sdk",
+      "verdict": "D",
+      "effort": "M"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "workers-sdk",
+      "name": "openclaw-adapter",
+      "verdict": "D",
+      "effort": "S"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "workers-sdk",
+      "name": "hermes-adapter",
+      "verdict": "D",
+      "effort": "S"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "core",
+      "name": "worker-spawner",
+      "verdict": "D",
+      "effort": "M"
+    },
+    {
+      "source": "nexus-runtime",
+      "category": "safety-cost",
+      "name": "budget-model",
+      "verdict": "C",
+      "effort": "S"
+    }
+  ]
+}

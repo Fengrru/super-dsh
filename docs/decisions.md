@@ -1,5 +1,7 @@
 # Decision log
 
+> Full item-by-item coverage (48 awesome-agent-infra packages + 40 nexus-runtime components) is in [`analysis/README.md`](analysis/README.md). This file records the decisions that affect the shipped default bundle.
+
 Every candidate enhancement was evaluated against three questions:
 
 1. Does it fill a real gap in dsh's public seams?
