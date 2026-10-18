@@ -4,7 +4,7 @@
 
 Nexus-runtime design adoption, implemented and tested in TypeScript:
 
-- **Effects v2** — in-memory ledger index (10k calls in 810 ms, 0.081 ms/call), explicit `effect_reconcile` plan (`replay` / `compensate` / `query`), `effect_resolve`, pure effect state machine, per-tool recovery policies/compensation.
+- **Effects v2** — in-memory ledger index (10k calls in 733 ms, 0.073 ms/call), explicit `effect_reconcile` plan (`replay` / `compensate` / `query`), `effect_resolve`, pure effect state machine, per-tool recovery policies/compensation.
 - **Real kill-9 experiment** — separate Bun processes, taskkill/SIGKILL, restart reconciliation, post-crash irreversible retry denial (`duplicateDenied: true`, `duplicateExecutions: 0`); committed control still allows a repeat.
 - **Audit v2** — optional HMAC-SHA256 record signatures, `audit_export` with head/verify/records, golden fixture pinning canonical data and record hashes.
 - **Replay plan** — `replay_plan` machine-readable actions: re-read changed files, rerun failed commands, verify commands, inspect unfinished turns.

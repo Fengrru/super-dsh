@@ -86,7 +86,7 @@ dsh --profile headless --dump-config | grep super-dsh
 
 ### Execution safety and observability
 
-**Effects ledger** — every tool call gets hashed arguments and an intent record; results become `committed`/`failed`. A new process marks leftover pending intents `unknown`; `effect_status` reports unresolved work; `effect_reconcile` returns an explicit `replay` / `compensate` / `query` plan; `effect_resolve` records the human/external outcome. The ledger is loaded into memory once per session (10k calls in 810 ms, 0.081 ms/call). `denyUnresolvedIrreversible` (opt-in) blocks a repeated irreversible call after a crash, including `unknown` predecessors.
+**Effects ledger** — every tool call gets hashed arguments and an intent record; results become `committed`/`failed`. A new process marks leftover pending intents `unknown`; `effect_status` reports unresolved work; `effect_reconcile` returns an explicit `replay` / `compensate` / `query` plan; `effect_resolve` records the human/external outcome. The ledger is loaded into memory once per session (10k calls in 733 ms, 0.073 ms/call). `denyUnresolvedIrreversible` (opt-in) blocks a repeated irreversible call after a crash, including `unknown` predecessors.
 
 **Artifacts** — `artifact_put`, `artifact_get`, `artifact_verify`, `artifact_list`. SHA-256 content addressing, atomic temp+rename writes, append-only index, hash re-verification on every read, text/base64 round-trip. Tampered/missing blobs fail verification.
 
@@ -167,7 +167,7 @@ Quantitative experiments on this machine (Windows 10, Node 24, DeepSeek `deepsee
 0.3 Nexus-design validation:
 
 - `bun test`: **160 tests / 918 assertions** across 20 files, including schema-subset validation for every registered tool.
-- Effects 10,000 calls: **810 ms total, 0.081 ms/call** (20,000 ledger records, 5.5 MB), down from ~33 ms/call.
+- Effects 10,000 calls: **733 ms total, 0.073 ms/call** (20,000 ledger records, 5.5 MB), down from ~33 ms/call.
 - Real kill-9 (`experiments/kill9-effects.ts`): a separate Bun process records an irreversible intent, is killed with `taskkill /F /T` or `SIGKILL`, a new process reconciles it to `unknown`, and the repeated irreversible call is denied — **duplicateDenied=true, duplicateExecutions=0**; the committed control still allows a repeat.
 - Audit: HMAC signatures, stripped/rehashed tamper detection, export with head/verify, and a byte-pinned golden fixture.
 - Replay plan, file locks, budget reserve/settle, capability tokens, causal clock, and worker protocol have deterministic tests; real-dsh smoke exercised `audit_export`, `effect_reconcile`, `replay_plan`, `apply_patch`, repo map, notes, artifacts, knowledge, handoff, history compaction, and reflection.

@@ -86,7 +86,7 @@ dsh --profile headless --dump-config | grep super-dsh
 
 ### 执行安全与可观测性
 
-**副作用账本**：每次工具调用记录 hash 参数与 intent；结果变为 `committed`/`failed`。新进程把遗留 pending 标为 `unknown`；`effect_status` 报告未解决项；`effect_reconcile` 返回明确的 `replay`/`compensate`/`query` 计划；`effect_resolve` 记录人工/外部结果。账本每 session 只加载一次到内存（10k 次调用 810ms，0.081ms/次）。`denyUnresolvedIrreversible`（可选）在崩溃后拒绝重复不可逆调用（包括 unknown 前驱）。
+**副作用账本**：每次工具调用记录 hash 参数与 intent；结果变为 `committed`/`failed`。新进程把遗留 pending 标为 `unknown`；`effect_status` 报告未解决项；`effect_reconcile` 返回明确的 `replay`/`compensate`/`query` 计划；`effect_resolve` 记录人工/外部结果。账本每 session 只加载一次到内存（10k 次调用 733ms，0.073ms/次）。`denyUnresolvedIrreversible`（可选）在崩溃后拒绝重复不可逆调用（包括 unknown 前驱）。
 
 **Artifacts**：`artifact_put` / `artifact_get` / `artifact_verify` / `artifact_list`。SHA-256 内容寻址、temp+rename 原子写、追加式索引、每次读取重验 hash、文本/base64 往返。篡改/缺失会验证失败。
 
@@ -167,7 +167,7 @@ dsh --profile headless --dump-config | grep super-dsh
 0.3 Nexus 设计验证：
 
 - `bun test`：**160 个测试 / 918 个断言**，20 个文件，包含对每个注册工具 schema 子集的校验。
-- Effects 10,000 次调用：**810ms 总计，0.081ms/次**（20,000 条账本记录，5.5MB），从约 33ms/次降下来。
+- Effects 10,000 次调用：**733ms 总计，0.073ms/次**（20,000 条账本记录，5.5MB），从约 33ms/次降下来。
 - 真实 kill-9（`experiments/kill9-effects.ts`）：独立 Bun 进程记录不可逆 intent，被 `taskkill /F /T` 或 `SIGKILL` 杀死，新进程把它对账为 `unknown`，重复不可逆调用被拒绝——**duplicateDenied=true, duplicateExecutions=0**；committed 对照仍允许重复。
 - 审计：HMAC 签名、删除/重算签名篡改检测、带 head/verify 的导出、字节级 golden fixture。
 - Replay plan、文件锁、预算预留/结算、capability token、因果时钟、worker 协议都有确定性测试；真实 dsh 冒烟覆盖 `audit_export`、`effect_reconcile`、`replay_plan`、`apply_patch`、repo map、notes、artifacts、knowledge、handoff、history compact、reflect。

@@ -171,7 +171,7 @@ The 0.3 work adopts Nexus's invariants rather than its runtime. Each design has 
 |---|---|---|
 | Effects: intent/commit + classification | `src/features/effects.ts` | `tests/effects.test.ts` |
 | Effects: explicit recovery plan | `effect_reconcile` (`replay`/`compensate`/`query`) + `effect_resolve` | `tests/effects.test.ts` |
-| Effects: no O(n²) | In-memory ledger index, append-only file | 10,000 calls in **809.73 ms (0.081 ms/call)**, `experiments/effects-bench.ts` |
+| Effects: no O(n²) | In-memory ledger index, append-only file | 10,000 calls in **732.98 ms (0.073 ms/call)**, `experiments/effects-bench.ts` |
 | Real crash recovery | Separate Bun processes, `taskkill /F /T` / `SIGKILL`, new-process reconciliation | `experiments/kill9-effects.ts`: `unknown=1`, `duplicateDenied=true`, `duplicateExecutions=0`; committed control allows a repeat |
 | Canonical serialization + golden fixture | Canonical JSON + SHA-256 pinned by a fixture | `tests/audit-extra.test.ts`, `tests/fixtures/audit-v1.json` |
 | Audit signatures + export | HMAC-SHA256 record signatures, `audit_export` with head/verify/records | `tests/audit-extra.test.ts` |
