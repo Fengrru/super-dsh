@@ -31,7 +31,8 @@ one zero-runtime-dependency ESM plugin bundle. Pre-release development notes
 - **Cross-process store safety** — memory, repair, and knowledge read-modify-write
   cycles hold per-file advisory locks and reload after acquisition. Two-process
   tests preserve 50/50 memory rows, 50 repair increments, and 50 contiguous
-  knowledge versions.
+  knowledge versions. Windows lock races that surface as `EPERM` are treated as
+  contention instead of crashing the writer.
 - **Capability path canonicalization** — nonexistent paths now canonicalize
   their nearest existing ancestor, so Windows 8.3/temp-path spelling cannot
   make an in-scope path look outside the grant.

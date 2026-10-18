@@ -167,7 +167,10 @@ function tryCreateLock(file: string, record: LockRecord): boolean {
   try {
     fd = openSync(file, 'wx')
   } catch (error: unknown) {
-    if (isErrno(error, 'EEXIST')) return false
+    // Windows may report EPERM instead of EEXIST when two processes race to
+    // create the same lock. Treat it as contention and retry; a persistent
+    // permission problem becomes a lock timeout rather than a hard crash.
+    if (isErrno(error, 'EEXIST') || isErrno(error, 'EPERM')) return false
     throw error
   }
 
@@ -203,7 +206,7 @@ function inspectLock(file: string, ttlMs: number): LockInspection | undefined {
     raw = readFileSync(file, 'utf8')
     mtimeMs = statSync(file).mtimeMs
   } catch (error: unknown) {
-    if (isErrno(error, 'ENOENT')) return undefined
+    if (isErrno(error, 'ENOENT') || isErrno(error, 'EPERM')) return undefined
     throw error
   }
 
@@ -237,7 +240,7 @@ function removeStaleLock(file: string, expectedRaw: string): void {
     if (readFileSync(file, 'utf8') !== expectedRaw) return
     unlinkSync(file)
   } catch (error: unknown) {
-    if (!isErrno(error, 'ENOENT')) throw error
+    if (!isErrno(error, 'ENOENT') && !isErrno(error, 'EPERM') && !isErrno(error, 'EBUSY')) throw error
   }
 }
 
