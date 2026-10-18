@@ -1,0 +1,11 @@
+# SuperDSH core profile: tolerant edits, transactional patches, memory, audit,
+# effect recovery, artifacts, and repair memory. No repository map, notes,
+# knowledge, session reports, or operational extras.
+#
+# Local development: replace `name: 'dsh-super'` with the absolute path to the
+# built bundle, e.g. name: '/absolute/path/to/super-dsh/dist/index.js'.
+- insert:
+    - id: super-dsh
+      name: 'dsh-super'
+      config:
+        profile: core

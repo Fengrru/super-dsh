@@ -10,6 +10,7 @@
  */
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { extname, join, posix, resolve } from 'node:path'
 import type { PluginContext, SuperDshConfig, ToolDefinitionLike, ToolExecutionLike } from '../plugin-types.ts'
 import { sessionCwd, sha256, warn } from '../shared.ts'
@@ -49,8 +50,10 @@ interface ExtractedImports {
 interface RepoIndex {
   root: string
   signature: string
+  lastScanAt: number
   files: string[]
   symbols: IndexedSymbol[]
+  sortedSymbols: IndexedSymbol[]
   byName: Map<string, IndexedSymbol[]>
   defsByFile: Map<string, IndexedSymbol[]>
   referencedBy: Map<string, string[]>
@@ -63,6 +66,8 @@ interface RepoMapOptions {
   root?: string
   maxFiles?: number
   maxFileBytes?: number
+  /** Reuse the cached index without touching the filesystem for this many ms. */
+  refreshMs?: number
   /** Optional runtime switch for the natural-language search_code tool. */
   search?: boolean
 }
@@ -86,14 +91,17 @@ type Language = 'ts' | 'js' | 'py' | 'rs' | 'go' | 'java'
 
 const IGNORED_DIRECTORIES = new Set(['node_modules', '.git', 'dist', 'build', 'target', '.next', 'coverage'])
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.py', '.rs', '.go', '.java'])
-const DEFAULT_MAX_FILES = 2000
+const DEFAULT_MAX_FILES = 1000
 const DEFAULT_MAX_FILE_BYTES = 512 * 1024
+const DEFAULT_REFRESH_MS = 5000
+const READ_CONCURRENCY = 32
 const DEFAULT_LIMIT = 30
 const MAX_LIMIT = 200
-const PAGE_RANK_ITERATIONS = 18
+const PAGE_RANK_ITERATIONS = 10
 const DAMPING = 0.85
 const MAX_IMPACT = 50
-const MAX_GRAPH_EDGES = 400_000
+const MAX_GRAPH_EDGES = 50_000
+const MAX_DEFINITIONS_PER_TOKEN = 20
 const IDENTIFIER_PATTERN = /[A-Za-z_$][\w$]*/g
 const DEFAULT_SEARCH_LIMIT = 10
 const MAX_SEARCH_LIMIT = 50
@@ -165,6 +173,7 @@ export function applyRepoMap(
     : {}
   const maxFiles = clampInt(options.maxFiles ?? DEFAULT_MAX_FILES, 1, 100_000)
   const maxFileBytes = clampInt(options.maxFileBytes ?? DEFAULT_MAX_FILE_BYTES, 1, 64 * 1024 * 1024)
+  const refreshMs = clampInt(options.refreshMs ?? DEFAULT_REFRESH_MS, 0, 86_400_000)
   const searchEnabled = options.search !== false
   const cache = new Map<string, RepoIndex>()
 
@@ -198,11 +207,19 @@ export function applyRepoMap(
     }
     if (!info.isDirectory()) throw new Error(`repository root is not a directory: ${root}`)
 
+    const cached = cache.get(root)
+    if (cached !== undefined && refreshMs > 0 && Date.now() - cached.lastScanAt < refreshMs) {
+      return cached
+    }
+
     const scan = scanRepository(root, maxFiles, maxFileBytes)
     const signature = repoSignature(root, scan.files, maxFiles, maxFileBytes)
-    const cached = cache.get(root)
-    if (cached !== undefined && cached.signature === signature) return cached
-    const index = buildRepoIndex(root, scan, signature)
+    if (cached !== undefined && cached.signature === signature) {
+      cached.lastScanAt = Date.now()
+      return cached
+    }
+    const texts = await readSources(scan.files)
+    const index = buildRepoIndex(root, scan, signature, texts)
     cache.set(root, index)
     return index
   }
@@ -263,7 +280,7 @@ export function applyRepoMap(
       let truncated = index.truncated
 
       if (query.length === 0) {
-        const sorted = index.symbols.slice().sort(compareByCentrality)
+        const sorted = index.sortedSymbols
         truncated = truncated || sorted.length > limit
         selected = sorted.slice(0, limit)
       } else {
@@ -830,19 +847,20 @@ function repoSignature(
   }))
 }
 
-function buildRepoIndex(root: string, scan: ScanResult, signature: string): RepoIndex {
+function buildRepoIndex(
+  root: string,
+  scan: ScanResult,
+  signature: string,
+  texts: ReadonlyMap<string, string>,
+): RepoIndex {
   const readable: SourceFile[] = []
   const files: string[] = []
   const symbols: IndexedSymbol[] = []
   const defsByFile = new Map<string, IndexedSymbol[]>()
 
   for (const file of scan.files) {
-    let text: string
-    try {
-      text = readFileSync(file.abs, 'utf8')
-    } catch {
-      continue
-    }
+    const text = texts.get(file.abs)
+    if (text === undefined) continue
     readable.push(file)
     files.push(file.rel)
     const extracted = extractSymbols(file.rel, text)
@@ -861,16 +879,11 @@ function buildRepoIndex(root: string, scan: ScanResult, signature: string): Repo
   const importsByFile = new Map<string, string[]>()
   const referencesByFile = new Map<string, Set<string>>()
   for (const file of readable) {
-    let text: string
-    try {
-      text = readFileSync(file.abs, 'utf8')
-    } catch {
-      continue
-    }
+    const text = texts.get(file.abs)
+    if (text === undefined) continue
     const language = languageOf(file.rel)
     const extracted = extractImports(file.rel, text, language, fileSet)
     importsByFile.set(file.rel, extracted.files)
-
     const referenceText = stripImportStatements(text, language)
     const tokens = new Set(referenceText.match(IDENTIFIER_PATTERN) ?? [])
     const definedNames = new Set((defsByFile.get(file.rel) ?? []).map(symbol => symbol.name))
@@ -880,7 +893,9 @@ function buildRepoIndex(root: string, scan: ScanResult, signature: string): Repo
     // used in the body. Bindings are resolved to the importing file's symbols.
     for (const [local, binding] of extracted.bindings) {
       const importedName = binding.importedName ?? local
-      for (const symbol of byName.get(importedName) ?? []) {
+      const imported = byName.get(importedName) ?? []
+      for (let i = 0; i < imported.length && i < MAX_DEFINITIONS_PER_TOKEN; i++) {
+        const symbol = imported[i]
         if (symbol.file === binding.file) refs.add(symbol.id)
       }
     }
@@ -890,12 +905,15 @@ function buildRepoIndex(root: string, scan: ScanResult, signature: string): Repo
       const binding = extracted.bindings.get(token)
       if (binding !== undefined) {
         const importedName = binding.importedName ?? token
-        for (const symbol of byName.get(importedName) ?? []) {
+        const imported = byName.get(importedName) ?? []
+        for (let i = 0; i < imported.length && i < MAX_DEFINITIONS_PER_TOKEN; i++) {
+          const symbol = imported[i]
           if (symbol.file === binding.file) refs.add(symbol.id)
         }
         continue
       }
-      for (const symbol of byName.get(token) ?? []) refs.add(symbol.id)
+      const defs = byName.get(token) ?? []
+      for (let i = 0; i < defs.length && i < MAX_DEFINITIONS_PER_TOKEN; i++) refs.add(defs[i].id)
     }
     if (refs.size > 0) referencesByFile.set(file.rel, refs)
   }
@@ -958,11 +976,14 @@ function buildRepoIndex(root: string, scan: ScanResult, signature: string): Repo
     if (symbol.score > maxScore) maxScore = symbol.score
   }
 
+  const sortedSymbols = [...symbols].sort(compareByCentrality)
   return {
     root,
     signature,
+    lastScanAt: Date.now(),
     files,
     symbols,
+    sortedSymbols,
     byName,
     defsByFile,
     referencedBy,
@@ -970,6 +991,26 @@ function buildRepoIndex(root: string, scan: ScanResult, signature: string): Repo
     truncated: scan.truncated || edgesTruncated,
     maxScore,
   }
+}
+
+async function readSources(files: SourceFile[], concurrency = READ_CONCURRENCY): Promise<Map<string, string>> {
+  const texts = new Map<string, string>()
+  let next = 0
+  const worker = async (): Promise<void> => {
+    while (true) {
+      const index = next++
+      if (index >= files.length) return
+      const file = files[index]
+      try {
+        texts.set(file.abs, await readFile(file.abs, 'utf8'))
+      } catch {
+        // Unreadable files are omitted from the index.
+      }
+    }
+  }
+  const workers = Math.min(concurrency, Math.max(1, files.length))
+  await Promise.all(Array.from({ length: workers }, worker))
+  return texts
 }
 
 function extractSymbols(file: string, text: string): IndexedSymbol[] {

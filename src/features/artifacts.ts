@@ -7,8 +7,10 @@
 import { createHash, randomUUID } from 'node:crypto'
 import {
   appendFileSync,
+  lstatSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   renameSync,
   unlinkSync,
   writeFileSync,
@@ -39,7 +41,8 @@ export function applyArtifacts(ctx: PluginContext, config: SuperDshConfig): void
     order: 124,
     text: 'Artifacts are content-addressed and verified on read. Use `artifact_put` to persist large or binary outputs '
       + '(screenshots, reports, patches) instead of pasting them into the conversation; retrieve them by hash with '
-      + '`artifact_get`, and use `artifact_verify` when integrity matters.',
+      + '`artifact_get`, use `artifact_verify` when integrity matters, and use `artifact_reindex` to rebuild the '
+      + 'index from the blob files after a crash or index loss.',
   })
 
   const putTool: ToolDefinitionLike = {
@@ -287,7 +290,49 @@ export function applyArtifacts(ctx: PluginContext, config: SuperDshConfig): void
     },
   }
 
-  for (const tool of [putTool, getTool, verifyTool, listTool]) {
+  const reindexTool: ToolDefinitionLike = {
+    name: 'artifact_reindex',
+    description: 'Rebuild and deduplicate the artifact index from the blob files on disk. '
+      + 'Use this after a crash or index loss: every valid xx/<sha256> blob is re-hashed and re-indexed, '
+      + 'while malformed names, symlinks, non-regular files, and blobs whose bytes no longer match their name are skipped. '
+      + 'Existing index metadata is preserved and the index is replaced atomically.',
+    parameters: {
+      type: 'object',
+      properties: {},
+      additionalProperties: false,
+    },
+    output: {
+      schema: {
+        type: 'object',
+        properties: {
+          indexed: { type: 'integer' },
+          skipped: { type: 'integer' },
+          total: { type: 'integer' },
+          total_bytes: { type: 'integer' },
+        },
+        required: ['indexed', 'skipped', 'total', 'total_bytes'],
+        additionalProperties: false,
+      },
+      render: (_args, value) => [{
+        type: 'text',
+        text: `Reindexed ${String(value.indexed)} artifact blob(s), skipped ${String(value.skipped)}; `
+          + `the index now holds ${String(value.total)} artifact(s) (${String(value.total_bytes)} bytes).`,
+      }],
+    },
+    async execute() {
+      const scanned = scanArtifactFiles(root)
+      const merged = mergeReindex(readIndex(indexPath), scanned.entries)
+      writeIndexAtomic(indexPath, merged)
+      return {
+        indexed: scanned.entries.length,
+        skipped: scanned.skipped,
+        total: merged.length,
+        total_bytes: merged.reduce((sum, entry) => sum + entry.size, 0),
+      }
+    },
+  }
+
+  for (const tool of [putTool, getTool, verifyTool, listTool, reindexTool]) {
     try {
       ctx.tools.register(tool)
     } catch (error: unknown) {
@@ -373,6 +418,93 @@ function findIndexEntry(entries: readonly ArtifactIndexEntry[], hash: string): A
     if (entry.hash === hash) found = entry
   }
   return found
+}
+
+interface ScannedArtifacts {
+  entries: ArtifactIndexEntry[]
+  skipped: number
+}
+
+/**
+ * Rebuild index entries directly from blobs. The layout is
+ * `<root>/<first two hex>/<64-hex>`; the file name must equal SHA-256(bytes).
+ * Symlinks and non-regular files are never followed.
+ */
+function scanArtifactFiles(root: string): ScannedArtifacts {
+  const entries: ArtifactIndexEntry[] = []
+  let skipped = 0
+  let bucketNames: string[]
+  try {
+    bucketNames = readdirSync(root)
+  } catch {
+    return { entries, skipped }
+  }
+  for (const bucket of bucketNames) {
+    if (!/^[a-f0-9]{2}$/.test(bucket)) continue
+    let names: string[]
+    try {
+      names = readdirSync(join(root, bucket))
+    } catch {
+      continue
+    }
+    for (const name of names) {
+      if (!HASH_PATTERN.test(name)) {
+        skipped++
+        continue
+      }
+      const path = join(root, bucket, name)
+      try {
+        const stat = lstatSync(path)
+        if (!stat.isFile() || stat.isSymbolicLink()) {
+          skipped++
+          continue
+        }
+        const bytes = readFileSync(path)
+        if (hashBytes(bytes) !== name) {
+          skipped++
+          continue
+        }
+        entries.push({
+          hash: name,
+          size: bytes.length,
+          media_type: 'application/octet-stream',
+          createdAt: Math.round(stat.mtimeMs),
+        })
+      } catch {
+        skipped++
+      }
+    }
+  }
+  return { entries, skipped }
+}
+
+function mergeReindex(
+  existing: readonly ArtifactIndexEntry[],
+  scanned: readonly ArtifactIndexEntry[],
+): ArtifactIndexEntry[] {
+  const byHash = new Map<string, ArtifactIndexEntry>()
+  for (const entry of scanned) byHash.set(entry.hash, entry)
+  // Preserve metadata for blobs that are still present; content is the source
+  // of truth for hash/size.
+  for (const entry of existing) {
+    const current = byHash.get(entry.hash)
+    if (current === undefined) continue
+    byHash.set(entry.hash, {
+      hash: entry.hash,
+      size: current.size,
+      media_type: entry.media_type.length > 0 ? entry.media_type : current.media_type,
+      ...(entry.name === undefined ? {} : { name: entry.name }),
+      createdAt: entry.createdAt,
+    })
+  }
+  return [...byHash.values()].sort((left, right) => right.createdAt - left.createdAt)
+}
+
+function writeIndexAtomic(file: string, entries: readonly ArtifactIndexEntry[]): void {
+  mkdirSync(join(file, '..'), { recursive: true })
+  const tmp = `${file}.tmp-${process.pid}-${Date.now()}`
+  writeFileSync(tmp, entries.map(entry => JSON.stringify(entry)).join('\n') + (entries.length > 0 ? '\n' : ''), 'utf8')
+  renameSync(tmp, file)
 }
 
 function mergeIndex(entries: readonly ArtifactIndexEntry[]): ArtifactIndexEntry[] {

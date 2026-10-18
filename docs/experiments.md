@@ -358,25 +358,86 @@ The written rule passed only through the `random + 0.20` branch; it did **not** 
 - **E7 escaped**: `process.getBuiltinModule('fs')` read the secret and created the marker file, bypassing the require hook. E6 also obtained the host `process`.
 - **Decision: do-not-add.** A single escape fails the security gate; dsh's own approval/sandbox remains the boundary. Raw: `experiments/results/code-sandbox-security-bench.json`.
 
-## E10 — Tool schema overhead and default profiles
+## E10 — Tool schema overhead and profiles
 
-Every model request pays for the schemas of all registered tools. This experiment measures three candidate presets; no model call is involved.
+Every model request pays for the schemas of all registered tools. This experiment measures three profiles; no model call is involved.
 
 **Command:** `bun experiments/tool-overhead-bench.ts` → `experiments/results/tool-overhead-bench.json`.
 
 | Profile | Features | Tools | Schema chars | Approx tokens |
 |---|---|---:|---:|---:|
-| core | edit, memory, audit, effects, artifacts, repairs, apply_patch | 23 | 12,916 | **3,229** |
-| coding | core + repo map/search, notes, knowledge, handoff/replay, compact/reflection | 39 | 21,038 | **5,260** |
-| full | coding + verify, budget, retention | 43 | 23,542 | **5,886** |
+| core | edit, memory, audit, effects, artifacts, repairs, apply_patch | 24 | 13,393 | **3,349** |
+| coding | core + repo map/search, notes, knowledge, handoff/replay, compact/reflection | 40 | 21,515 | **5,379** |
+| full | coding + verify, budget, retention | 44 | 24,019 | **6,005** |
 
-The current default is effectively `coding` (~5.3k schema tokens per request). The suite added 16 tools and ~2k tokens over core, before any task benefit is measured.
+SuperDSH 0.5 ships these as `core` / `coding` / `full`, with explicit feature flags overriding the profile. `full` includes verify, budget, and retention, but those three register only when their config is present, so an empty `full` profile stays at the 40-tool coding surface.
 
-Related unresolved performance: a first `repo_map` build over 2,000 files in the dsh checkout took **33.3s** (warm calls 0.66–0.71s); `search_code` now defaults on and triggers that index. Effects were fixed to **0.073ms/call**; audit is ~1.76ms/event.
+**Initial decision (before E12):** do not keep growing the default tool count. Build the profiles, fix the repo-map cold start, then run an agent A/B to choose the default. E12 resolved the choice: **core is the default**.
 
-**Decision:** do not raise the default tool count further. Build `core`/`coding`/`full` presets, fix the repo-map cold start, then run an agent A/B (success, tokens, wrong-tool calls) to choose the default profile. A broad tool list is a product risk until measured.
+## E11 — Repo-map performance
 
-## E11 — Rejected candidates
+**Hypothesis.** After asynchronous concurrent file reads and a TTL cache, a 2,000-file cold build completes in under 5 s and a warm no-query call returns in under 100 ms, while keeping the tool's output contract (with bounded graph construction for very large repositories).
+
+**Changes under test.**
+
+- `readSources` reads up to 32 files concurrently instead of synchronously one at a time.
+- A TTL cache (`repoMap.refreshMs`, default 5,000 ms) serves the last index without re-scanning; `refreshMs: 0` forces a signature check on every call.
+- The no-query symbol list is precomputed and sorted instead of rebuilt per call.
+- PageRank is capped at 10 iterations, graph edges at 50,000, and definitions per token at 20.
+
+**Design.** Run `applyRepoMap` against the sibling `deepseek-harness` checkout with an explicit `maxFiles: 2000` (the shipped default is 1000), measure the first call (cold), then three TTL-warm calls. A second instance with `refreshMs: 0` measures three forced rescans on an unchanged tree.
+
+**Decision rule.** Accept if cold <5,000 ms and warm p50 <100 ms.
+
+**Results** (`experiments/results/repo-map-perf.json`):
+
+| Metric | Result |
+|---|---:|
+| Files indexed | 2,000 |
+| Cold build | **2,375.6 ms** (4,500.2 ms on the first uncached run; previous implementation: 33.3 s) |
+| Warm TTL query p50 | **0.1 ms** |
+| Warm TTL query max | 0.2 ms |
+| Forced unchanged rescan p50 | 230.3 ms (363.4 ms in the first run) |
+| Forced unchanged rescan max | 2,364.2 ms (includes the first cold build) |
+
+**Verdict: accepted.** Both thresholds pass in every run. The previous 33.3 s cold start is no longer a blocker for `search_code`; even the uncached 4.5 s run stays under the 5 s limit. The 0.1 ms warm number measures a TTL cache hit, not a re-scan; the forced-rescan number is the honest cost when the cache is bypassed.
+
+**Limitations.** The TTL can serve an index up to 5 s stale after an edit; `refreshMs: 0` trades latency for freshness. The cold build is 2.4–4.5 s on this 2,000-file checkout depending on OS cache state. Indexing remains regex-heuristic (comments and strings can be misread) and keys invalidation on mtime+size. The bounded graph (50k reference edges, 20 definitions per token) and 10 PageRank iterations can make centrality/reference results approximate on very dense repositories.
+
+## E12 — Agent A/B: core vs coding profile
+
+**Hypothesis.** The coding-only tools (repo map/search_code, notes, knowledge, handoff/replay, compaction/reflection) improve task success enough to justify their ~2k extra schema tokens per request.
+
+**Design.** Five tasks against a fixture workspace, run through the real dsh headless CLI on `deepseek-flash` with an isolated workspace and `DSH_HOME` per arm:
+
+| Task | Kind | Checker |
+|---|---|---|
+| config-callers | navigation | list both files that reference the config value |
+| server-caller | navigation | name the exported server start function |
+| transitive-impact | navigation | list direct and transitive callers of `validateToken` |
+| two-file-fix | edit | project tests pass and `test.js` is unchanged |
+| single-file-fix | edit | project tests pass and `test.js` is unchanged |
+
+**Arms.** `core` profile (24 tools) vs `coding` profile (40 tools); all other config disabled. No `verify` gate in either arm.
+
+**Decision rule (pre-registered).** Prefer `coding` only if it passes at least one more task than `core`; on a tie prefer the arm with lower input tokens.
+
+**Results** (`experiments/results/profile-ab-bench.json`):
+
+| Metric | core | coding |
+|---|---:|---:|
+| Tasks passed | **5/5** | 5/5 |
+| Input tokens | **18,490** | 25,357 |
+| Output tokens | **3,740** | 5,605 |
+| Wall time | **86.3 s** | 101.5 s |
+
+Per-task input tokens: config-callers 11,775 vs 13,464; server-caller 857 vs 872; transitive-impact 1,563 vs 1,635; two-file-fix 2,273 vs 7,316; single-file-fix 2,022 vs 2,070. The coding arm called `impact_of` once on transitive-impact, but both arms answered correctly.
+
+**Verdict: default profile is `core`.** The coding tools did not win a task in this sample and cost 37% more input tokens. They remain available via `profile: coding` and `presets/coding.yml`.
+
+**Limitations.** n=5, one model, navigation and small edit tasks only. It does not exercise long-horizon knowledge accumulation, handoff, or multi-session memory, where coding-profile tools could pay off. Absence of a win here is not evidence that coding is useless; it is evidence that it should not be the default without a task-level win.
+
+## E13 — Rejected candidates
 
 
 Several attractive ideas from `awesome-agent-infra` and `nexus-runtime` did **not** survive review. They are documented in [`decisions.md`](decisions.md): the Nexus kernel bridge, a code-graph repo map, hallucination/confidence heuristics, goal-verifier's fallback, replay/dynamic-workflow recovery, and the LLM request dedup cache. The common reasons were: the implementation was a mock or had correctness bugs, the capability duplicated a stronger dsh primitive, or there was no way to measure a benefit in this environment.
@@ -387,13 +448,21 @@ Several attractive ideas from `awesome-agent-infra` and `nexus-runtime` did **no
 cd super-dsh
 bun run build
 bun test                     # deterministic integration checks
+bun run typecheck
 bun run experiment:patch     # E1
 bun experiments/audit-bench.ts   # E4
+bun experiments/repo-map-perf.ts # E11
+bun experiments/tool-overhead-bench.ts # E10
+bun experiments/kill9-effects.ts       # real kill-9
+bun experiments/kill9-artifacts.ts
+bun experiments/kill9-audit-anchor.ts
+bun experiments/kill9-budget.ts
 
-# Agent-level E2/E3 (requires a sibling deepseek-harness checkout and DEEPSEEK_API_KEY)
+# Agent-level E2/E3 and the profile A/B (requires a sibling deepseek-harness checkout and DEEPSEEK_API_KEY)
 SUPER_DSH_BENCH_ONLY=memory SUPER_DSH_BENCH_REPS=2 bun experiments/agent-bench.ts
 SUPER_DSH_BENCH_ONLY=verify bun experiments/agent-bench.ts
 SUPER_DSH_BENCH_JUST_MERGE=1 bun experiments/agent-bench.ts   # re-merge saved per-experiment results
+bun experiments/profile-ab-bench.ts                            # E12
 ```
 
 Per-experiment raw data is kept in `experiments/results/agent-bench-memory.json` and `agent-bench-verify.json`; the merged view is `agent-bench.json`.

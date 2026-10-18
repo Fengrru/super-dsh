@@ -1,0 +1,29 @@
+# SuperDSH full profile: coding plus the operational groups. Verify, budget,
+# and retention are part of this profile but only register when configured;
+# an empty profile alone does not create them.
+#
+# Local development: replace `name: 'dsh-super'` with the absolute path to the
+# built bundle, e.g. name: '/absolute/path/to/super-dsh/dist/index.js'.
+- insert:
+    - id: super-dsh
+      name: 'dsh-super'
+      config:
+        profile: full
+        # Verification gate. `command` is required (or set
+        # SUPER_DSH_VERIFY_COMMAND); uncomment to enable.
+        # verify:
+        #   command: 'bun test'
+        #   timeoutMs: 120000
+        #   maxAttempts: 2
+        #
+        # Session token budget reporting and optional enforcement.
+        # budget:
+        #   maxTokens: 200000
+        #   enforce: false
+        #   reservePerRequest: 0
+        #
+        # Cold audit-ledger archives. Deletion is destructive only when
+        # deleteSource is true.
+        # retention:
+        #   maxAgeDays: 30
+        #   deleteSource: false

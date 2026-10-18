@@ -1,0 +1,12 @@
+# SuperDSH coding profile (opt-in): core plus repo map, notes, knowledge,
+# handoff, history compaction, reflection, and replay plans. The default is
+# core; this preset restores the larger surface when an agent benchmark
+# supports it.
+#
+# Local development: replace `name: 'dsh-super'` with the absolute path to the
+# built bundle, e.g. name: '/absolute/path/to/super-dsh/dist/index.js'.
+- insert:
+    - id: super-dsh
+      name: 'dsh-super'
+      config:
+        profile: coding

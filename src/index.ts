@@ -78,30 +78,104 @@ export type {
 export { buildReplayPlan } from './replay-plan.ts'
 export type { ReplayAction, ReplayActionKind, ReplayPlan, ReplayPlanStats } from './replay-plan.ts'
 
+type ProfileName = NonNullable<SuperDshConfig['profile']>
+
+type FeatureFlag =
+  | 'fuzzyEdit'
+  | 'applyPatch'
+  | 'memory'
+  | 'audit'
+  | 'effects'
+  | 'artifacts'
+  | 'repairs'
+  | 'notes'
+  | 'repoMap'
+  | 'knowledge'
+  | 'handoff'
+  | 'historyCompact'
+  | 'reflection'
+  | 'replayPlan'
+  | 'verify'
+  | 'budget'
+  | 'retention'
+
+/** Always-on safety and recovery primitives. */
+const CORE_FEATURES: readonly FeatureFlag[] = [
+  'fuzzyEdit',
+  'applyPatch',
+  'memory',
+  'audit',
+  'effects',
+  'artifacts',
+  'repairs',
+]
+
+/** The default profile: core plus project-orientation and session tooling. */
+const CODING_FEATURES: readonly FeatureFlag[] = [
+  ...CORE_FEATURES,
+  'notes',
+  'repoMap',
+  'knowledge',
+  'handoff',
+  'historyCompact',
+  'reflection',
+  'replayPlan',
+]
+
+/**
+ * Everything, including the opt-in operational groups. Verify, budget, and
+ * retention still require their config; the profile alone never enables them.
+ */
+const FULL_FEATURES: readonly FeatureFlag[] = [...CODING_FEATURES, 'verify', 'budget', 'retention']
+
+const PROFILE_FEATURES: Record<ProfileName, ReadonlySet<FeatureFlag>> = {
+  core: new Set(CORE_FEATURES),
+  coding: new Set(CODING_FEATURES),
+  full: new Set(FULL_FEATURES),
+}
+
+const CONFIG_REQUIRED_FEATURES: ReadonlySet<FeatureFlag> = new Set(['verify', 'budget', 'retention'])
+
+function isOptionsObject(value: unknown): boolean {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/**
+ * Resolve one feature. An explicit boolean or options object wins over the
+ * profile; `false` always disables. Unset flags follow the profile, except for
+ * verify/budget/retention, which full only enables when configured.
+ */
+function featureEnabled(config: SuperDshConfig, feature: FeatureFlag, profile: ProfileName): boolean {
+  const setting = config[feature]
+  if (setting === false) return false
+  if (setting === true || isOptionsObject(setting)) return true
+  const features = PROFILE_FEATURES[profile] ?? PROFILE_FEATURES.coding
+  if (!features.has(feature)) return false
+  return !CONFIG_REQUIRED_FEATURES.has(feature)
+}
+
 export function apply(ctx: PluginContext, rawConfig: SuperDshConfig = {}): void {
   const config: SuperDshConfig = rawConfig ?? {}
+  const profile = config.profile ?? 'core'
+  const enabled = (feature: FeatureFlag): boolean => featureEnabled(config, feature, profile)
 
-  guard(ctx, 'effects', () => applyEffects(ctx, config))
-  guard(ctx, 'artifacts', () => applyArtifacts(ctx, config))
-  guard(ctx, 'notes', () => applyNotes(ctx, config))
-  guard(ctx, 'repo-map', () => applyRepoMap(ctx, config))
-  guard(ctx, 'apply-patch', () => applyPatch(ctx, config))
-  guard(ctx, 'knowledge', () => applyKnowledge(ctx, config))
-  guard(ctx, 'fuzzy-edit', () => applyFuzzyEdit(ctx, config))
-  guard(ctx, 'memory', () => applyMemory(ctx, config))
-  guard(ctx, 'audit', () => applyAudit(ctx, config))
-  guard(ctx, 'handoff', () => applyHandoff(ctx, config))
-  guard(ctx, 'history-compact', () => applyHistoryCompact(ctx, config))
-  guard(ctx, 'reflection', () => applyReflection(ctx, config))
-  guard(ctx, 'repairs', () => applyRepairs(ctx, config))
-  guard(ctx, 'replay-plan', () => applyReplayPlan(ctx, config))
-  guard(ctx, 'budget', () => applyBudget(ctx, config))
-  if (config.retention !== undefined && config.retention !== false) {
-    guard(ctx, 'retention', () => applyRetention(ctx, config))
-  }
-  if (config.verify !== undefined && config.verify !== false) {
-    guard(ctx, 'verify', () => applyVerify(ctx, config))
-  }
+  if (enabled('effects')) guard(ctx, 'effects', () => applyEffects(ctx, config))
+  if (enabled('artifacts')) guard(ctx, 'artifacts', () => applyArtifacts(ctx, config))
+  if (enabled('notes')) guard(ctx, 'notes', () => applyNotes(ctx, config))
+  if (enabled('repoMap')) guard(ctx, 'repo-map', () => applyRepoMap(ctx, config))
+  if (enabled('applyPatch')) guard(ctx, 'apply-patch', () => applyPatch(ctx, config))
+  if (enabled('knowledge')) guard(ctx, 'knowledge', () => applyKnowledge(ctx, config))
+  if (enabled('fuzzyEdit')) guard(ctx, 'fuzzy-edit', () => applyFuzzyEdit(ctx, config))
+  if (enabled('memory')) guard(ctx, 'memory', () => applyMemory(ctx, config))
+  if (enabled('audit')) guard(ctx, 'audit', () => applyAudit(ctx, config))
+  if (enabled('handoff')) guard(ctx, 'handoff', () => applyHandoff(ctx, config))
+  if (enabled('historyCompact')) guard(ctx, 'history-compact', () => applyHistoryCompact(ctx, config))
+  if (enabled('reflection')) guard(ctx, 'reflection', () => applyReflection(ctx, config))
+  if (enabled('repairs')) guard(ctx, 'repairs', () => applyRepairs(ctx, config))
+  if (enabled('replayPlan')) guard(ctx, 'replay-plan', () => applyReplayPlan(ctx, config))
+  if (enabled('budget')) guard(ctx, 'budget', () => applyBudget(ctx, config))
+  if (enabled('retention')) guard(ctx, 'retention', () => applyRetention(ctx, config))
+  if (enabled('verify')) guard(ctx, 'verify', () => applyVerify(ctx, config))
 }
 
 function guard(ctx: PluginContext, feature: string, load: () => void): void {

@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, test } from 'bun:test'
-import { appendFileSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { appendFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { applyArtifacts } from '../src/features/artifacts.ts'
@@ -194,5 +194,29 @@ describe('artifact store', () => {
     expect(limited.count).toBe(2)
     expect(limited.artifacts[0].hash).toBe(hash)
     expect(new Set((limited.artifacts as Array<{ hash: string }>).map(entry => entry.hash)).size).toBe(2)
+  })
+
+  test('reindexes valid blobs after index loss and skips tampered blobs', async () => {
+    const dir = tempDir()
+    const fake = fakeContext()
+    applyArtifacts(fake.ctx, { artifacts: { dir } })
+    const one = await tool(fake, 'artifact_put').execute({ content: 'one', name: 'one.txt' }, exec())
+    const two = await tool(fake, 'artifact_put').execute({ content: 'two' }, exec())
+    const hashOne = String(one.hash)
+    const hashTwo = String(two.hash)
+
+    rmSync(join(dir, 'index.jsonl'), { force: true })
+    const rebuilt = await tool(fake, 'artifact_reindex').execute({}, exec())
+    expect(rebuilt).toMatchObject({ indexed: 2, skipped: 0, total: 2 })
+    const listed = await tool(fake, 'artifact_list').execute({}, exec())
+    expect(new Set((listed.artifacts as Array<{ hash: string }>).map(entry => entry.hash)))
+      .toEqual(new Set([hashOne, hashTwo]))
+
+    writeFileSync(artifactPath(dir, hashOne), 'corrupted', 'utf8')
+    const afterTamper = await tool(fake, 'artifact_reindex').execute({}, exec())
+    expect(afterTamper.skipped).toBe(1)
+    expect(afterTamper.total).toBe(1)
+    const fetched = await tool(fake, 'artifact_get').execute({ hash: hashTwo }, exec())
+    expect(fetched.content).toBe('two')
   })
 })

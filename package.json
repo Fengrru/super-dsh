@@ -1,7 +1,7 @@
 {
   "name": "dsh-super",
-  "version": "0.4.0",
-  "description": "SuperDSH — a safety-first reliability suite for DeepSeek Harness (dsh): tolerant edits, effects recovery, signed audit, artifacts, tiered memory, error-repair memory, repo map, locks, knowledge, replay plans, handoff, compaction, reflection, retention, and budget",
+  "version": "0.5.0",
+  "description": "SuperDSH — a safety-first reliability suite for DeepSeek Harness (dsh): tolerant edits, effects recovery, signed audit, artifacts, tiered memory, error-repair memory, repo map, profiles, locks, knowledge, replay plans, handoff, compaction, reflection, retention, and budget",
   "type": "module",
   "main": "dist/index.js",
   "exports": {
@@ -11,6 +11,7 @@
   "files": [
     "dist/index.js",
     "cordis.patch.yml",
+    "presets",
     "README.md",
     "README.zh.md",
     "CHANGELOG.md",
@@ -31,9 +32,13 @@
     "prepare": "bun run build",
     "prepublishOnly": "bun run build",
     "test": "bun test",
+    "test:coverage": "bun test --coverage",
+    "typecheck": "tsc --noEmit",
     "experiment:patch": "bun experiments/patch-bench.ts",
     "experiment:units": "bun experiments/unit-checks.ts",
-    "experiment:agent": "bun experiments/agent-bench.ts"
+    "experiment:agent": "bun experiments/agent-bench.ts",
+    "experiment:profiles": "bun experiments/profile-ab-bench.ts",
+    "experiment:repo-perf": "bun experiments/repo-map-perf.ts"
   },
   "keywords": [
     "dsh",
@@ -53,5 +58,9 @@
   "bugs": {
     "url": "https://github.com/Fengrru/super-dsh/issues"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2"
+  }
 }

@@ -1,0 +1,254 @@
+{
+  "experiment": "profile-ab",
+  "generatedAt": "2026-10-18T03:04:27.253Z",
+  "model": "deepseek-flash",
+  "tasks": 5,
+  "arms": {
+    "core": {
+      "passes": 5,
+      "total": 5,
+      "inputTokens": 18490,
+      "outputTokens": 3740,
+      "wallMs": 86338
+    },
+    "coding": {
+      "passes": 5,
+      "total": 5,
+      "inputTokens": 25357,
+      "outputTokens": 5605,
+      "wallMs": 101538
+    }
+  },
+  "decision": "core",
+  "decisionRule": "prefer coding only if it wins at least one more task than core; on ties prefer the lower-token arm",
+  "trials": [
+    {
+      "task": "config-callers",
+      "kind": "navigate",
+      "arm": "core",
+      "passed": true,
+      "final": "src/server.ts\nsrc/worker.ts",
+      "reason": "completed",
+      "inputTokens": 11775,
+      "outputTokens": 1165,
+      "toolCalls": [
+        "pwsh",
+        "grep",
+        "pwsh",
+        "grep",
+        "read",
+        "read",
+        "read",
+        "read",
+        "read",
+        "glob",
+        "pwsh",
+        "grep"
+      ],
+      "wallMs": 36193,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "task": "config-callers",
+      "kind": "navigate",
+      "arm": "coding",
+      "passed": true,
+      "final": "src/server.ts\nsrc/worker.ts",
+      "reason": "completed",
+      "inputTokens": 13464,
+      "outputTokens": 481,
+      "toolCalls": [
+        "pwsh",
+        "grep",
+        "pwsh",
+        "read",
+        "read",
+        "read",
+        "read",
+        "read"
+      ],
+      "wallMs": 28187,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "task": "server-caller",
+      "kind": "navigate",
+      "arm": "core",
+      "passed": true,
+      "final": "startServer",
+      "reason": "completed",
+      "inputTokens": 857,
+      "outputTokens": 121,
+      "toolCalls": [
+        "grep",
+        "read"
+      ],
+      "wallMs": 7366,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "task": "server-caller",
+      "kind": "navigate",
+      "arm": "coding",
+      "passed": true,
+      "final": "startServer",
+      "reason": "completed",
+      "inputTokens": 872,
+      "outputTokens": 116,
+      "toolCalls": [
+        "grep",
+        "read"
+      ],
+      "wallMs": 7758,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "task": "transitive-impact",
+      "kind": "navigate",
+      "arm": "core",
+      "passed": true,
+      "final": "Analysis of the dependency chain:\n\n- `src/auth.ts` — defines `validateToken` (excluded as the definition file)\n- `src/login.ts` — calls `validateToken` directly\n- `src/api.ts` — calls `login()`, which is the one caller → transitively depends on `validateToken`\n- `src/unrelated.ts` — no references\n\n## Referencing files (excluding the definition file and comments)\n\n1. `src/login.ts`\n2. `src/api.ts`\n\n**Chain:** `api.ts:handle` → `login()` (in `login.ts`) → `validateToken()` (defined in `auth.ts`). No other files reference it, and the only comment-free mentions are in the two files listed.",
+      "reason": "completed",
+      "inputTokens": 1563,
+      "outputTokens": 811,
+      "toolCalls": [
+        "pwsh",
+        "pwsh",
+        "read",
+        "read",
+        "read",
+        "read"
+      ],
+      "wallMs": 11392,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "task": "transitive-impact",
+      "kind": "navigate",
+      "arm": "coding",
+      "passed": true,
+      "final": "Two files transitively reference `validateToken` (excluding the definition file):\n\n| File | Relationship | Evidence |\n|---|---|---|\n| `src/login.ts` | **Direct** reference | line 1 imports `validateToken` from `./auth`; line 4 calls `validateToken(token)` inside `login` |\n| `src/api.ts` | **One hop (through `login`)** | line 1 imports `login`; line 4 calls `login(token)` inside `handle` |\n\nThe reference chain is:\n\n```\nsrc/auth.ts (defines validateToken)  ← ignored\n      ↑\nsrc/login.ts (login calls validateToken)      [direct]\n      ↑\nsrc/api.ts (handle calls login)               [transitive, depth 2]\n```\n\nNot included: `src/auth.ts` (definition site) and `src/unrelated.ts` (only defines `ping`, no relation). No comment mentions of `validateToken` were found in any file, so nothing had to be filtered on that basis.",
+      "reason": "completed",
+      "inputTokens": 1635,
+      "outputTokens": 623,
+      "toolCalls": [
+        "impact_of",
+        "working_directory",
+        "glob",
+        "read",
+        "read",
+        "read",
+        "read"
+      ],
+      "wallMs": 9462,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "task": "two-file-fix",
+      "kind": "edit",
+      "arm": "core",
+      "passed": true,
+      "final": "All tests pass now.\n\n## Diagnosis\n\n- **Failing test:** `clamp keeps values` at test.js:7 — `clamp(5)` returned `6`, expected `5`.\n- **Root cause:** in `src/b.js`, `clamp` applied `value + 1` before clamping, an off-by-one offset. `\"clamp keeps values\"` therefore failed while `clamp low` (which clamps to `0`) accidentally still passed.\n\n## Fix\n\n```js\n// src/b.js\nreturn Math.max(0, Math.min(10, value))\n```\n\nRemoved the stray `+ 1`. I did not touch `test.js`. `src/a.js` (`double`) was already correct and needed no change.\n\n## Verification\n\n`npm test` → **3 pass, 0 fail** (was 2 pass, 1 fail):\n\n```\n✔ double handles negatives\n✔ clamp keeps values\n✔ clamp low\n```\n\nGiven the directory name `two-file-fix`, I checked `src/a.js` too — its `value + value` implementation correctly doubles negatives, and its test passed both before and after, so no change was warranted there.",
+      "reason": "completed",
+      "inputTokens": 2273,
+      "outputTokens": 1053,
+      "toolCalls": [
+        "glob",
+        "read",
+        "read",
+        "read",
+        "read",
+        "pwsh",
+        "edit",
+        "pwsh"
+      ],
+      "wallMs": 17454,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "task": "two-file-fix",
+      "kind": "edit",
+      "arm": "coding",
+      "passed": true,
+      "final": "All tests pass now (3/3).\n\n**What was wrong:** In `src/b.js`, `clamp` added `1` to the input before clamping (`Math.min(10, value + 1)`), shifting every value. So `clamp(5)` returned `6` instead of `5`. The fix clamps the original value:\n\n```js\nexport function clamp(value) {\n  return Math.max(0, Math.min(10, value))\n}\n```\n\n**Verification:** Ran `node --test` after the change — all 3 tests pass (`double handles negatives`, `clamp keeps values`, `clamp low`). `test.js` was not modified, and `src/a.js` needed no change since `double` already handles negatives correctly.",
+      "reason": "completed",
+      "inputTokens": 7316,
+      "outputTokens": 3547,
+      "toolCalls": [
+        "working_directory",
+        "glob",
+        "read",
+        "read",
+        "read",
+        "read",
+        "pwsh",
+        "pwsh",
+        "pwsh",
+        "pwsh",
+        "pwsh",
+        "pwsh",
+        "pwsh",
+        "pwsh",
+        "pwsh",
+        "read",
+        "edit",
+        "pwsh"
+      ],
+      "wallMs": 39802,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "task": "single-file-fix",
+      "kind": "edit",
+      "arm": "core",
+      "passed": true,
+      "final": "Both tests pass.\n\n**Root cause:** In `sum.js`, the accumulation line was `total += value > 0 ? value : -value`, which took the absolute value of every element, so negatives were flipped positive — `sum([-1, 2])` returned `3` instead of `1`.\n\n**Fix:** Changed the loop body to `total += value` (one line in `sum.js`). `test.js` was not modified.\n\n**Verification:** `npm test` → 2 passed, 0 failed.",
+      "reason": "completed",
+      "inputTokens": 2022,
+      "outputTokens": 590,
+      "toolCalls": [
+        "pwsh",
+        "read",
+        "read",
+        "read",
+        "pwsh",
+        "edit",
+        "pwsh"
+      ],
+      "wallMs": 13933,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "task": "single-file-fix",
+      "kind": "edit",
+      "arm": "coding",
+      "passed": true,
+      "final": "All tests pass now.\n\n**Cause:** `sum.js` was summing the *absolute* value of each element:\n\n```js\ntotal += value > 0 ? value : -value   // -1 became +1\n```\n\n`sum([-1, 2])` therefore produced `3` instead of `1`.\n\n**Fix:** Replaced that line with `total += value` in `sum.js` — the only file changed. `test.js` was not touched.\n\n**Verification:** `npm test` → **2 passed, 0 failed** (previously 1 failed).",
+      "reason": "completed",
+      "inputTokens": 2070,
+      "outputTokens": 838,
+      "toolCalls": [
+        "pwsh",
+        "glob",
+        "read",
+        "read",
+        "read",
+        "pwsh",
+        "edit",
+        "pwsh"
+      ],
+      "wallMs": 16329,
+      "exitCode": 0,
+      "timedOut": false
+    }
+  ]
+}

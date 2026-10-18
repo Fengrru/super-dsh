@@ -693,7 +693,7 @@ export function applyMemory(
         additionalProperties: false,
       },
       render: (_args, value) => {
-        const memories = value.memories as Array<{ text: string; tags: string[] }>
+        const memories = value.memories as Array<{ id: string; text: string; tags: string[] }>
         if (memories.length === 0) return [{ type: 'text', text: 'No matching project memories.' }]
         return [{
           type: 'text',
@@ -1167,8 +1167,8 @@ function positiveInteger(raw: number | undefined, fallback: number): number {
   return Math.max(1, Math.floor(raw))
 }
 
-function nonNegativeInteger(raw: number, fallback: number): number {
-  if (!Number.isFinite(raw)) return fallback
+function nonNegativeInteger(raw: number | undefined, fallback: number): number {
+  if (raw === undefined || !Number.isFinite(raw)) return fallback
   return Math.max(0, Math.floor(raw))
 }
 

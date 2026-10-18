@@ -20,14 +20,15 @@ A "no" to any of these means it stays out of the default bundle. This file recor
 | Log retention | gzip + SHA-256 manifest, verified delete/restore, path traversal/symlink/overwrite refusal (`tests/retention.test.ts`) | Opt-in; destructive only when requested |
 | Hash-chained audit ledger + evidence/export/signatures (Nexus-inspired) | Detects edit/delete/truncate/reorder; plain JSONL detects none (`experiments/results/audit-bench.json`); HMAC signatures, golden fixture, export tests | Default on; signing opt-in |
 | Effects intent/commit + recovery plan (Nexus effects/recovery, TS rewrite) | Pending→committed/failed, restart→unknown, duplicate irreversible denial, `effect_reconcile`/`effect_resolve` (`tests/effects.test.ts`); real kill-9: duplicateDenied=true, duplicateExecutions=0 (`experiments/results/kill9-effects.json`); 10k calls 0.073 ms/call | Default on; deny is opt-in |
-| Content-addressed artifacts (Nexus vault, TS rewrite) | Text/binary round-trip, tamper→verify false, restart read, invalid hash (`tests/artifacts.test.ts`) | Default on |
+| Content-addressed artifacts (Nexus vault, TS rewrite) | Text/binary round-trip, tamper→verify false, restart read, invalid hash; kill-9 blob-without-index recovery and `artifact_reindex` (`tests/artifacts.test.ts`, `experiments/kill9-artifacts.ts`) | Default on; index is rebuildable |
 | Multi-file `apply_patch` + advisory file locks | Preflight failure writes nothing; mid-write failure restores originals; duplicate path/maxFiles rejected; lock contention fails before any write (`tests/apply-patch.test.ts`, `tests/file-locks.test.ts`) | Default on; rollback/locks best-effort |
-| Session notes | Path-safe session ids, malformed-line isolation, atomic compact, entry cap (`tests/notes.test.ts`) | Default on |
-| Repo map | Same-named symbols in different files both survive; mtime rebuild; ignored build dirs (`tests/repo-map.test.ts`) | Default on; regex heuristic |
-| Versioned knowledge | Version chain/parentId, revert creates a new version, trust/expiry filtering, archived tombstones (`tests/knowledge.test.ts`) | Default on; injection opt-in |
-| Deterministic handoff + replay plan | Mixed events, injected-context filtering, apply_patch file extraction, missing-service errors (`tests/handoff.test.ts`); machine-readable actions (`tests/replay-plan.test.ts`); real-dsh smoke | Default on |
+| Session notes | Path-safe session ids, malformed-line isolation, atomic compact, entry cap (`tests/notes.test.ts`) | `coding`/`full`; enable `notes: true` in core |
+| Repo map | Same-named symbols in different files both survive; mtime rebuild; ignored build dirs (`tests/repo-map.test.ts`); 2,000 files cold 2.4–4.5 s, TTL warm 0.1 ms (`experiments/repo-map-perf.ts`) | `coding`/`full`; enable `repoMap: true` in core; regex heuristic |
+| Versioned knowledge | Version chain/parentId, revert creates a new version, trust/expiry filtering, archived tombstones (`tests/knowledge.test.ts`) | `coding`/`full`; enable `knowledge: true` in core |
+| Deterministic handoff + replay plan | Mixed events, injected-context filtering, apply_patch file extraction, missing-service errors (`tests/handoff.test.ts`); machine-readable actions (`tests/replay-plan.test.ts`); real-dsh smoke | `coding`/`full`; enable `handoff` / `replayPlan` in core |
 | Budget reserve/settle | `BudgetLedger` reserve/settle/release, duplicate keys, cap refusal (`tests/budget-ledger.test.ts`); optional `reservePerRequest` (`tests/budget.test.ts`) | Enforcement opt-in |
 | Capability token / causal clock / worker protocol | HMAC token + realpath scope, vector clock, NDJSON codec/FSM (`tests/capability.test.ts`, `tests/causal-clock.test.ts`, `tests/worker-protocol.test.ts`) | Tested libraries; not model tools |
+| `core` / `coding` / `full` profiles | Tool overhead measured (24/40/44 tools, 3,349/5,379/6,005 schema tokens); 5-task A/B core 5/5 vs coding 5/5, input 18,490 vs 25,357, output 3,740 vs 5,605 (`experiments/results/profile-ab-bench.json`) | `core` is the default; coding/full opt-in |
 
 ## Conditional
 

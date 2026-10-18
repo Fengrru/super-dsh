@@ -7,9 +7,11 @@ separates three evidence classes:
 - **fake-context** — deterministic Bun tests that drive the Cordis hooks with
   `tests/fake-context.ts` and temporary files. They prove hook semantics, not
   process-crash behavior.
-- **real kill-9** — `experiments/kill9-effects.ts` spawns separate Bun
-  processes, kills the crash child with `taskkill /F /T` (Windows) or `SIGKILL`
-  (POSIX), and inspects the ledger from a new process.
+- **real kill-9** — `experiments/kill9-effects.ts` and
+  `experiments/kill9-artifacts.ts` spawn separate Bun processes, kill the crash
+  child with `taskkill /F /T` (Windows) or `SIGKILL` (POSIX), and inspect the
+  on-disk state from a new process. `kill9-audit-anchor.ts` and
+  `kill9-budget.ts` reproduce the relevant crash window without a real kill.
 - **gap** — no test or experiment exercises this yet.
 
 The canonical invariant names below come from the Phoenix table in
@@ -22,14 +24,14 @@ subset); this document follows the README's eight-invariant naming.
 
 | invariant | meaning | SuperDSH evidence | status (covered/partial/gap) |
 |---|---|---|---|
-| **I-1 State Authority** | The persisted state passes an integrity check after a restart; the database, not an in-memory report, is authoritative. | `audit_verify` checks record hashes, chain links, sequence monotonicity, and the head anchor; tamper/truncation/valid-chain cases are in `tests/plugin.test.ts` (**fake-context**), and HMAC signatures, stripped signatures, rehashed records, export, and a byte-pinned fixture are in `tests/audit-extra.test.ts` (**fake-context**). The effects ledger is append-only JSONL and is folded from disk by a new process in `experiments/kill9-effects.ts` (**real kill-9**), but it has no hash anchor of its own. | **partial** — audit integrity is tested, but not across a crash, and the effects ledger has no integrity hash. |
+| **I-1 State Authority** | The persisted state passes an integrity check after a restart; the database, not an in-memory report, is authoritative. | `audit_verify` checks record hashes, chain links, sequence monotonicity, and the head anchor; tamper/truncation/valid-chain cases are in `tests/plugin.test.ts` (**fake-context**), and HMAC signatures, stripped signatures, rehashed records, export, and a byte-pinned fixture are in `tests/audit-extra.test.ts` (**fake-context**). `experiments/kill9-audit-anchor.ts` detects a valid record appended without a head update (**simulated crash window**, not a real kill). The effects ledger is append-only JSONL and is folded from disk by a new process in `experiments/kill9-effects.ts` (**real kill-9**), but it has no hash anchor of its own. | **partial** — audit integrity is tested and the anchor gap is detectable, but not across a real kill; the effects ledger has no integrity hash. |
 | **I-2 Checkpoint Identity** | A checkpoint's id and step index survive a restart. | No checkpoint/step subsystem exists in SuperDSH. The kill-9 experiment preserves the effect `callId` and canonical key across the process boundary, but that is an effect identity, not a checkpoint identity. | **gap** |
 | **I-3 Replay Integrity** | Replaying the event log produces a byte-identical state. | There is no full event replay. The effects state is reconstructed by folding the append-only ledger (latest accepted record per `callId`) in a fresh process; `tests/effects.test.ts` covers restart/fold semantics with **fake-context**, and `experiments/kill9-effects.ts` covers the cross-process fold with **real kill-9**. The audit chain verifies order and hashes but does not materialize a replay state. | **partial** — ledger fold is verified; byte-identical full replay is not implemented. |
-| **I-4 Artifact Integrity** | Vault artifact hashes remain valid after a restart. | `artifact_put`/`artifact_get`/`artifact_verify` use SHA-256 content addressing, re-verify on every read, and refuse tampered or missing blobs. `tests/artifacts.test.ts` covers text/binary round-trip, idempotent put, tamper detection, malformed hashes, and a new instance reading an existing store (**fake-context + temp filesystem**). | **partial** — functional integrity is covered; **artifact crash** (kill during blob write or index append) is a gap. |
+| **I-4 Artifact Integrity** | Vault artifact hashes remain valid after a restart. | `artifact_put`/`artifact_get`/`artifact_verify` use SHA-256 content addressing, re-verify on every read, and refuse tampered or missing blobs. `tests/artifacts.test.ts` covers text/binary round-trip, tamper detection, and reindex after index loss. `experiments/kill9-artifacts.ts` writes a valid blob with no index, kills the writer process, then a new process reads/verifies the blob and rebuilds the index with `artifact_reindex`. | **covered** — functional integrity + real kill-9 + index-loss recovery. |
 | **I-5 Determinism Context** | Seed, model version, and input hash are preserved. | SuperDSH does not persist a model seed, model version, or determinism context. Audit records include an event data hash, but that is not a model determinism context. | **gap** |
-| **I-6 Cost Integrity** | No duplicated LLM calls or double-charged usage. | Budget usage is accumulated once per session event seq (`tests/budget.test.ts`, **fake-context**), and `BudgetLedger` rejects duplicate reservation keys and refuses over-cap reservations (`tests/budget-ledger.test.ts`; in-memory). There is no LLM request cache. | **partial** — duplicate usage is guarded in memory; **budget crash** (kill before flush/restart) is a gap. |
+| **I-6 Cost Integrity** | No duplicated LLM calls or double-charged usage. | Budget usage is accumulated once per session event seq (`tests/budget.test.ts`, **fake-context**), and `BudgetLedger` rejects duplicate reservation keys and refuses over-cap reservations (`tests/budget-ledger.test.ts`; in-memory). `experiments/kill9-budget.ts` confirms the limitation: a child accumulates 900 tokens, a new process starts at 0. There is no LLM request cache. | **partial** — duplicate usage is guarded in memory; **budget crash loses usage by design** (confirmed, no persistence). |
 | **I-7 Resume Continuity** | Execution resumes from step N+1 rather than repeating or losing work. | dsh owns session resume. SuperDSH contributes effects reconciliation: a new process marks leftover `pending` intents `unknown`, reports them with `effect_status`, offers `effect_reconcile` (read-only plan), and denies a repeated unresolved irreversible call. The restart/`unknown` transition is covered by `tests/effects.test.ts` (**fake-context**) and by `experiments/kill9-effects.ts` (**real kill-9**); the committed/duplicate-allowed control also passes under real process restart, and the post-reconcile retry of the unresolved irreversible call is denied (`duplicateDenied: true`, `duplicateExecutions: 0`). It does not replay a tool call or resume a step. | **partial** — crash detection, post-crash denial, and the committed control are covered; step-level resume is absent. |
-| **I-8 Eventual Consistency** | All transitions are reconstructable from the event log. | The effects ledger is reconstructable across processes: a new process reads the JSONL and folds it to `unknown`/`committed`/`pending` ( **real kill-9** for the crash case; **fake-context** for unit cases). The audit ledger provides a hash-chained view of session events and an anchor. No full event-log materialization or replay is implemented. | **partial** — effects state is reconstructable; full session transition replay and **audit anchor crash** are gaps. |
+| **I-8 Eventual Consistency** | All transitions are reconstructable from the event log. | The effects ledger is reconstructable across processes: a new process reads the JSONL and folds it to `unknown`/`committed`/`pending` ( **real kill-9** for the crash case; **fake-context** for unit cases). The audit ledger provides a hash-chained view of session events and an anchor. `experiments/kill9-audit-anchor.ts` appends a valid record without updating the head anchor and `audit_verify` detects it (`head anchor expects N records`). No full event-log materialization is implemented. | **partial** — effects state is reconstructable and the audit anchor gap is detected; full session transition replay is absent. |
 
 ### Evidence summary
 
@@ -37,9 +39,11 @@ subset); this document follows the README's eight-invariant naming.
 |---|---|---|
 | `tests/effects.test.ts` | pending → committed/failed, restart pending → unknown, duplicate irreversible denial while pending, classification, `effect_reconcile` plans, `effect_resolve` terminal rules. **fake-context** | Real process death, OS kill behavior, cross-process file durability. |
 | `experiments/kill9-effects.ts` | A real Bun child writes an irreversible intent, is killed after `READY`, and a new process reconciles it to `unknown`; the repeated unresolved irreversible call is denied and the committed control differs correctly (`duplicateDenied: true`, `duplicateExecutions: 0`). **real kill-9** | dsh host behavior, actual `git push`, artifact/audit/budget crash paths. |
-| `tests/artifacts.test.ts` | Content-addressed integrity and restart read. **fake-context + temp filesystem** | Kill during artifact write, cross-process index recovery under crash. |
-| `tests/plugin.test.ts`, `tests/audit-extra.test.ts` | Audit hash chain, tamper/truncation detection, HMAC signatures, export, golden fixture. **fake-context** | Kill between record append and head-anchor update; on-disk anchor torn-write recovery. |
-| `tests/budget.test.ts`, `tests/budget-ledger.test.ts` | Usage deduplication, enforcement, reservation keys. **fake-context / in-memory** | Durable budget state across a crash. |
+| `tests/artifacts.test.ts` | Content-addressed integrity, restart read, reindex after index loss. **fake-context + temp filesystem** | Cross-process blob write under a real kill (covered separately by kill9-artifacts). |
+| `experiments/kill9-artifacts.ts` | A child writes a valid blob with no index and is killed; a new process reads/verifies it and `artifact_reindex` rebuilds the index. **real kill-9**. | Artifact integrity is content-based; index metadata (name/media type) for a never-indexed blob is reconstructed generically. |
+| `tests/plugin.test.ts`, `tests/audit-extra.test.ts` | Audit hash chain, tamper/truncation detection, HMAC signatures, export, golden fixture. **fake-context** | No automatic repair after an anchor gap. |
+| `experiments/kill9-audit-anchor.ts` | A record appended without a head update is detected as `head anchor expects N records`. **simulated crash window** | Detection only; no repair/rollback. |
+| `tests/budget.test.ts`, `tests/budget-ledger.test.ts` | Usage deduplication, enforcement, reservation keys. **fake-context / in-memory** | Durable budget state across a crash (confirmed lost by `kill9-budget.ts`). |
 | `experiments/audit-bench.ts`, `experiments/patch-bench.ts`, agent benches | Throughput/false-positive/patch/memory measurements, not crash recovery. | Crash invariants. |
 
 ## Crash-stage coverage
@@ -50,9 +54,9 @@ subset); this document follows the README's eight-invariant naming.
 | Effect intent still `pending` (no `agent/created` yet) | `tests/effects.test.ts` duplicate-irreversible test | **fake-context**; duplicate pre-execute returns `deny` | covered in-process, not crash recovery |
 | Effect result committed, new process restarts | `experiments/kill9-effects.ts` phases C/D | Separate process, **normal exit** (not a kill); committed status and `unresolved: 0` are re-read; repeat is allowed | covered for the committed control |
 | Kill during effect ledger append (torn tail) | `tests/effects.test.ts` only parses malformed/torn lines in unit tests (`readRecords` skips a torn tail) | **fake-context**, no real torn write | partial |
-| Artifact blob/index write crash | none | — | **gap** |
-| Audit record append vs. head-anchor update crash | none; `audit_verify` tamper/truncation is **fake-context** | — | **gap** |
-| Budget usage flush/restart crash | none; budget state and `BudgetLedger` are in memory | — | **gap** |
+| Artifact blob/index write crash | `experiments/kill9-artifacts.ts` | A child writes a valid blob and is killed before any index entry; a new process reads/verifies by hash and `artifact_reindex` restores the index. **real kill-9** | **covered** |
+| Audit record append vs. head-anchor update crash | `experiments/kill9-audit-anchor.ts` | A valid record is appended without updating the anchor; `audit_verify` fails with `head anchor expects 3 records`. | **partial** — detection, no repair |
+| Budget usage flush/restart crash | `experiments/kill9-budget.ts` | Child accumulates 900 tokens; a new process starts at 0. State is in-memory by design. | **gap (confirmed)** |
 | Checkpoint/step resume crash | none; no checkpoint subsystem | — | **gap** |
 | Worker process crash | none; no SuperDSH worker protocol | — | **gap** |
 
@@ -89,19 +93,14 @@ event-array simulations.
 
 ## Known gaps called out by this mapping
 
-- **Artifact crash** is not tested. The artifact tests cover a new instance in
-  the same test process, not a process killed between blob write and index
-  append.
-- **Audit anchor crash** is not tested. Tamper detection is tested with a
-  completed ledger; a kill between `appendFileSync` and `writeHead` is not.
-- **Budget crash** is not tested. `budget` state is per-process memory and
-  `BudgetLedger` is in-memory, so a restart loses accounting rather than
-  recovering it.
+- **Artifact crash** is covered for blob-without-index: `kill9-artifacts.ts` proves a new process can read/verify the blob and `artifact_reindex` rebuilds the index. Blob bytes are verified by SHA-256; index-only metadata (name/media type) is not recoverable for a blob that was never indexed.
+- **Audit anchor crash** is detected, not repaired. `kill9-audit-anchor.ts` appends a valid record without updating the anchor and `audit_verify` fails; there is no automatic rollback/repair.
+- **Budget crash** is a confirmed limitation: `budget` state and `BudgetLedger` are in-memory, so a restart loses accounting rather than recovering it.
 - **Checkpoint identity** and **determinism context** have no SuperDSH
   counterpart; both remain gaps.
-- The kill-9 experiment uses a minimal fake Cordis context, not a live dsh
-  host. It proves the effects hook and on-disk ledger behavior under real
-  process death, not the host's own crash-recovery path.
+- The kill-9 experiments use a minimal fake Cordis context, not a live dsh
+  host. They prove the effects/artifact/audit hooks and on-disk behavior under
+  real process death, not the host's own crash-recovery path.
 - **Post-reconcile duplicate denial is fixed.** The unresolved-key index now
   tracks both `pending` and `unknown`, and `tools/pre-execute` checks it before
   appending a new intent. The kill-9 experiment records
@@ -113,7 +112,9 @@ event-array simulations.
 ```sh
 cd super-dsh
 bun experiments/kill9-effects.ts
-cat experiments/results/kill9-effects.json
+bun experiments/kill9-artifacts.ts
+bun experiments/kill9-audit-anchor.ts
+bun experiments/kill9-budget.ts
 bun test
 ```
 

@@ -57,7 +57,7 @@ function fixture(): string {
 
 function repo(root: string) {
   const fake = fakeContext()
-  applyRepoMap(fake.ctx, { repoMap: { root } })
+  applyRepoMap(fake.ctx, { repoMap: { root, refreshMs: 0 } })
   return {
     map: fake.tools.get('repo_map')!,
     find: fake.tools.get('find_symbol')!,
@@ -98,6 +98,26 @@ describe('repository map', () => {
     const found = await tools.find.execute({ name: 'shared', limit: 1 }, exec())
     expect(found.count).toBe(1)
     expect((found.symbols as FoundSymbol[]).length).toBe(1)
+  })
+
+  test('serves the cached index inside the refresh window', async () => {
+    const root = fixture()
+    const fake = fakeContext()
+    applyRepoMap(fake.ctx, { repoMap: { root, refreshMs: 60_000 } })
+    const find = fake.tools.get('find_symbol')!
+
+    const before = await find.execute({ name: 'secret' }, exec())
+    expect(before.count).toBe(0)
+
+    const beta = join(root, 'src', 'beta.ts')
+    const original = readFileSync(beta, 'utf8')
+    writeFileSync(beta, original.replace('shared', 'secret'), 'utf8')
+    const future = new Date(Date.now() + 10_000)
+    utimesSync(beta, future, future)
+
+    // TTL cache: the change is intentionally invisible until refreshMs elapses.
+    const cached = await find.execute({ name: 'secret' }, exec())
+    expect(cached.count).toBe(0)
   })
 
   test('rebuilds when an existing file changes without changing size', async () => {

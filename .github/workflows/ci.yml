@@ -6,12 +6,20 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+      - name: Install dev tooling
+        run: bun install --frozen-lockfile
+      - name: Typecheck
+        run: bun run typecheck
       - name: Unit and integration tests
         run: bun test
       - name: Build bundle
@@ -20,3 +28,13 @@ jobs:
         run: bun experiments/patch-bench.ts
       - name: Audit integrity experiment
         run: bun experiments/audit-bench.ts
+      - name: Effects performance experiment
+        run: bun experiments/effects-bench.ts
+      - name: Tool schema overhead experiment
+        run: bun experiments/tool-overhead-bench.ts
+      - name: Artifact crash experiment
+        run: bun experiments/kill9-artifacts.ts
+      - name: Audit anchor crash experiment
+        run: bun experiments/kill9-audit-anchor.ts
+      - name: Budget restart experiment
+        run: bun experiments/kill9-budget.ts

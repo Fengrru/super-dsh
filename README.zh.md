@@ -2,7 +2,7 @@
 
 > 为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）提供的安全优先可靠性套件：容错编辑、带文件锁的多文件事务、副作用恢复计划、带签名的防篡改审计、内容寻址 artifact、分层项目记忆、错误修复记忆、代码仓库地图、版本化知识库、会话便签、确定性压缩/反思/handoff、replay plan、预算预留、日志归档保留，以及经过测试的 Nexus 风格协议库。
 
-SuperDSH 不是 dsh 的 fork，而是原生 dsh 插件 bundle：单个 ESM 文件、**零运行时依赖**，通过 Cordis 插件/profile 机制加载。每个能力独立开关；默认开启的能力都有确定性测试和真实 dsh 冒烟；四个核心能力还有量化实验。未通过实验的能力会记录原因并保持关闭。
+SuperDSH 不是 dsh 的 fork，而是原生 dsh 插件 bundle：单个 ESM 文件、**零运行时依赖**，通过 Cordis 插件/profile 机制加载。每个能力独立开关；默认开启的能力都有确定性测试和真实 dsh 冒烟；关键能力还有量化实验，默认 profile 也由 agent A/B 决定。未通过实验的能力会记录原因并保持关闭。
 
 ## 为什么做
 
@@ -32,7 +32,7 @@ git clone https://github.com/Fengrru/super-dsh.git   # 发布后
 cd super-dsh
 bun install        # 无运行时依赖，仅构建/测试需要
 bun run build      # 生成 dist/index.js
-bun test           # 205 个确定性检查
+bun test           # 216 个确定性检查
 ```
 
 本地 overlay：
@@ -57,6 +57,25 @@ dsh --profile headless --patch ./super-dsh.patch.yml --json "修复失败的测�
 dsh plugin --profile headless add /absolute/path/to/super-dsh
 dsh --profile headless --dump-config | grep super-dsh
 ```
+
+## Profiles
+
+默认是 **core**：保留安全与恢复能力面，不含仓库地图、会话报告或运维扩展。
+
+| Profile | 工具数 | 每次请求 schema token | 内容 |
+|---|---:|---:|---|
+| **core**（默认） | 24 | 3,349 | fuzzy edit、apply_patch、memory、audit、effects、artifacts、repairs |
+| coding | 40 | 5,379 | core + repo map/search_code、notes、knowledge、handoff/replay、compact/reflection |
+| full | 44 | 6,005 | coding + verify/budget/retention（需配置后才注册） |
+
+Profile 在插件 config 中选择；显式 feature flag 会覆盖 profile。现成 overlay 在 [`presets/`](presets/)。
+
+```yaml
+config:
+  profile: coding
+```
+
+**为什么默认 core：** 5 个任务的 agent A/B（导航 + 多文件修复）中 core **5/5**、coding **5/5**，但 coding 消耗 **25,357 vs 18,490 输入 token**（约 +37%）。该样本里额外工具没有提高成功率，因此在 agent benchmark 证明收益前保持 opt-in。见 `experiments/results/profile-ab-bench.json` 与 `docs/experiments.md` E12。
 
 ## 能力
 
@@ -92,7 +111,7 @@ dsh --profile headless --dump-config | grep super-dsh
 
 **副作用账本**：每次工具调用记录 hash 参数与 intent；结果变为 `committed`/`failed`。新进程把遗留 pending 标为 `unknown`；`effect_status` 报告未解决项；`effect_reconcile` 返回明确的 `replay`/`compensate`/`query` 计划；`effect_resolve` 记录人工/外部结果。账本每 session 只加载一次到内存（10k 次调用 733ms，0.073ms/次）。`denyUnresolvedIrreversible`（可选）在崩溃后拒绝重复不可逆调用（包括 unknown 前驱）。
 
-**Artifacts**：`artifact_put` / `artifact_get` / `artifact_verify` / `artifact_list`。SHA-256 内容寻址、temp+rename 原子写、追加式索引、每次读取重验 hash、文本/base64 往返。篡改/缺失会验证失败。
+**Artifacts**：`artifact_put` / `artifact_get` / `artifact_verify` / `artifact_list` / `artifact_reindex`。SHA-256 内容寻址、temp+rename 原子写、追加式索引、每次读取重验 hash、文本/base64 往返。篡改/缺失会验证失败；索引丢失时可按 blob 重建索引，永不索引的 blob 也能按 hash 读取。
 
 **审计**：每个 session 事件镜像为哈希链 + head anchor。`audit_verify` 校验哈希、链链接、序号单调性、anchor 与可选 HMAC 签名；`audit_evidence` 按事件 data hash 查找证据；`audit_export` 返回 head/verify，可选最多 5000 条记录。`signingKeyEnv`/`signingKey` 启用 HMAC-SHA256 签名，使“重算 hash 但保留旧签名”的篡改可检出。默认无密钥：能检出编辑、删除、截断、重排，不能阻止拥有写权限且掌握密钥的攻击者重写整条链。
 
@@ -116,6 +135,7 @@ dsh --profile headless --dump-config | grep super-dsh
     - id: super-dsh
       name: 'dsh-super'
       config:
+        profile: core
         fuzzyEdit: true
         applyPatch:
           maxFiles: 10
@@ -138,9 +158,10 @@ dsh --profile headless --dump-config | grep super-dsh
         notes:
           maxEntriesPerSession: 500
         repoMap:
-          maxFiles: 2000
+          maxFiles: 2000    # 默认 1000；大仓库可提高
           maxFileBytes: 524288
           search: true
+          refreshMs: 5000   # 0 = 每次检查缓存签名
         knowledge:
           injectTopK: 0
         effects:
@@ -177,20 +198,28 @@ dsh --profile headless --dump-config | grep super-dsh
 | 审计篡改（4 类） | 0% 检出 | **100% 检出** | 接受 |
 | 验证闸门（4 个任务） | 4/4 通过 | 4/4 通过 | 无增益，保持可选 |
 
-0.3 Nexus 设计验证：
+0.3 Nexus 设计验证（0.3+，当前计数）：
 
-- `bun test`：**205 个测试 / 1,352 个断言**，24 个文件，包含对每个注册工具 schema 子集的校验。
+- `bun test`：**216 个测试 / 1,384 个断言**，25 个文件，包含对每个注册工具 schema 子集的校验。
 - Effects 10,000 次调用：**733ms 总计，0.073ms/次**（20,000 条账本记录，5.5MB），从约 33ms/次降下来。
 - 真实 kill-9（`experiments/kill9-effects.ts`）：独立 Bun 进程记录不可逆 intent，被 `taskkill /F /T` 或 `SIGKILL` 杀死，新进程把它对账为 `unknown`，重复不可逆调用被拒绝——**duplicateDenied=true, duplicateExecutions=0**；committed 对照仍允许重复。
 - 审计：HMAC 签名、删除/重算签名篡改检测、带 head/verify 的导出、字节级 golden fixture。
 - Replay plan、文件锁、预算预留/结算、capability token、因果时钟、worker 协议都有确定性测试；真实 dsh 冒烟覆盖 `audit_export`、`effect_reconcile`、`replay_plan`、`apply_patch`、repo map、notes、artifacts、knowledge、handoff、history compact、reflect。
-- Effects 崩溃/artifact 篡改/apply_patch 回滚是确定性保证，尚无 Agent 级 A/B 数字，因此不宣称基准胜利。
+- Effects 崩溃、artifact 崩溃/篡改、apply_patch 回滚是确定性保证或真实进程实验，尚无 Agent 级 A/B 数字，因此不宣称基准胜利。
 
 0.4 记忆/修复/归档验证：
 
 - Memory v2 巩固（`experiments/memory-v2-bench.ts`）：60 条事实，巩固前后 recall@3 **1.000**，stale 注入 **0**，注入字符 **13,775 → 12,565**；合并 15 条重复，归档 20 条（合并/过期/超限）。
 - 修复记忆（`experiments/repair-bench.ts`）：5 条提示，已知错误命中 **10/10**，正确 hint **10/10**，未知错误误命中 **0/10**，平均注入 212 字符。
 - 归档保留：gzip + SHA-256 manifest、校验后删除、恢复、路径穿越/symlink/覆盖拒绝（`tests/retention.test.ts`）。
+
+0.5 Profile/性能/崩溃验证：
+
+- Profile A/B（`experiments/profile-ab-bench.ts`）：core **5/5**、coding **5/5**；输入 token **18,490 vs 25,357**，输出 **3,740 vs 5,605**，墙钟 **86.3s vs 101.5s**；决策规则是 coding 至少多通过一题才选 coding，平局选低 token，因此默认改为 core。
+- Repo map（`experiments/repo-map-perf.ts`，2,000 文件）：冷建 **2,376ms**（首次未缓存 4,500ms；原 33.3s），TTL 暖查询 p50 **0.1ms**，未变更强制重扫 p50 **230ms**；阈值 5s/100ms 通过。
+- Kill-9 artifacts：子进程写完 blob、未写索引即被杀；新进程按 hash 读取/校验成功，`artifact_reindex` 重建索引。
+- Audit anchor：追加合法记录但不更新 head anchor，`audit_verify` 报 `head anchor expects N records`；只检测，不自动修复。
+- Budget 重启：用量从 900 变为 0，确认内存态预算在重启后丢失（设计缺口，已记录）。
 
 暂缓候选的实验结论（预注册决策规则）：
 
@@ -227,7 +256,7 @@ dsh --profile headless --dump-config | grep super-dsh
 - dsh 公共 API 仍是 pre-stable（验证于 `0.2.1-rc.2`）。
 - `fuzzy_edit` 每次只处理单区域；故意不暴露 `replace_all`。
 - `apply_patch` 回滚是尽力而为：若恢复写入本身失败，错误会列出无法恢复的文件。文件锁是 advisory：宿主 `write`/`edit`、外部编辑器、使用不同锁目录的进程可绕过；TTL/symlink/大小写/路径归一化有边界。
-- repo map 是 regex 启发式，不做类型分析；注释/字符串会误报，压缩单行代码召回有限；缓存键是 mtime+size。`search_code` 按关键词路由，继承这些限制；caller 模式会把注释中的符号名当引用（可能降低 MRR）。`repoMap.search: false` 可隐藏该工具。
+- repo map 是 regex 启发式，不做类型分析；注释/字符串会误报，压缩单行代码召回有限；缓存键是 mtime+size。最多索引 `repoMap.maxFiles` 个文件（默认 1000）；2,000 文件冷建约 2.4–4.5s。引用图上限为 50k 边、每个 token 20 个定义、10 次 PageRank 迭代，因此超密集仓库的中心性可能近似。`refreshMs` 默认 5s，因此编辑后最多 5s 内查询可能看到旧索引；强制未变更重扫约 230–363ms。`search_code` 按关键词路由，继承这些限制；caller 模式会把注释中的符号名当引用（可能降低 MRR）。`repoMap.search: false` 可隐藏该工具。
 - effects、knowledge、notes、memory、repairs 都是追加式 JSONL，没有跨进程锁；不要让两个进程同时写同一 session/workspace。
 - Memory v2 检索仍是词法级（无 embedding）；巩固是确定性 token/Jaccard 合并，不是语义摘要；`working` 可见性依赖保存时的 session id。
 - 错误修复匹配是词法级 + tool/code 过滤；相似错误可能命中错误提示；提示作为数据注入，不强制。
@@ -235,9 +264,10 @@ dsh --profile headless --dump-config | grep super-dsh
 - 审计默认无密钥；HMAC 只保护记录 hash，密钥管理是运维责任；拥有密钥并重写整条链仍可伪造一致账本。
 - handoff/replay-plan 对注入上下文的过滤是启发式；未来未知格式可能被当成用户请求。
 - 验证闸门只跑一个配置命令，达到 `maxAttempts` 后放行。
-- `budget` 只累计事件 usage；预留在内存，重启丢失；工具/子代理没有单独计价。
+- `budget` 只累计事件 usage；预留在内存，重启丢失（kill-9 实验已确认 900→0）；工具/子代理没有单独计价。
 - capability/causal/worker 是测试过的库，不是暴露的工具；没有包含远程 worker 运行时。
-- 88 项分析是路线图，不代表全部已实现。0.4.0 交付上述能力；C/D 类保持延后或拒绝。
+- 默认 profile 是 core；coding/full 的额外工具只在显式配置后注册。5 任务 A/B 样本很小，不能证明 coding 永远无益。
+- 88 项分析是路线图，不代表全部已实现。0.5.0 交付上述能力；C/D 类保持延后或拒绝。
 
 ## 致谢
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.0
+
+Profiles, repo-map performance, crash coverage, and release engineering:
+
+- **Profiles** — `core` (24 tools, now the default), `coding` (40), `full` (44). `profile` selects a feature set, explicit flags override it, and `presets/` ships ready-made overlays. `full` registers verify/budget/retention only when configured.
+- **Profile A/B** — 5 navigation/edit tasks, isolated workspaces, real dsh headless on `deepseek-flash`: core **5/5** and coding **5/5**; coding used **25,357 vs 18,490 input tokens**, **5,605 vs 3,740 output tokens**, and **101.5 s vs 86.3 s** wall time. Pre-registered rule picks the lower-token arm on a tie, so the default is `core`.
+- **Repo-map performance** — concurrent source reads (32), TTL refresh cache (`repoMap.refreshMs`, default 5,000 ms), precomputed sorted symbol list, and bounded PageRank/edges/definitions. On the 2,000-file dsh checkout: cold **2.4 s** after the OS cache is warm (**4.5 s** on the first uncached run, from 33.3 s), TTL warm p50 **0.1 ms**, forced unchanged rescan p50 **230–363 ms**.
+- **`artifact_reindex`** — rebuilds a lost artifact index from the content-addressed blobs. A real kill-9 experiment writes a blob, kills the writer before indexing, then reads/verifies it and reindexes from a new process.
+- **Crash coverage** — real kill-9 artifacts (covered), audit anchor gap detection (detected, no repair), and budget restart loss (900 → 0, confirmed limitation). `docs/invariants.md` and `docs/status.md` are updated.
+- **Repo engineering** — `tsconfig.json` + `bun run typecheck`, `bun run test:coverage`, a CI matrix on Ubuntu and Windows, a lockfile, and experiments for profiles/repo performance.
+- **Tests** — 216 tests / 1,384 assertions across 25 files, including a schema-subset guard for every registered tool.
+
 ## 0.4.0
 
 Memory and recovery upgrades from awesome-agent-infra, implemented without its data bugs:

@@ -2,7 +2,7 @@
 
 > A safety-first reliability suite for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`): tolerant edits, transactional patches with file locks, recovery plans for side effects, signed tamper-evident audit, content-addressed artifacts, tiered project memory, error-repair memory, a repo map, versioned knowledge, scratchpads, deterministic compaction/reflection/handoff, replay plans, budget reservation, log retention, and tested Nexus-inspired protocol libraries.
 
-SuperDSH is a native dsh plugin bundle, not a fork. It ships as one ESM file with **zero runtime dependencies**, loaded through the ordinary Cordis plugin/profile mechanism. Every feature is independently switchable. Features that are on by default have deterministic tests and a real-dsh smoke; the four core capabilities also have quantitative experiments. Features that failed their experiment are documented and left off.
+SuperDSH is a native dsh plugin bundle, not a fork. It ships as one ESM file with **zero runtime dependencies**, loaded through the ordinary Cordis plugin/profile mechanism. Every feature is independently switchable. Features that are on by default have deterministic tests and a real-dsh smoke; key capabilities also have quantitative experiments, and the default profile itself was chosen by an agent A/B. Features that failed their experiment are documented and left off.
 
 ## Why
 
@@ -32,7 +32,7 @@ git clone https://github.com/Fengrru/super-dsh.git   # once published
 cd super-dsh
 bun install        # no runtime dependencies; build/test toolchain only
 bun run build      # emits dist/index.js
-bun test           # 205 deterministic checks
+bun test           # 216 deterministic checks
 ```
 
 Local overlay:
@@ -57,6 +57,25 @@ Persistent install:
 dsh plugin --profile headless add /absolute/path/to/super-dsh
 dsh --profile headless --dump-config | grep super-dsh
 ```
+
+## Profiles
+
+The default is **core**: the safety/recovery surface without repository-map, session-report, or operational extras.
+
+| Profile | Tools | Schema tokens/request | Contents |
+|---|---:|---:|---|
+| **core** (default) | 24 | 3,349 | fuzzy edit, apply_patch, memory, audit, effects, artifacts, repairs |
+| coding | 40 | 5,379 | core + repo map/search_code, notes, knowledge, handoff/replay, compact/reflection |
+| full | 44 | 6,005 | coding + verify/budget/retention when configured |
+
+The profile is selected in the plugin config; explicit feature flags override it. Ready-made overlays live in [`presets/`](presets/).
+
+```yaml
+config:
+  profile: coding
+```
+
+**Why core is the default:** a 5-task agent A/B (navigation + multi-file fixes) scored **core 5/5 and coding 5/5**, while coding consumed **25,357 input tokens vs 18,490** (~37% more). The extra coding tools did not improve task success in that sample, so they are opt-in until an agent benchmark shows a win. See `experiments/results/profile-ab-bench.json` and `docs/experiments.md` E12.
 
 ## Features
 
@@ -92,7 +111,7 @@ dsh --profile headless --dump-config | grep super-dsh
 
 **Effects ledger** — every tool call gets hashed arguments and an intent record; results become `committed`/`failed`. A new process marks leftover pending intents `unknown`; `effect_status` reports unresolved work; `effect_reconcile` returns an explicit `replay` / `compensate` / `query` plan; `effect_resolve` records the human/external outcome. The ledger is loaded into memory once per session (10k calls in 733 ms, 0.073 ms/call). `denyUnresolvedIrreversible` (opt-in) blocks a repeated irreversible call after a crash, including `unknown` predecessors.
 
-**Artifacts** — `artifact_put`, `artifact_get`, `artifact_verify`, `artifact_list`. SHA-256 content addressing, atomic temp+rename writes, append-only index, hash re-verification on every read, text/base64 round-trip. Tampered/missing blobs fail verification.
+**Artifacts** — `artifact_put`, `artifact_get`, `artifact_verify`, `artifact_list`, `artifact_reindex`. SHA-256 content addressing, atomic temp+rename writes, append-only index, hash re-verification on every read, text/base64 round-trip. Tampered/missing blobs fail verification; `artifact_reindex` rebuilds a lost index from the blobs, and a never-indexed blob is still readable by hash.
 
 **Audit** — every session event is mirrored into a hash-chained ledger with a head anchor. `audit_verify` checks hashes, chain links, sequence monotonicity, anchor, and optional HMAC signatures; `audit_evidence` looks up an event data hash; `audit_export` returns head/verification and optionally up to 5000 records. HMAC-SHA256 signatures (`signingKeyEnv`/`signingKey`) make re-hashed record tampering detectable. Unkeyed by default: detects edits, deletions, truncation, and reordering, not a full rewrite by an attacker with write access.
 
@@ -116,6 +135,7 @@ Tested TS building blocks, not model-facing tools:
     - id: super-dsh
       name: 'dsh-super'
       config:
+        profile: core
         fuzzyEdit: true
         applyPatch:
           maxFiles: 10
@@ -138,9 +158,10 @@ Tested TS building blocks, not model-facing tools:
         notes:
           maxEntriesPerSession: 500
         repoMap:
-          maxFiles: 2000
+          maxFiles: 2000    # default 1000; raise for larger repositories
           maxFileBytes: 524288
           search: true
+          refreshMs: 5000   # 0 = check the cache signature on every call
         knowledge:
           injectTopK: 0
         effects:
@@ -177,20 +198,28 @@ Quantitative experiments on this machine (Windows 10, Node 24, DeepSeek `deepsee
 | Audit tamper scenarios (4 kinds) | 0% detected | **100% detected** | Accept |
 | Verification gate (4 seeded tasks) | 4/4 pass | 4/4 pass | No gain; keep opt-in |
 
-0.3 Nexus-design validation:
+Nexus-design validation (0.3+, current counts):
 
-- `bun test`: **205 tests / 1,352 assertions** across 24 files, including schema-subset validation for every registered tool.
+- `bun test`: **216 tests / 1,384 assertions** across 25 files, including schema-subset validation for every registered tool.
 - Effects 10,000 calls: **733 ms total, 0.073 ms/call** (20,000 ledger records, 5.5 MB), down from ~33 ms/call.
 - Real kill-9 (`experiments/kill9-effects.ts`): a separate Bun process records an irreversible intent, is killed with `taskkill /F /T` or `SIGKILL`, a new process reconciles it to `unknown`, and the repeated irreversible call is denied — **duplicateDenied=true, duplicateExecutions=0**; the committed control still allows a repeat.
 - Audit: HMAC signatures, stripped/rehashed tamper detection, export with head/verify, and a byte-pinned golden fixture.
 - Replay plan, file locks, budget reserve/settle, capability tokens, causal clock, and worker protocol have deterministic tests; real-dsh smoke exercised `audit_export`, `effect_reconcile`, `replay_plan`, `apply_patch`, repo map, notes, artifacts, knowledge, handoff, history compaction, and reflection.
-- Effects crash/artifact tamper/apply_patch rollback are deterministic guarantees; they do not yet have agent-level A/B numbers, so they are not presented as benchmark wins.
+- Effects crash, artifact crash/tamper, and apply_patch rollback are deterministic guarantees or real-process experiments; they do not yet have agent-level A/B numbers, so they are not presented as benchmark wins.
 
 0.4 memory/repair/retention validation:
 
 - Memory v2 consolidation (`experiments/memory-v2-bench.ts`): 60 facts, recall@3 **1.000 before and after**, stale injections **0**, injected chars **13,775 → 12,565**; 15 duplicates merged, 20 entries archived (merged/expired/cap).
 - Repair memory (`experiments/repair-bench.ts`): 5 hints, known errors hit **10/10**, correct hint **10/10**, unknown errors false-hit **0/10**, average injected context 212 chars.
 - Retention: gzip + SHA-256 manifest, verified delete, restore, path traversal/symlink/overwrite refusal (`tests/retention.test.ts`).
+
+0.5 profile/performance/crash validation:
+
+- Profile A/B (`experiments/profile-ab-bench.ts`): core **5/5**, coding **5/5**, input tokens **18,490 vs 25,357**, output **3,740 vs 5,605**; default is now core.
+- Repo map (`experiments/repo-map-perf.ts`, 2,000 files): cold **2,376 ms** (4,500 ms on the first uncached run; was 33.3 s), TTL warm p50 **0.1 ms**, forced unchanged rescan p50 **230 ms**.
+- Kill-9 artifacts: a blob written without an index is readable/verifiable after a real process kill, and `artifact_reindex` restores the index.
+- Audit anchor gap: a record appended without a head update is detected (`head anchor expects N records`), no repair.
+- Budget restart: usage is lost by design (900 → 0); documented as a gap.
 
 Deferred-candidate experiments (pre-registered decision rules):
 
@@ -227,7 +256,7 @@ Full methodology and raw results: [`docs/experiments.md`](docs/experiments.md), 
 - dsh's public APIs are **pre-stable** (validated against `0.2.1-rc.2`).
 - `fuzzy_edit` handles one region per call; `replace_all` is intentionally not exposed.
 - `apply_patch` rollback is best-effort: if a restore write itself fails, the error lists files that could not be restored. Locks are advisory: host `write`/`edit`, external editors, and processes with a different lock dir can bypass them. TTL/symlink/case/normalization caveats apply.
-- The repo map is regex-based, not type-aware; comments/strings can produce false positives, compressed one-line code is under-indexed, and mtime+size is the cache key. `search_code` routes by keyword and still inherits those limits; caller-mode references include comments (which can lower MRR). Set `repoMap.search: false` to hide the extra tool.
+- The repo map is regex-based, not type-aware; comments/strings can produce false positives, compressed one-line code is under-indexed, and mtime+size is the cache key. It indexes at most `repoMap.maxFiles` files (default 1000); a 2,000-file cold build takes ~2.4–4.5 s. Reference graphs are bounded at 50k edges, 20 definitions per token, and 10 PageRank iterations, so centrality can be approximate on very dense repositories. `refreshMs` defaults to 5 s, so a query can see an index up to 5 s stale after an edit (forced unchanged rescan is ~230–363 ms). `search_code` routes by keyword and still inherits those limits; caller-mode references include comments (which can lower MRR). Set `repoMap.search: false` to hide the extra tool.
 - Effects, knowledge, notes, memory, and repairs are append-only JSONL without cross-process locks; do not run two processes writing the same session/workspace concurrently.
 - Memory v2 retrieval is still lexical (no embeddings); consolidation is deterministic token/Jaccard merging, not semantic summarization. `working` entries are session-scoped by the session id available at save time.
 - Error-repair matching is lexical and tool/code-filtered; a hint can be wrong for a superficially similar error. Hints are injected as data, not enforced.
@@ -235,9 +264,10 @@ Full methodology and raw results: [`docs/experiments.md`](docs/experiments.md), 
 - Audit is unkeyed by default; HMAC signing protects record hashes but key management is the operator's responsibility. A full rewrite with the key can still forge a consistent ledger.
 - Handoff/replay-plan filtering of injected context is heuristic; unknown future formats may appear as user requests.
 - The verification gate runs one configured command and fails open after `maxAttempts`.
-- `budget` accumulates event usage; reservations are in-memory and do not survive a restart, and tools/subagents are not individually priced.
+- `budget` accumulates event usage; reservations are in-memory and do not survive a restart (confirmed by `experiments/kill9-budget.ts`: 900 → 0), and tools/subagents are not individually priced.
 - The capability/causal/worker modules are tested libraries, not exposed tools; no remote worker runtime is included.
-- The 88-item analysis is a roadmap, not a claim that every item is implemented. Version 0.4.0 ships the features above; C/D items remain deferred or rejected.
+- The default profile is `core`; the additional coding/full tools register only when explicitly configured. The 5-task A/B is small and does not prove coding tools are never useful.
+- The 88-item analysis is a roadmap, not a claim that every item is implemented. Version 0.5.0 ships the features above; C/D items remain deferred or rejected.
 
 ## Credits
 

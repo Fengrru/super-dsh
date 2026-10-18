@@ -1,6 +1,6 @@
 # Status: coverage, experiments, and remaining gaps
 
-Last updated with 0.4.0.
+Last updated with 0.5.0.
 
 ## Is every source component experimented?
 
@@ -8,13 +8,13 @@ Last updated with 0.4.0.
 
 Current inventory:
 
-- **43 model-facing tools** registered by the plugin.
-- **205 tests / 1,352 assertions** across 24 test files.
-- **17 experiment scripts** and **19 result JSON files** under `experiments/`.
-- **4 quantitative agent/retrieval experiments**: patch drift, cross-session memory, audit tamper, verification gate.
-- **Deterministic/prototype experiments**: effects perf + real kill-9, memory v2 consolidation, repair memory, agentic search, best-of-N, Valid8, skill curation, POMDP, reasoning-search, process-reward, agent-metacog, hallucination-detector, code-sandbox.
+- **44 model-facing tools** at the `full` profile; the default `core` profile registers **24** (coding: 40).
+- **216 tests / 1,384 assertions** across 25 test files.
+- **23 experiment scripts** and **25 result JSON files** under `experiments/`.
+- **5 quantitative agent/retrieval experiments**: patch drift, cross-session memory, audit tamper, verification gate, profile A/B.
+- **Deterministic/prototype experiments**: effects perf + real kill-9, artifact crash, audit anchor gap, budget restart loss, memory v2 consolidation, repair memory, agentic search, repo-map performance, tool-schema overhead, best-of-N, Valid8, skill curation, POMDP, reasoning-search, process-reward, agent-metacog, hallucination-detector, code-sandbox.
 
-## Shipped tools (43)
+## Shipped tools (44 at full)
 
 | Group | Tools |
 |---|---|
@@ -26,32 +26,50 @@ Current inventory:
 | Context | `handoff`, `replay_plan`, `history_compact`, `reflect` |
 | Repair | `repair_record`, `repair_search`, `repair_list` |
 | Safety/effects | `effect_status`, `effect_reconcile`, `effect_resolve`, `audit_verify`, `audit_evidence`, `audit_export`, `verify`, `budget_status` |
-| Artifacts | `artifact_put`, `artifact_get`, `artifact_verify`, `artifact_list` |
+| Artifacts | `artifact_put`, `artifact_get`, `artifact_verify`, `artifact_list`, `artifact_reindex` |
 | Retention | `archive_ledgers`, `restore_archive` |
 
 Plus tested libraries: capability tokens, causal clock, worker protocol, file locks, budget ledger.
+
+The table lists the union. `core` = editing + memory + repairs + effects/audit + artifacts. `coding` adds notes, code intelligence, knowledge, and context tools. `full` adds verify, budget, and retention, which register only when configured.
 
 ## What was added after experiments
 
 - `search_code` — agentic-search experiment passed (hit@5 80%→100%, MRR 0.70→0.90).
 - Memory v2, error-repair memory, retention — recommended, implemented, tested, and benchmarked.
-- The original fuzzy edit, memory, audit, effects, artifacts, apply_patch, notes, repo map, knowledge, handoff/replay, compact/reflection, budget were already implemented; most have deterministic tests, some have quantitative experiments.
+- `artifact_reindex` — added after the real kill-9 artifact experiment showed blobs survive without an index and the index must be reconstructable.
+- `core` / `coding` / `full` profiles — tool-overhead measurement plus the E12 agent A/B; `core` is now the default.
+- Repo-map performance work — async reads, TTL cache, precomputed sorted symbols, bounded graph/PageRank; cold 33.3s → 2.4–4.5s.
+- Typecheck, coverage script, CI (Ubuntu + Windows), lockfile, and a schema-subset guard for registered tools.
 
 ## What was rejected after experiments
 
-Best-of-N planning, Valid8 gate, POMDP, reasoning-search, process-reward, agent-metacog, hallucination-detector, code-sandbox. See `docs/experiments.md` E8/E9 and `docs/decisions.md`.
+Best-of-N planning, Valid8 gate, POMDP, reasoning-search, process-reward, agent-metacog, hallucination-detector, code-sandbox. See `docs/experiments.md` E8/E9/E13 and `docs/decisions.md`.
 
 ## Performance and default profile
 
 | Profile | Tools | Approx schema tokens/request | Status |
 |---|---:|---:|---|
-| core | 23 | 3,229 | Candidate |
-| coding | 39 | 5,260 | Current default |
-| full | 43 | 5,886 | Candidate |
+| core | 24 | 3,349 | **Default** |
+| coding | 40 | 5,379 | Opt-in |
+| full | 44 | 6,005 | Opt-in; verify/budget/retention need config |
 
-- `repo_map` cold build over 2,000 files: **33.3s**; warm calls 0.66–0.71s. `search_code` now defaults on and triggers this index.
-- Effects recording: **0.073ms/call** (fixed). Audit: ~1.76ms/event.
-- The default suite adds ~2k schema tokens over core before any measured task benefit. Profiles and an agent A/B are the next requirement; do not add more default tools first. See `docs/experiments.md` E10.
+- Profile A/B: core 5/5 and coding 5/5; input tokens 18,490 vs 25,357; output 3,740 vs 5,605. Coding did not win a task, so core is the default (E12).
+- `repo_map` over 2,000 files: cold **2.4–4.5s** (was 33.3s), TTL warm p50 **0.1ms**, forced unchanged rescan p50 **230–363ms** (E11).
+- Effects recording: **0.073ms/call**. Audit: ~1.76ms/event.
+- Artifact crash: a blob written before the process was killed is readable/verifiable by hash, and `artifact_reindex` restores the index.
+
+## Crash and invariant coverage
+
+`docs/invariants.md` has the full mapping. Current state:
+
+| Area | Evidence | Status |
+|---|---|---|
+| Effects intent crash | `experiments/kill9-effects.ts` (real kill-9) | covered: `pending → unknown`, duplicate irreversible denied |
+| Artifact blob/index crash | `experiments/kill9-artifacts.ts` (real kill-9) | covered: read/verify by hash + reindex |
+| Audit anchor gap | `experiments/kill9-audit-anchor.ts` (simulated crash window) | detected, no repair |
+| Budget restart | `experiments/kill9-budget.ts` | confirmed limitation: 900 → 0, in-memory only |
+| Checkpoint identity, determinism context, worker crash | none | gaps |
 
 ## Add-worthy candidates not yet fully resolved
 
@@ -59,28 +77,28 @@ These are **not** rejected; they were either not implemented or only partially c
 
 | Candidate | Status | What remains |
 |---|---|---|
+| Agent-level A/B for memory v2 + repairs + search_code | Not run | The features most likely to change task outcomes; run isolated multi-session/edit tasks with hidden checkers. |
+| Durable budget | Not implemented; restart loss confirmed | Either persist usage/reservations or explicitly keep budget as per-process reporting only. |
 | Semantic/embedding memory retrieval | Not implemented. Memory v2 is lexical. | Add an embedding provider interface/experiment; compare recall@k and token cost vs lexical. |
-| Canonical `MEMORY.md` project memory | Partial: JSONL memory has `memory_export`/`memory_import`, but MEMORY.md is not the source of truth. | Decide whether MEMORY.md should be canonical; add round-trip/locking tests. |
+| Canonical `MEMORY.md` project memory | Partial: JSONL memory has export/import, but MEMORY.md is not the source of truth. | Decide whether MEMORY.md should be canonical; add round-trip/locking tests. |
 | `checkpoint-writer` 11-field structured handoff | Not implemented. `handoff` + `replay_plan` cover the deterministic path. | Add a structured checkpoint schema only if a real handoff consumer needs it. |
 | `evidence-log` content-addressed event log | Partial: audit hash chain + `audit_evidence` + `audit_export`, not the package's evidence-log. | Compare against external WORM/ledger needs; decide whether a separate evidence index is worth it. |
 | Python worker / external worker runtime | Protocol library only; no worker process. | Only if remote workers are needed; add capability/deadline/cancel and sandboxing. |
 | Full session replay / checkpoint identity / determinism context | Not implemented. | Define a replay corpus and materialized-state comparison; currently only effects/audit replay. |
-| Artifact crash, audit-anchor crash, budget crash | Not tested under real kill-9. | Add kill-9 experiments for each; `docs/invariants.md` lists them as gaps. |
 | Skill curation / dreamdistill | Deferred after synthetic-only experiment. | Need real skill corpus + 30–50 agent tasks. |
 | Guardrail / goal-verifier / confidence-gate | Source-level concern, no dedicated experiment. | Optional experiments if someone wants to use them; do not add by default. |
 | D/C components (event bus, worker, state machine, branch, engine-db, replay, tracing, MCP client, dynamic-workflow, Nexus runtime/SDK/schedulers, etc.) | Not runtime-tested. | Not planned; source review shows mock/duplicate/unsafe behavior. |
 
 ## Are all "can add" features added?
 
-- **Among the candidates that were actually tested:** yes. `search_code` was added; Best-of-N, Valid8, POMDP, reasoning-search, process-reward, agent-metacog, hallucination-detector, and code-sandbox were rejected; skill curation is deferred.
-- **Among all potentially add-worthy items:** no. Semantic retrieval, canonical MEMORY.md, structured checkpoint handoff, content-addressed evidence log, external worker runtime, full replay, and the three crash tests remain unresolved.
-- **Evidence quality:** only four features have agent-level quantitative experiments. The rest are deterministic tests, synthetic benchmarks, or real-dsh smoke. That is sufficient for guarantees (e.g., tamper detection, rollback), not for claiming task-success improvement. `search_code`/memory v2/repairs still need agent-level A/B before being called "proven stronger".
+- **Among the candidates that were actually tested:** yes. `search_code`, `artifact_reindex`, and profiles were added; Best-of-N, Valid8, POMDP, reasoning-search, process-reward, agent-metacog, hallucination-detector, and code-sandbox were rejected; skill curation is deferred.
+- **Among all potentially add-worthy items:** no. Agent-level A/B for the newer memory/search features, durable budget, semantic retrieval, canonical MEMORY.md, structured checkpoint handoff, content-addressed evidence log, external worker runtime, and full replay remain unresolved.
+- **Evidence quality:** five features have agent-level quantitative experiments (fuzzy patch, memory, audit, verification gate, profile choice). The rest are deterministic tests, synthetic benchmarks, or real-dsh smoke. That is sufficient for guarantees (e.g., tamper detection, rollback, crash detection), not for claiming task-success improvement. `search_code`/memory v2/repairs still need agent-level A/B before being called "proven stronger".
 
 ## Recommended next closures
 
-1. Fix the repo-map cold start and add `core`/`coding`/`full` presets; run an agent A/B to choose the default profile (success, tokens, wrong-tool calls).
-2. Agent-level A/B for memory v2 + repairs + search_code (the features most likely to improve task outcomes).
-3. Kill-9 artifact/audit/budget tests to close `docs/invariants.md` gaps.
+1. Agent-level A/B for memory v2 + repairs + search_code, including multi-session and unfamiliar-codebase tasks.
+2. Decide durable budget: persist usage/reservations across restarts, or document that enforcement is per-process.
+3. Decide MEMORY.md canonical vs export-only.
 4. Embedding/semantic retrieval experiment, only if lexical recall is the limiting factor.
-5. Decide MEMORY.md canonical vs export-only.
-6. Only then revisit worker runtime / structured checkpoint / evidence log.
+5. Revisit structured checkpoint / evidence log / worker runtime only when a real consumer exists.

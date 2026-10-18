@@ -43,7 +43,7 @@ export interface ToolDefinitionLike {
     render(args: Record<string, unknown>, value: Record<string, unknown>): Array<{ type: 'text'; text: string }>
     presentationMeta?(args: Record<string, unknown>, value: Record<string, unknown>): Record<string, unknown>
   }
-  execute(args: Record<string, unknown>, exec: ToolExecutionLike): Promise<Record<string, unknown>>
+  execute(args: Record<string, unknown>, exec: ToolExecutionLike): Promise<unknown>
   presentCall?(args: Record<string, unknown>): Record<string, unknown>
   presentResult?(args: Record<string, unknown>, result: ToolResultLike): Record<string, unknown> | undefined
   isConcurrencySafe?(args: Record<string, unknown>): boolean
@@ -95,6 +95,8 @@ export interface PluginContext {
 }
 
 export interface SuperDshConfig {
+  /** Default feature group. Explicit feature flags override the profile. */
+  profile?: 'core' | 'coding' | 'full'
   /** Register the fuzzy_edit fallback tool. Default: true. */
   fuzzyEdit?: boolean
   /** Project memory store, tools, and automatic retrieval. Default: true. */
@@ -164,6 +166,8 @@ export interface SuperDshConfig {
         root?: string
         maxFiles?: number
         maxFileBytes?: number
+        /** Reuse the cached index without re-statting files for this many ms. Default: 5000. */
+        refreshMs?: number
       }
   /** Multi-file transactional edit tool. Default: enabled. */
   applyPatch?:

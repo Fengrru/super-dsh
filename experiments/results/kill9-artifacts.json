@@ -1,0 +1,12 @@
+{
+  "experiment": "kill9-artifacts",
+  "generatedAt": "2026-10-18T03:08:49.861Z",
+  "hash": "1f88eeb87121c698071a22a104893cae3e23e365de1e4bf778057e052c26a1b1",
+  "writerExit": 1,
+  "verifierExit": 0,
+  "getContent": "artifact crash survivor",
+  "verifyOk": true,
+  "reindexed": 1,
+  "listed": 1,
+  "ok": true
+}

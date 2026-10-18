@@ -1,0 +1,9 @@
+{
+  "experiment": "kill9-budget",
+  "generatedAt": "2026-10-18T03:08:50.201Z",
+  "durable": false,
+  "beforeRestartUsed": 900,
+  "afterRestartUsed": 0,
+  "note": "budget state is in-memory; restart loses usage by design",
+  "ok": true
+}

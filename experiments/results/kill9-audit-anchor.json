@@ -1,0 +1,10 @@
+{
+  "experiment": "kill9-audit-anchor",
+  "generatedAt": "2026-10-18T03:08:49.998Z",
+  "simulatedCrashWindow": "record appended, head anchor not updated",
+  "beforeOk": true,
+  "detected": true,
+  "reason": "head anchor expects 3 records",
+  "restoredOk": true,
+  "ok": true
+}
