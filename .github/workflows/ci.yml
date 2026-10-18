@@ -24,6 +24,8 @@ jobs:
         run: bun test
       - name: Build bundle
         run: bun run build
+      - name: Package install smoke
+        run: bun run smoke:install
       - name: Patch reliability experiment
         run: bun experiments/patch-bench.ts
       - name: Audit integrity experiment

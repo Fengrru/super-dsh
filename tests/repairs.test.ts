@@ -267,6 +267,55 @@ describe('repair memory', () => {
     expect(rejectedResult).toBe(rejected)
   })
 
+  test('injects hints after a failed shell command even when isError is false', async () => {
+    const harness = makeHarness()
+    const failureText = [
+      'AssertionError [ERR_ASSERTION]: expected 6 but got 4',
+      '    at TestContext.<anonymous> (file:///tmp/sum.test.js:6:20)',
+    ].join('\n')
+    await harness.run('repair_record', {
+      tool: 'pwsh',
+      error_message: failureText,
+      hint: 'Remove the absolute-value branch from sum so negative values add directly.',
+    })
+
+    const decision = { kind: 'accept', additionalContexts: [] as unknown[] }
+    const [raw] = await harness.fake.emit(
+      'tools/post-execute',
+      execWithAgent(harness.agent, { name: 'pwsh' }),
+      {
+        isError: false,
+        content: [{ type: 'text', text: failureText }],
+        value: {
+          kind: 'foreground',
+          exitCode: 1,
+          stderr: { text: failureText },
+          stdout: { text: '' },
+        },
+      },
+      async () => decision,
+    )
+    const accepted = raw as { additionalContexts: Array<{ content?: Array<{ text?: string }> }> }
+    expect(accepted.additionalContexts).toHaveLength(1)
+    expect(accepted.additionalContexts[0]!.content![0]!.text).toContain('Remove the absolute-value branch')
+
+    // A zero exit code and a non-shell value are successes, not failures.
+    const [success] = await harness.fake.emit(
+      'tools/post-execute',
+      execWithAgent(harness.agent, { name: 'pwsh' }),
+      { isError: false, value: { kind: 'foreground', exitCode: 0, stderr: { text: failureText } } },
+      async () => decision,
+    )
+    expect(success).toBe(decision)
+    const [other] = await harness.fake.emit(
+      'tools/post-execute',
+      execWithAgent(harness.agent, { name: 'read' }),
+      { isError: false, value: { exitCode: 1, stderr: { text: failureText } } },
+      async () => decision,
+    )
+    expect(other).toBe(decision)
+  })
+
   test('falls back to result content text and injects at most two hints', async () => {
     const harness = makeHarness()
     const hints = [

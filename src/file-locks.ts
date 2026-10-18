@@ -138,6 +138,24 @@ export async function acquireFileLocks(
   }
 }
 
+/**
+ * Run a read-modify-write against one file while holding its advisory lock.
+ * The callback runs after acquisition, so it observes the latest committed
+ * contents; release is guaranteed even when the callback throws.
+ */
+export async function withFileLock<T>(
+  path: string,
+  callback: () => T | Promise<T>,
+  options: FileLockOptions = {},
+): Promise<T> {
+  const lock = await acquireFileLocks([path], options)
+  try {
+    return await callback()
+  } finally {
+    lock.release()
+  }
+}
+
 function lockDirectory(dir: string | undefined): string {
   if (typeof dir === 'string' && dir.length > 0) return resolvePath(dir)
   return join(dshHome(), 'super-dsh', 'locks')

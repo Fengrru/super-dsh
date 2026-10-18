@@ -16,7 +16,6 @@ A "no" to any of these means it stays out of the default bundle. This file recor
 |---|---|---|
 | Safety-guarded fuzzy editing (`fuzzy-patch` from awesome-agent-infra) | 33.8% → 90.0% correct on 80 drift cases; 0 wrong edits; 100% control refusals (`experiments/results/patch-bench.json`) | Default on |
 | Memory v2 (tiers, feedback, causal invalidation, deterministic consolidation, TTL, MEMORY.md) | Cross-session recall passes; consolidation 60 facts: recall@3 1.0 unchanged, stale 0, injected chars -1,210 (`experiments/results/memory-v2-bench.json`); tier/feedback/invalidate tests | Default on; lexical retrieval |
-| Error-repair memory | Known errors 10/10 hit, correct hint 10/10, unknown false hits 0/10 (`experiments/results/repair-bench.json`); auto-hint tests | Default on; hints are advisory |
 | Log retention | gzip + SHA-256 manifest, verified delete/restore, path traversal/symlink/overwrite refusal (`tests/retention.test.ts`) | Opt-in; destructive only when requested |
 | Hash-chained audit ledger + evidence/export/signatures (Nexus-inspired) | Detects edit/delete/truncate/reorder; plain JSONL detects none (`experiments/results/audit-bench.json`); HMAC signatures, golden fixture, export tests | Default on; signing opt-in |
 | Effects intent/commit + recovery plan (Nexus effects/recovery, TS rewrite) | Pending→committed/failed, restart→unknown, duplicate irreversible denial, `effect_reconcile`/`effect_resolve` (`tests/effects.test.ts`); real kill-9: duplicateDenied=true, duplicateExecutions=0 (`experiments/results/kill9-effects.json`); 10k calls 0.073 ms/call | Default on; deny is opt-in |
@@ -28,12 +27,13 @@ A "no" to any of these means it stays out of the default bundle. This file recor
 | Deterministic handoff + replay plan | Mixed events, injected-context filtering, apply_patch file extraction, missing-service errors (`tests/handoff.test.ts`); machine-readable actions (`tests/replay-plan.test.ts`); real-dsh smoke | `coding`/`full`; enable `handoff` / `replayPlan` in core |
 | Budget reserve/settle | `BudgetLedger` reserve/settle/release, duplicate keys, cap refusal (`tests/budget-ledger.test.ts`); optional `reservePerRequest` (`tests/budget.test.ts`) | Enforcement opt-in |
 | Capability token / causal clock / worker protocol | HMAC token + realpath scope, vector clock, NDJSON codec/FSM (`tests/capability.test.ts`, `tests/causal-clock.test.ts`, `tests/worker-protocol.test.ts`) | Tested libraries; not model tools |
-| `core` / `coding` / `full` profiles | Tool overhead measured (24/40/44 tools, 3,349/5,379/6,005 schema tokens); 5-task A/B core 5/5 vs coding 5/5, input 18,490 vs 25,357, output 3,740 vs 5,605 (`experiments/results/profile-ab-bench.json`) | `core` is the default; coding/full opt-in |
+| `core` / `coding` / `full` profiles | Tool overhead measured (21/37/41 tools, 2,953/4,984/5,610 schema tokens after repairs became opt-in); 5-task A/B at 24/40 tools: core 5/5 vs coding 5/5, input 18,490 vs 25,357, output 3,740 vs 5,605 (`experiments/results/profile-ab-bench.json`) | `core` is the default; coding/full opt-in |
 
 ## Conditional
 
 | Candidate | Evidence | Status |
 |---|---|---|
+| Repair memory | Synthetic retrieval: known errors 10/10, unknown false hits 0/10 (`experiments/results/repair-bench.json`); 16-task agent A/B: both arms 16/16, hints reached 16/16 treatment sessions, +9.1% input and +15.4% output tokens (`experiments/results/repairs-ab-bench.json`); shell non-zero exits now trigger hints | **Not default.** Enable with `repairs: true`. The A/B is a ceiling corpus; it justifies opt-in, not deletion. |
 | Verification gate | Both arms passed 4/4 seeded tasks; the model already ran tests unprompted. Treatment added ~1 step on two tasks and ~24% more output tokens, with no success gain (`experiments/results/agent-bench-verify.json`) | **Not default.** Available opt-in as a definition-of-done guarantee for models/workflows that do not self-verify. |
 | Budget accounting/enforcement | Usage accumulation, total precedence, seq dedupe, enforce reject/allow (`tests/budget.test.ts`); no agent A/B yet | **Not default.** Enable with `budget`. |
 | `denyUnresolvedIrreversible` | Duplicate irreversible call denied after a real kill-9 restart (`duplicateDenied: true`, `duplicateExecutions: 0`); pure tools unaffected (`experiments/results/kill9-effects.json`, `tests/effects.test.ts`) | **Not default.** Accounting is on; denial is opt-in. |

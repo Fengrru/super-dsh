@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.0
+
+Evidence-driven default change and concurrency hardening:
+
+- **Repair memory is now opt-in.** A pre-registered 16-task agent A/B kept the same tool surface in both arms; the treatment received a task-specific hint after the real `node --test` failure. Both arms passed **16/16**, while the treatment used **31,156 vs 28,546 input tokens (+9.1%)** and **14,259 vs 12,358 output tokens (+15.4%)**. Session logs confirm hints reached **16/16** treatment sessions. Because the rule required +2 passes or −15% input tokens, `repairs` moved out of `core`; enable it with `repairs: true`. Core is now **21 tools / 2,953 schema tokens**, coding **37 / 4,984**, full **41 / 5,610**.
+- **Shell failures are now visible to repair memory.** dsh reports a non-zero shell exit as `isError: false`; the post-execute hook now treats a structured foreground result with `exitCode != 0` as a recoverable failure, using stderr/stdout text for matching. Deterministic tests cover injection, zero exit, and non-shell controls.
+- **Cross-process store safety.** Memory, repair, and knowledge read-modify-write cycles now hold a per-file advisory lock and reload after acquisition. Two-process tests write 25 rows each: 50/50 memory rows and knowledge versions survive, repair `successCount` reaches 50, and knowledge versions are contiguous with unique ids.
+- **Package install smoke.** `scripts/install-smoke.ts` packs the published file set, installs it with `dsh plugin add` into an isolated `DSH_HOME`, and asserts the profile entry. It runs in CI after the build.
+- **Docs and release material.** Profile counts, experiments E14–E16, status, decisions, presets, and both READMEs are updated. `experiment:repairs` and `smoke:install` scripts are available.
+- **Tests** — 221 tests / 1,404 assertions across 26 files.
+
 ## 0.5.0
 
 Profiles, repo-map performance, crash coverage, and release engineering:
@@ -10,7 +21,7 @@ Profiles, repo-map performance, crash coverage, and release engineering:
 - **`artifact_reindex`** — rebuilds a lost artifact index from the content-addressed blobs. A real kill-9 experiment writes a blob, kills the writer before indexing, then reads/verifies it and reindexes from a new process.
 - **Crash coverage** — real kill-9 artifacts (covered), audit anchor gap detection (detected, no repair), and budget restart loss (900 → 0, confirmed limitation). `docs/invariants.md` and `docs/status.md` are updated.
 - **Repo engineering** — `tsconfig.json` + `bun run typecheck`, `bun run test:coverage`, a CI matrix on Ubuntu and Windows, a lockfile, and experiments for profiles/repo performance.
-- **Tests** — 216 tests / 1,384 assertions across 25 files, including a schema-subset guard for every registered tool.
+- **Tests** — 221 tests / 1,404 assertions across 26 files, including a schema-subset guard for every registered tool.
 
 ## 0.4.0
 

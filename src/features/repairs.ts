@@ -15,9 +15,10 @@
  * shape can be recognized after paths, line numbers, or request ids change.
  *
  * Storage is one append-only JSONL file per workspace. Every record() call
- * appends a full snapshot of the entry (last line wins), and the file is
- * atomically compacted once it grows past `maxEntries`, keeping the most
- * frequently successful and most recently used entries.
+ * appends a full snapshot of the entry (last line wins) while holding a
+ * cross-process advisory lock, and the file is atomically compacted once it
+ * grows past `maxEntries`, keeping the most frequently successful and most
+ * recently used entries.
  *
  * A `tools/post-execute` waterfall listener injects at most two matching hints
  * as a labeled user message after an accepted failed tool call. The listener
@@ -35,6 +36,7 @@ import type {
   ToolExecutionLike,
   ToolResultLike,
 } from '../plugin-types.ts'
+import { withFileLock } from '../file-locks.ts'
 import { dshHome, sessionCwd, sha256, userMessage, warn, workspaceKey } from '../shared.ts'
 
 export interface RepairRecord {
@@ -179,31 +181,33 @@ export function applyRepairs(
       const normalized = normalizeRepairMessage(message)
       const signature = repairSignature(tool, errorCode, normalized)
       const file = await fileFor(exec)
-      const state = readRepairs(file)
-      const existing = state.entries.get(signature)
-      const now = Date.now()
-      const record: RepairRecord = {
-        v: 1,
-        id: signature,
-        signature,
-        tool,
-        ...(errorCode === undefined ? {} : { errorCode }),
-        message: normalized,
-        hint,
-        successCount: (existing?.successCount ?? 0) + 1,
-        failCount: existing?.failCount ?? 0,
-        createdAt: existing?.createdAt ?? now,
-        lastUsed: now,
-      }
+      return await withFileLock(file, () => {
+        const state = readRepairs(file)
+        const existing = state.entries.get(signature)
+        const now = Date.now()
+        const record: RepairRecord = {
+          v: 1,
+          id: signature,
+          signature,
+          tool,
+          ...(errorCode === undefined ? {} : { errorCode }),
+          message: normalized,
+          hint,
+          successCount: (existing?.successCount ?? 0) + 1,
+          failCount: existing?.failCount ?? 0,
+          createdAt: existing?.createdAt ?? now,
+          lastUsed: now,
+        }
 
-      mkdirSync(dir, { recursive: true })
-      appendFileSync(file, `${JSON.stringify(record)}\n`, 'utf8')
-      state.entries.set(signature, record)
-      state.lines += 1
-      if (state.entries.size > maxEntries || state.lines > maxEntries) {
-        writeRepairs(file, rankEntries(state.entries.values()).slice(0, maxEntries))
-      }
-      return { id: signature, signature, tool, successCount: record.successCount }
+        mkdirSync(dir, { recursive: true })
+        appendFileSync(file, `${JSON.stringify(record)}\n`, 'utf8')
+        state.entries.set(signature, record)
+        state.lines += 1
+        if (state.entries.size > maxEntries || state.lines > maxEntries) {
+          writeRepairs(file, rankEntries(state.entries.values()).slice(0, maxEntries))
+        }
+        return { id: signature, signature, tool, successCount: record.successCount }
+      }, { dir: join(dir, '.locks') })
     },
   }
 
@@ -356,20 +360,13 @@ export function applyRepairs(
   ): Promise<PostExecuteDecision> => {
     const decision = await next()
     try {
-      if (result?.isError !== true) return decision
       if (decision === null || typeof decision !== 'object' || decision.kind !== 'accept') return decision
 
-      const resultError = result.error
-      const errorCode = typeof resultError?.code === 'string' && resultError.code.trim().length > 0
-        ? resultError.code.trim()
-        : undefined
-      const errorMessage = typeof resultError?.message === 'string' && resultError.message.trim().length > 0
-        ? resultError.message
-        : contentText(result.content)
+      const failure = toolFailure(result)
+      if (failure === undefined) return decision
       const hits = searchRepairs(await fileFor(exec), {
         tool: typeof exec.name === 'string' && exec.name.length > 0 ? exec.name : undefined,
-        errorCode,
-        message: errorMessage,
+        ...failure,
         limit: MAX_INJECTED_HINTS,
       })
       if (hits.count === 0) return decision
@@ -544,6 +541,48 @@ function writeRepairs(file: string, records: RepairRecord[]): void {
       // Best-effort cleanup; a successful rename leaves no temp file.
     }
   }
+}
+
+/** dsh shell tools report a non-zero exit as a normal result, not isError. */
+interface ToolFailure {
+  errorCode?: string
+  message: string
+}
+
+function toolFailure(result: ToolResultLike | undefined): ToolFailure | undefined {
+  if (result === undefined) return undefined
+  if (result.isError === true) {
+    const errorCode = typeof result.error?.code === 'string' && result.error.code.trim().length > 0
+      ? result.error.code.trim()
+      : undefined
+    const message = typeof result.error?.message === 'string' && result.error.message.trim().length > 0
+      ? result.error.message
+      : contentText(result.content)
+    return {
+      ...(errorCode === undefined ? {} : { errorCode }),
+      message,
+    }
+  }
+
+  const value = result.value
+  if (value === null || typeof value !== 'object') return undefined
+  const record = value as Record<string, unknown>
+  if (record.kind !== 'foreground') return undefined
+  if (typeof record.exitCode !== 'number' || !Number.isFinite(record.exitCode) || record.exitCode === 0) {
+    return undefined
+  }
+  const message = [streamText(record.stderr), streamText(record.stdout), contentText(result.content)]
+    .filter(part => part.length > 0)
+    .join('\n')
+  if (message.length === 0) return undefined
+  // Exit codes are not stable error identities; match by tool and output text.
+  return { message }
+}
+
+function streamText(value: unknown): string {
+  if (value === null || typeof value !== 'object') return ''
+  const text = (value as { text?: unknown }).text
+  return typeof text === 'string' ? text : ''
 }
 
 /** dsh tool results may carry text directly or as content blocks. */

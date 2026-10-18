@@ -10,7 +10,7 @@
           useLocks: true
           lockTimeoutMs: 5000
         memory: true
-        repairs: true
+        repairs: true        # opt-in: adds 3 tools and automatic hints
         # Opt-in destructive retention:
         # retention:
         #   maxAgeDays: 30

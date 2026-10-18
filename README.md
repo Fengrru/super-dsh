@@ -1,5 +1,9 @@
 # SuperDSH
 
+[![CI](https://github.com/Fengrru/super-dsh/actions/workflows/ci.yml/badge.svg)](https://github.com/Fengrru/super-dsh/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![dsh](https://img.shields.io/badge/dsh-0.2.1--rc.2-blue.svg)](https://github.com/deepseek-ai/deepseek-harness)
+
 > A safety-first reliability suite for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`): tolerant edits, transactional patches with file locks, recovery plans for side effects, signed tamper-evident audit, content-addressed artifacts, tiered project memory, error-repair memory, a repo map, versioned knowledge, scratchpads, deterministic compaction/reflection/handoff, replay plans, budget reservation, log retention, and tested Nexus-inspired protocol libraries.
 
 SuperDSH is a native dsh plugin bundle, not a fork. It ships as one ESM file with **zero runtime dependencies**, loaded through the ordinary Cordis plugin/profile mechanism. Every feature is independently switchable. Features that are on by default have deterministic tests and a real-dsh smoke; key capabilities also have quantitative experiments, and the default profile itself was chosen by an agent A/B. Features that failed their experiment are documented and left off.
@@ -27,12 +31,21 @@ The fuzzy matcher is adapted from [`awesome-agent-infra`](https://github.com/Fen
 
 ## Install
 
+Published package (after the release workflow runs):
+
+```sh
+dsh plugin --profile headless add dsh-super
+```
+
+Local development build:
+
 ```sh
 git clone https://github.com/Fengrru/super-dsh.git   # once published
 cd super-dsh
 bun install        # no runtime dependencies; build/test toolchain only
 bun run build      # emits dist/index.js
-bun test           # 216 deterministic checks
+bun test           # 221 deterministic checks
+bun run smoke:install  # pack → install → profile check
 ```
 
 Local overlay:
@@ -64,9 +77,9 @@ The default is **core**: the safety/recovery surface without repository-map, ses
 
 | Profile | Tools | Schema tokens/request | Contents |
 |---|---:|---:|---|
-| **core** (default) | 24 | 3,349 | fuzzy edit, apply_patch, memory, audit, effects, artifacts, repairs |
-| coding | 40 | 5,379 | core + repo map/search_code, notes, knowledge, handoff/replay, compact/reflection |
-| full | 44 | 6,005 | coding + verify/budget/retention when configured |
+| **core** (default) | 21 | 2,953 | fuzzy edit, apply_patch, memory, audit, effects, artifacts |
+| coding | 37 | 4,984 | core + repo map/search_code, notes, knowledge, handoff/replay, compact/reflection |
+| full | 41 | 5,610 | coding + verify/budget/retention when configured |
 
 The profile is selected in the plugin config; explicit feature flags override it. Ready-made overlays live in [`presets/`](presets/).
 
@@ -75,7 +88,9 @@ config:
   profile: coding
 ```
 
-**Why core is the default:** a 5-task agent A/B (navigation + multi-file fixes) scored **core 5/5 and coding 5/5**, while coding consumed **25,357 input tokens vs 18,490** (~37% more). The extra coding tools did not improve task success in that sample, so they are opt-in until an agent benchmark shows a win. See `experiments/results/profile-ab-bench.json` and `docs/experiments.md` E12.
+**Why core is the default:** a 5-task agent A/B (navigation + multi-file fixes) scored **core 5/5 and coding 5/5**, while coding consumed **25,357 input tokens vs 18,490** (~37% more). The coding tools did not improve task success in that sample, so they are opt-in until an agent benchmark shows a win. The A/B ran before repair memory became opt-in, so both arms included it; the current core is 21 tools. See `experiments/results/profile-ab-bench.json` and `docs/experiments.md` E12.
+
+**Repair memory is opt-in.** A separate 16-task agent A/B with the same tool surface in both arms found **16/16 passes in both arms**, with **+9.1% input tokens** and **+15.4% output tokens** when hints were injected. The hints did reach 16/16 treatment sessions, so this is a measured null result, not a wiring failure. Enable it with `repairs: true`; see E14.
 
 ## Features
 
@@ -89,7 +104,7 @@ config:
 
 **Project memory** — append-only JSONL per workspace under `$DSH_HOME/super-dsh/memory/`. Tools: `memory_save` (TTL, tier, confidence, derived_from, supersedes), `memory_search`, `memory_forget`, `memory_feedback`, `memory_invalidate`, `memory_consolidate`, `memory_export`/`memory_import` (MEMORY.md style). Three tiers: `core` rules are injected first, `long` facts are retrieved by relevance, `working` entries are scoped to one session. Retrieval combines lexical scoring with confidence, tier, importance, recency, and usage. `memory_consolidate` deterministically merges near-duplicates, archives expired/over-cap entries, and promotes frequently used facts. `derivedFrom` links cascade to `stale` on update/forget, so obsolete conclusions stop being injected.
 
-**Error-repair memory** — `repair_record` stores a normalized error signature (tool + code + path/number/UUID-normalized message) with a fix hint; `repair_search`/`repair_list` retrieve it. On a matching tool error, `tools/post-execute` attaches the prior hint as data, not instructions. Unknown errors are not guessed.
+**Error-repair memory (opt-in)** — `repair_record` stores a normalized error signature (tool + code + path/number/UUID-normalized message) with a fix hint; `repair_search`/`repair_list` retrieve it. On a matching tool error or a shell command with a non-zero exit, `tools/post-execute` attaches the prior hint as data, not instructions. Unknown errors are not guessed. The 16-task A/B found no success gain and higher token use on single-file fixes, so the three repair tools and automatic hints are not in the default profile.
 
 **Log retention (opt-in)** — `archive_ledgers` gzips old audit ledgers plus their head anchors, writes a SHA-256 manifest, verifies the gzip round-trip, and only deletes sources when explicitly requested. `restore_archive` validates every entry before writing and refuses path traversal, symlinks, and overwrites.
 
@@ -150,8 +165,8 @@ Tested TS building blocks, not model-facing tools:
           coreMaxChars: 500
           maxPerTier: 500
           dedupeThreshold: 0.85
-        repairs:
-          maxEntries: 500
+        # repairs:          # opt-in: adds 3 tools and automatic hints
+        #   maxEntries: 500
         retention:
           maxAgeDays: 30
           deleteSource: false
@@ -200,7 +215,7 @@ Quantitative experiments on this machine (Windows 10, Node 24, DeepSeek `deepsee
 
 Nexus-design validation (0.3+, current counts):
 
-- `bun test`: **216 tests / 1,384 assertions** across 25 files, including schema-subset validation for every registered tool.
+- `bun test`: **221 tests / 1,404 assertions** across 26 files, including schema-subset validation for every registered tool.
 - Effects 10,000 calls: **733 ms total, 0.073 ms/call** (20,000 ledger records, 5.5 MB), down from ~33 ms/call.
 - Real kill-9 (`experiments/kill9-effects.ts`): a separate Bun process records an irreversible intent, is killed with `taskkill /F /T` or `SIGKILL`, a new process reconciles it to `unknown`, and the repeated irreversible call is denied — **duplicateDenied=true, duplicateExecutions=0**; the committed control still allows a repeat.
 - Audit: HMAC signatures, stripped/rehashed tamper detection, export with head/verify, and a byte-pinned golden fixture.
@@ -220,6 +235,13 @@ Nexus-design validation (0.3+, current counts):
 - Kill-9 artifacts: a blob written without an index is readable/verifiable after a real process kill, and `artifact_reindex` restores the index.
 - Audit anchor gap: a record appended without a head update is detected (`head anchor expects N records`), no repair.
 - Budget restart: usage is lost by design (900 → 0); documented as a gap.
+
+0.6 repair/default/concurrency validation:
+
+- Repair A/B (`experiments/repairs-ab-bench.ts`): 16 tasks, both arms 16/16; treatment input **31,156 vs 28,546** (+9.1%), output **+15.4%**; hints were observed in **16/16** treatment sessions and **0/16** baseline sessions. Pre-registered rule: no +2 pass win and no 15% token reduction, so `repairs` moves to opt-in and core drops from 24 to 21 tools.
+- Cross-process stores: two Bun processes each write 25 rows to the same memory, repair, and knowledge files. All 50 memory rows and 50 knowledge versions survive; repair `successCount` reaches 50; versions are contiguous and ids unique (`tests/concurrency.test.ts`).
+- Package install smoke: `npm pack` → `dsh plugin add` → `--dump-config` in an isolated `DSH_HOME`; the profile contains `id: super-dsh` (`scripts/install-smoke.ts`, also in CI).
+- Shell-failure hints: repair memory now treats a dsh shell result with `exitCode != 0` as a recoverable failure even though dsh reports it as `isError: false`; a deterministic test covers the injection and the zero-exit/non-shell controls.
 
 Deferred-candidate experiments (pre-registered decision rules):
 
@@ -257,8 +279,9 @@ Full methodology and raw results: [`docs/experiments.md`](docs/experiments.md), 
 - `fuzzy_edit` handles one region per call; `replace_all` is intentionally not exposed.
 - `apply_patch` rollback is best-effort: if a restore write itself fails, the error lists files that could not be restored. Locks are advisory: host `write`/`edit`, external editors, and processes with a different lock dir can bypass them. TTL/symlink/case/normalization caveats apply.
 - The repo map is regex-based, not type-aware; comments/strings can produce false positives, compressed one-line code is under-indexed, and mtime+size is the cache key. It indexes at most `repoMap.maxFiles` files (default 1000); a 2,000-file cold build takes ~2.4–4.5 s. Reference graphs are bounded at 50k edges, 20 definitions per token, and 10 PageRank iterations, so centrality can be approximate on very dense repositories. `refreshMs` defaults to 5 s, so a query can see an index up to 5 s stale after an edit (forced unchanged rescan is ~230–363 ms). `search_code` routes by keyword and still inherits those limits; caller-mode references include comments (which can lower MRR). Set `repoMap.search: false` to hide the extra tool.
-- Effects, knowledge, notes, memory, and repairs are append-only JSONL without cross-process locks; do not run two processes writing the same session/workspace concurrently.
+- Effects and session notes are append-only JSONL per session without cross-process locks; do not run two processes writing the same session concurrently. Memory, repairs, and knowledge serialize their read-modify-write cycles with advisory locks, but readers can still observe a snapshot from before a concurrent write.
 - Memory v2 retrieval is still lexical (no embeddings); consolidation is deterministic token/Jaccard merging, not semantic summarization. `working` entries are session-scoped by the session id available at save time.
+- Repair memory is opt-in. The 16-task A/B was a ceiling experiment on single-file fixes: it shows no benefit and a token cost there, not that hints can never help on harder, cross-session failures.
 - Error-repair matching is lexical and tool/code-filtered; a hint can be wrong for a superficially similar error. Hints are injected as data, not enforced.
 - Retention is opt-in and can delete source ledgers when `delete_source`/`deleteSource` is true; it verifies gzip and SHA-256 before deletion, but backup policy is the operator's responsibility.
 - Audit is unkeyed by default; HMAC signing protects record hashes but key management is the operator's responsibility. A full rewrite with the key can still forge a consistent ledger.
@@ -267,7 +290,7 @@ Full methodology and raw results: [`docs/experiments.md`](docs/experiments.md), 
 - `budget` accumulates event usage; reservations are in-memory and do not survive a restart (confirmed by `experiments/kill9-budget.ts`: 900 → 0), and tools/subagents are not individually priced.
 - The capability/causal/worker modules are tested libraries, not exposed tools; no remote worker runtime is included.
 - The default profile is `core`; the additional coding/full tools register only when explicitly configured. The 5-task A/B is small and does not prove coding tools are never useful.
-- The 88-item analysis is a roadmap, not a claim that every item is implemented. Version 0.5.0 ships the features above; C/D items remain deferred or rejected.
+- The 88-item analysis is a roadmap, not a claim that every item is implemented. Version 0.6.0 ships the features above; C/D items remain deferred or rejected.
 
 ## Credits
 

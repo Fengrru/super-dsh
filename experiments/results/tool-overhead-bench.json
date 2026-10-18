@@ -1,21 +1,21 @@
 {
   "experiment": "tool-overhead-bench",
-  "generatedAt": "2026-10-18T03:07:46.867Z",
+  "generatedAt": "2026-10-18T03:28:46.230Z",
   "profiles": {
     "core": {
-      "tools": 24,
-      "schemaChars": 13393,
-      "approxTokens": 3349
+      "tools": 21,
+      "schemaChars": 11812,
+      "approxTokens": 2953
     },
     "coding": {
-      "tools": 40,
-      "schemaChars": 21515,
-      "approxTokens": 5379
+      "tools": 37,
+      "schemaChars": 19934,
+      "approxTokens": 4984
     },
     "full": {
-      "tools": 44,
-      "schemaChars": 24019,
-      "approxTokens": 6005
+      "tools": 41,
+      "schemaChars": 22438,
+      "approxTokens": 5610
     }
   }
 }

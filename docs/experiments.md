@@ -366,13 +366,13 @@ Every model request pays for the schemas of all registered tools. This experimen
 
 | Profile | Features | Tools | Schema chars | Approx tokens |
 |---|---|---:|---:|---:|
-| core | edit, memory, audit, effects, artifacts, repairs, apply_patch | 24 | 13,393 | **3,349** |
-| coding | core + repo map/search, notes, knowledge, handoff/replay, compact/reflection | 40 | 21,515 | **5,379** |
-| full | coding + verify, budget, retention | 44 | 24,019 | **6,005** |
+| core | edit, memory, audit, effects, artifacts, apply_patch | 21 | 11,812 | **2,953** |
+| coding | core + repo map/search, notes, knowledge, handoff/replay, compact/reflection | 37 | 19,934 | **4,984** |
+| full | coding + verify, budget, retention | 41 | 22,438 | **5,610** |
 
-SuperDSH 0.5 ships these as `core` / `coding` / `full`, with explicit feature flags overriding the profile. `full` includes verify, budget, and retention, but those three register only when their config is present, so an empty `full` profile stays at the 40-tool coding surface.
+SuperDSH 0.6 ships these as `core` / `coding` / `full`, with explicit feature flags overriding the profile. `full` includes verify, budget, and retention, but those three register only when their config is present, so an empty `full` profile stays at the 37-tool coding surface. Repair memory is opt-in after E14 and is not part of any profile; `repairs: true` adds its three tools.
 
-**Initial decision (before E12):** do not keep growing the default tool count. Build the profiles, fix the repo-map cold start, then run an agent A/B to choose the default. E12 resolved the choice: **core is the default**.
+**Initial decision (before E12):** do not keep growing the default tool count. Build the profiles, fix the repo-map cold start, then run an agent A/B to choose the default. E12 resolved the choice: **core is the default**. E14 later removed repair memory from core, which is why the current counts are 21/37/41 rather than 24/40/44.
 
 ## E11 — Repo-map performance
 
@@ -433,7 +433,7 @@ SuperDSH 0.5 ships these as `core` / `coding` / `full`, with explicit feature fl
 
 Per-task input tokens: config-callers 11,775 vs 13,464; server-caller 857 vs 872; transitive-impact 1,563 vs 1,635; two-file-fix 2,273 vs 7,316; single-file-fix 2,022 vs 2,070. The coding arm called `impact_of` once on transitive-impact, but both arms answered correctly.
 
-**Verdict: default profile is `core`.** The coding tools did not win a task in this sample and cost 37% more input tokens. They remain available via `profile: coding` and `presets/coding.yml`.
+**Verdict: default profile is `core`.** The coding tools did not win a task in this sample and cost 37% more input tokens. They remain available via `profile: coding` and `presets/coding.yml`. This run used 24 core / 40 coding tools, before repair memory was demoted by E14; both arms included repairs, so the comparison isolates the coding extras.
 
 **Limitations.** n=5, one model, navigation and small edit tasks only. It does not exercise long-horizon knowledge accumulation, handoff, or multi-session memory, where coding-profile tools could pay off. Absence of a win here is not evidence that coding is useless; it is evidence that it should not be the default without a task-level win.
 
@@ -441,6 +441,58 @@ Per-task input tokens: config-callers 11,775 vs 13,464; server-caller 857 vs 872
 
 
 Several attractive ideas from `awesome-agent-infra` and `nexus-runtime` did **not** survive review. They are documented in [`decisions.md`](decisions.md): the Nexus kernel bridge, a code-graph repo map, hallucination/confidence heuristics, goal-verifier's fallback, replay/dynamic-workflow recovery, and the LLM request dedup cache. The common reasons were: the implementation was a mock or had correctness bugs, the capability duplicated a stronger dsh primitive, or there was no way to measure a benefit in this environment.
+
+## E14 — Repair memory agent A/B
+
+**Hypothesis.** Automatically injecting a prior fix hint after a failure improves task success or reduces token use enough to justify keeping `repairs` in the default core.
+
+**Design.** Sixteen single-file debugging tasks. Both arms enable the repairs feature and therefore expose the same three repair tools; only the treatment DSH_HOME is pre-seeded. For each task, the broken workspace is run once to capture the real `node --test` failure, and that output is recorded as the hint's error message. The hint is the task-specific fix.
+
+**Decision rule (pre-registered).** Keep repairs default-on only if treatment passes at least two more tasks than baseline, or passes no fewer tasks while using at least 15% fewer input tokens. Otherwise make it opt-in.
+
+**Results** (`experiments/results/repairs-ab-bench.json`):
+
+| Metric | baseline | treatment |
+|---|---:|---:|
+| Tasks passed | **16/16** | **16/16** |
+| Input tokens | **28,546** | 31,156 |
+| Output tokens | **12,358** | 14,259 |
+| Wall time | **205.7 s** | 213.7 s |
+| Sessions with an injected hint | 0/16 | **16/16** |
+
+A session-log check confirms the hint reached every treatment session; this is not a wiring failure. The hint costs 9.1% more input and 15.4% more output tokens, with no additional pass.
+
+**Verdict: move `repairs` to opt-in.** The pre-registered rule fails. Core drops from 24 to 21 tools; `repairs: true` restores the feature.
+
+**Limitations.** The corpus is a ceiling experiment: all tasks are small, single-file fixes that the model solves without help. It does not test hard, cross-session, or error-shape-specific failures where a hint could pay for itself. It also uses one model. The result justifies not making repairs a default, not deleting the feature. During this work, shell failures (`exitCode != 0`, `isError: false`) were added to the injection path so `node --test` failures are visible to repair memory at all.
+
+## E15 — Cross-process store safety
+
+**Hypothesis.** Two dsh processes sharing one workspace must not lose or corrupt memory, repair, or knowledge rows.
+
+**Design.** Two independent Bun processes each write 25 rows to the same store:
+
+- memory: 25 unique `memory_save` entries per process;
+- repairs: 25 `repair_record` calls with the same signature per process;
+- knowledge: 25 `knowledge_add` versions for the same key per process.
+
+Mutations hold a per-file advisory lock and reload the file after acquiring it. Tests: `tests/concurrency.test.ts`.
+
+| Store | Invariant | Result |
+|---|---|---|
+| memory | all rows preserved, ids unique | 50/50 rows, 50 unique ids |
+| repairs | final successCount includes both processes | 50 |
+| knowledge | versions contiguous, ids unique | 1..50, 50 unique ids |
+
+**Verdict: accepted.** The read-modify-write cycles serialize instead of interleaving. Readers can still observe a snapshot from before a concurrent write; the lock protects writers, not a consistent multi-file transaction.
+
+## E16 — Package install smoke
+
+**Hypothesis.** The published file set can be installed through the same path users will use.
+
+**Design.** `npm pack` → `dsh plugin --profile headless add <tarball>` in an isolated `DSH_HOME` → `dsh --profile headless --dump-config`, asserting the `id: super-dsh` entry. The smoke script is `scripts/install-smoke.ts`; it runs in CI after the build. A manual follow-up used the real headless CLI and called `artifact_put` / `artifact_verify` successfully against dsh `0.2.1-rc.2`.
+
+**Verdict: accepted.** Packaging and profile installation work. Publishing itself is external and not performed by CI.
 
 ## Reproduction
 
@@ -457,12 +509,17 @@ bun experiments/kill9-effects.ts       # real kill-9
 bun experiments/kill9-artifacts.ts
 bun experiments/kill9-audit-anchor.ts
 bun experiments/kill9-budget.ts
+bun tests/concurrency.test.ts     # E15
+bun run smoke:install             # E16
 
-# Agent-level E2/E3 and the profile A/B (requires a sibling deepseek-harness checkout and DEEPSEEK_API_KEY)
+# Agent-level E2/E3, the profile A/B, and the repair A/B (requires a sibling
+# deepseek-harness checkout and DEEPSEEK_API_KEY)
 SUPER_DSH_BENCH_ONLY=memory SUPER_DSH_BENCH_REPS=2 bun experiments/agent-bench.ts
 SUPER_DSH_BENCH_ONLY=verify bun experiments/agent-bench.ts
 SUPER_DSH_BENCH_JUST_MERGE=1 bun experiments/agent-bench.ts   # re-merge saved per-experiment results
 bun experiments/profile-ab-bench.ts                            # E12
+bun experiments/repairs-ab-bench.ts                             # E14
+SUPER_DSH_REPAIR_LIMIT=2 bun experiments/repairs-ab-bench.ts    # quick subset
 ```
 
 Per-experiment raw data is kept in `experiments/results/agent-bench-memory.json` and `agent-bench-verify.json`; the merged view is `agent-bench.json`.

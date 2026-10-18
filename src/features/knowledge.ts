@@ -10,7 +10,9 @@
  *
  * Because the version (not only the content) is part of the id, rolling back to
  * an earlier content still produces a fresh primary key and a linear history.
- * The file lives outside the workspace, one JSONL file per workspace.
+ * The file lives outside the workspace, one JSONL file per workspace. Version
+ * assignment and appends hold a cross-process advisory lock so two dsh
+ * processes cannot assign the same version from a stale snapshot.
  *
  * Search considers only the latest version of each key, hides expired and
  * disputed entries, scores lexical overlap (key > tags > content) plus a small
@@ -27,6 +29,7 @@ import type {
   ToolDefinitionLike,
   ToolExecutionLike,
 } from '../plugin-types.ts'
+import { withFileLock } from '../file-locks.ts'
 import {
   dshHome,
   messageText,
@@ -292,16 +295,19 @@ export function applyKnowledge(ctx: PluginContext, config: SuperDshConfig): void
     ? 0
     : Math.max(0, Math.floor(Number.isFinite(options.injectTopK) ? options.injectTopK : 0))
 
-  const stores = new Map<string, KnowledgeStore>()
-  const storeFor = (workspace: string): KnowledgeStore => {
-    const key = workspaceKey(workspace)
-    let store = stores.get(key)
-    if (store === undefined) {
-      store = new KnowledgeStore(join(dir, `${key}.jsonl`))
-      stores.set(key, store)
-    }
-    return store
-  }
+  const lockDir = join(dir, '.locks')
+  const storeFile = (workspace: string): string => join(dir, `${workspaceKey(workspace)}.jsonl`)
+  // Load per operation instead of caching so a writer in another dsh process
+  // is visible on the next read and version numbers are computed from disk.
+  const storeFor = (workspace: string): KnowledgeStore => new KnowledgeStore(storeFile(workspace))
+  const withStoreLock = async <T>(
+    workspace: string,
+    callback: (store: KnowledgeStore) => T | Promise<T>,
+  ): Promise<T> => withFileLock(
+    storeFile(workspace),
+    () => callback(storeFor(workspace)),
+    { dir: lockDir },
+  )
 
   ctx.systemPrompt.section({
     name: 'super-dsh:knowledge',
@@ -370,9 +376,11 @@ export function applyKnowledge(ctx: PluginContext, config: SuperDshConfig): void
       const trust = parseTrust(rawArgs.trust, 'draft')
       const ttlDays = parseTtlDays(rawArgs.ttl_days)
       const source = optionalString(rawArgs.source, 'source')
-      const store = storeFor(await sessionCwd(ctx, exec.agent, exec.signal))
-      const entry = store.add({ key, content, tags, trust, ttlDays, source })
-      return { id: entry.id, key: entry.key, version: entry.version, trust: entry.trust }
+      const workspace = await sessionCwd(ctx, exec.agent, exec.signal)
+      return await withStoreLock(workspace, store => {
+        const entry = store.add({ key, content, tags, trust, ttlDays, source })
+        return { id: entry.id, key: entry.key, version: entry.version, trust: entry.trust }
+      })
     },
   }
 
@@ -568,9 +576,11 @@ export function applyKnowledge(ctx: PluginContext, config: SuperDshConfig): void
         throw new Error('trust must be "verified" or "disputed"')
       }
       const note = optionalString(rawArgs.note, 'note')
-      const store = storeFor(await sessionCwd(ctx, exec.agent, exec.signal))
-      const entry = store.verify(id, rawArgs.trust, note)
-      return { id: entry.id, key: entry.key, version: entry.version, trust: entry.trust }
+      const workspace = await sessionCwd(ctx, exec.agent, exec.signal)
+      return await withStoreLock(workspace, store => {
+        const entry = store.verify(id, rawArgs.trust as VerifyTrust, note)
+        return { id: entry.id, key: entry.key, version: entry.version, trust: entry.trust }
+      })
     },
   }
 
@@ -606,9 +616,11 @@ export function applyKnowledge(ctx: PluginContext, config: SuperDshConfig): void
     async execute(rawArgs: Record<string, unknown>, exec: ToolExecutionLike) {
       exec.signal.throwIfAborted()
       const key = requiredString(rawArgs.key, 'key')
-      const store = storeFor(await sessionCwd(ctx, exec.agent, exec.signal))
-      const entry = store.archive(key)
-      return { id: entry.id, key: entry.key, version: entry.version, archived: true }
+      const workspace = await sessionCwd(ctx, exec.agent, exec.signal)
+      return await withStoreLock(workspace, store => {
+        const entry = store.archive(key)
+        return { id: entry.id, key: entry.key, version: entry.version, archived: true }
+      })
     },
   }
 

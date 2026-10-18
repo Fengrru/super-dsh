@@ -99,7 +99,7 @@ type FeatureFlag =
   | 'budget'
   | 'retention'
 
-/** Always-on safety and recovery primitives. */
+/** Default core safety/recovery surface. Repair memory is opt-in. */
 const CORE_FEATURES: readonly FeatureFlag[] = [
   'fuzzyEdit',
   'applyPatch',
@@ -107,7 +107,6 @@ const CORE_FEATURES: readonly FeatureFlag[] = [
   'audit',
   'effects',
   'artifacts',
-  'repairs',
 ]
 
 /** The default profile: core plus project-orientation and session tooling. */

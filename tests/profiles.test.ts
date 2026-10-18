@@ -37,10 +37,9 @@ const CORE_TOOLS = [
   'memory_invalidate',
   'memory_save',
   'memory_search',
-  'repair_list',
-  'repair_record',
-  'repair_search',
 ].sort()
+
+const REPAIR_TOOLS = ['repair_list', 'repair_record', 'repair_search'].sort()
 
 const CODING_EXTRA_TOOLS = [
   'find_symbol',
@@ -82,29 +81,29 @@ function registered(config: SuperDshConfig): string[] {
 }
 
 describe('profiles', () => {
-  test('core registers exactly the core surface (24 tools)', () => {
+  test('core registers exactly the core surface (21 tools)', () => {
     const names = registered({ profile: 'core' })
-    expect(names).toHaveLength(24)
+    expect(names).toHaveLength(21)
     expect(names).toEqual(CORE_TOOLS)
   })
 
-  test('coding adds repo, notes, knowledge, and session tooling (40 tools)', () => {
+  test('coding adds repo, notes, knowledge, and session tooling (37 tools)', () => {
     const names = registered({ profile: 'coding' })
-    expect(names).toHaveLength(40)
+    expect(names).toHaveLength(37)
     expect(names).toEqual(CODING_TOOLS)
     // The coding extra is exactly the 16 tools listed above.
     expect(names.filter(name => CORE_TOOLS.includes(name))).toEqual(CORE_TOOLS)
     expect(names.filter(name => !CORE_TOOLS.includes(name))).toEqual(CODING_EXTRA_TOOLS)
   })
 
-  test('full with verify, budget, and retention configs registers 44 tools', () => {
+  test('full with verify, budget, and retention configs registers 41 tools', () => {
     const names = registered({
       profile: 'full',
       verify: { command: 'node -e "process.exit(0)"' },
       budget: { maxTokens: 1000 },
       retention: { maxAgeDays: 30 },
     })
-    expect(names).toHaveLength(44)
+    expect(names).toHaveLength(41)
     expect(names).toEqual(FULL_TOOLS)
   })
 
@@ -112,13 +111,19 @@ describe('profiles', () => {
     expect(registered({})).toEqual(CORE_TOOLS)
   })
 
-  test('full without operational configs stays at the coding surface (40 tools)', () => {
+  test('full without operational configs stays at the coding surface (37 tools)', () => {
     const names = registered({ profile: 'full' })
-    expect(names).toHaveLength(40)
+    expect(names).toHaveLength(37)
     expect(names).toEqual(CODING_TOOLS)
     expect(names).not.toContain('verify')
     expect(names).not.toContain('budget_status')
     expect(names).not.toContain('archive_ledgers')
+  })
+
+  test('repair memory is opt-in and can be enabled in core', () => {
+    const names = registered({ profile: 'core', repairs: true })
+    expect(names).toHaveLength(CORE_TOOLS.length + REPAIR_TOOLS.length)
+    expect(names).toEqual([...CORE_TOOLS, ...REPAIR_TOOLS].sort())
   })
 
   test('explicit repoMap: true enables the repo map tools in core', () => {

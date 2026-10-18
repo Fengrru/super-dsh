@@ -11,7 +11,9 @@
  * it to remember something, or when it learns a durable project convention.
  * The JSONL file is append-only for saves; feedback/invalidate/consolidate and
  * forget rewrite atomically (temp file + rename) so a crash cannot leave a torn
- * live file. Multi-process writers are still not coordinated.
+ * live file. Mutations hold a cross-process advisory lock and reload the file
+ * after acquiring it, so two dsh processes sharing a workspace serialize their
+ * read-modify-write cycles instead of losing each other's updates.
  */
 
 import {
@@ -32,6 +34,7 @@ import type {
   ToolDefinitionLike,
   ToolExecutionLike,
 } from '../plugin-types.ts'
+import { withFileLock } from '../file-locks.ts'
 import { stableAgentKey } from '../session-id.ts'
 import { dshHome, messageText, sessionCwd, userMessage, workspaceKey, warn } from '../shared.ts'
 
@@ -539,16 +542,19 @@ export function applyMemory(
   const configuredDedupeThreshold = options.dedupeThreshold === undefined
     ? 0.85
     : clamp(options.dedupeThreshold, 0, 1)
-  const stores = new Map<string, MemoryStore>()
-  const storeFor = (workspace: string): MemoryStore => {
-    const key = workspaceKey(workspace)
-    let store = stores.get(key)
-    if (store === undefined) {
-      store = new MemoryStore(join(dir, `${key}.jsonl`), maxEntries)
-      stores.set(key, store)
-    }
-    return store
-  }
+  const lockDir = join(dir, '.locks')
+  const storeFile = (workspace: string): string => join(dir, `${workspaceKey(workspace)}.jsonl`)
+  // Load per operation rather than caching: a second dsh process may have
+  // appended since the last call, and the file is small (maxEntries-bounded).
+  const storeFor = (workspace: string): MemoryStore => new MemoryStore(storeFile(workspace), maxEntries)
+  const withStoreLock = async <T>(
+    workspace: string,
+    callback: (store: MemoryStore) => T | Promise<T>,
+  ): Promise<T> => withFileLock(
+    storeFile(workspace),
+    () => callback(storeFor(workspace)),
+    { dir: lockDir },
+  )
 
   ctx.systemPrompt.section({
     name: 'super-dsh:memory',
@@ -636,19 +642,21 @@ export function applyMemory(
       const supersedes = stringArray(rawArgs.supersedes)
       const ttlDays = typeof rawArgs.ttl_days === 'number' ? rawArgs.ttl_days : undefined
       const sessionId = tier === 'working' ? stableAgentKey(exec.agent) : undefined
-      const store = storeFor(await sessionCwd(ctx, exec.agent, exec.signal))
-      const entry = store.save({
-        text,
-        tags,
-        importance,
-        tier,
-        ...(confidence === undefined ? {} : { confidence }),
-        derivedFrom,
-        supersedes,
-        ...(ttlDays === undefined ? {} : { ttlDays }),
-        ...(sessionId === undefined ? {} : { sessionId }),
+      const workspace = await sessionCwd(ctx, exec.agent, exec.signal)
+      return await withStoreLock(workspace, store => {
+        const entry = store.save({
+          text,
+          tags,
+          importance,
+          tier,
+          ...(confidence === undefined ? {} : { confidence }),
+          derivedFrom,
+          supersedes,
+          ...(ttlDays === undefined ? {} : { ttlDays }),
+          ...(sessionId === undefined ? {} : { sessionId }),
+        })
+        return { id: entry.id, stored: true, count: store.size() }
       })
-      return { id: entry.id, stored: true, count: store.size() }
     },
   }
 
@@ -756,9 +764,11 @@ export function applyMemory(
     async execute(rawArgs: Record<string, unknown>, exec: ToolExecutionLike) {
       exec.signal.throwIfAborted()
       const id = typeof rawArgs.id === 'string' ? rawArgs.id : ''
-      const store = storeFor(await sessionCwd(ctx, exec.agent, exec.signal))
-      const removed = id.length > 0 ? store.forget(id) : false
-      return { removed, count: store.size() }
+      const workspace = await sessionCwd(ctx, exec.agent, exec.signal)
+      return await withStoreLock(workspace, store => {
+        const removed = id.length > 0 ? store.forget(id) : false
+        return { removed, count: store.size() }
+      })
     },
   }
 
@@ -800,9 +810,11 @@ export function applyMemory(
       if (id.length === 0) throw new Error('id must be a non-empty string')
       if (typeof rawArgs.useful !== 'boolean') throw new Error('useful must be a boolean')
       const note = typeof rawArgs.note === 'string' ? rawArgs.note : undefined
-      const store = storeFor(await sessionCwd(ctx, exec.agent, exec.signal))
-      const entry = store.feedback(id, rawArgs.useful, note)
-      return { id: entry.id, confidence: entry.confidence, uses: entry.uses, state: entry.state }
+      const workspace = await sessionCwd(ctx, exec.agent, exec.signal)
+      return await withStoreLock(workspace, store => {
+        const entry = store.feedback(id, rawArgs.useful as boolean, note)
+        return { id: entry.id, confidence: entry.confidence, uses: entry.uses, state: entry.state }
+      })
     },
   }
 
@@ -842,9 +854,11 @@ export function applyMemory(
       const id = typeof rawArgs.id === 'string' ? rawArgs.id.trim() : ''
       if (id.length === 0) throw new Error('id must be a non-empty string')
       const reason = typeof rawArgs.reason === 'string' ? rawArgs.reason : undefined
-      const store = storeFor(await sessionCwd(ctx, exec.agent, exec.signal))
-      const result = store.invalidate(id, reason)
-      return { id, stale: result.stale, ids: result.ids }
+      const workspace = await sessionCwd(ctx, exec.agent, exec.signal)
+      return await withStoreLock(workspace, store => {
+        const result = store.invalidate(id, reason)
+        return { id, stale: result.stale, ids: result.ids }
+      })
     },
   }
 
@@ -890,12 +904,12 @@ export function applyMemory(
       const threshold = typeof rawArgs.dedupe_threshold === 'number' && Number.isFinite(rawArgs.dedupe_threshold)
         ? clamp(rawArgs.dedupe_threshold, 0, 1)
         : configuredDedupeThreshold
-      const store = storeFor(await sessionCwd(ctx, exec.agent, exec.signal))
-      return store.consolidate({
+      const workspace = await sessionCwd(ctx, exec.agent, exec.signal)
+      return await withStoreLock(workspace, store => store.consolidate({
         dryRun,
         dedupeThreshold: threshold,
         ...(configuredMaxPerTier === undefined ? {} : { maxPerTier: configuredMaxPerTier }),
-      })
+      }))
     },
   }
 
@@ -968,9 +982,11 @@ export function applyMemory(
       exec.signal.throwIfAborted()
       const content = typeof rawArgs.content === 'string' ? rawArgs.content : ''
       if (content.trim().length === 0) throw new Error('content must be non-empty Markdown')
-      const store = storeFor(await sessionCwd(ctx, exec.agent, exec.signal))
-      const imported = store.importMarkdown(content)
-      return { imported, count: store.size() }
+      const workspace = await sessionCwd(ctx, exec.agent, exec.signal)
+      return await withStoreLock(workspace, store => {
+        const imported = store.importMarkdown(content)
+        return { imported, count: store.size() }
+      })
     },
   }
 
