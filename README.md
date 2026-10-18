@@ -31,7 +31,7 @@ The fuzzy matcher is adapted from [`awesome-agent-infra`](https://github.com/Fen
 
 ## Install
 
-Published package (after the release workflow runs):
+Published package (after the npm package is published):
 
 ```sh
 dsh plugin --profile headless add dsh-super

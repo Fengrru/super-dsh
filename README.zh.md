@@ -31,7 +31,7 @@ dsh 的插件机制很强，但公共组合仍有执行空白：
 
 ## 安装
 
-发布后的 npm 包（release workflow 运行后）：
+发布后的 npm 包（npm 包发布后）：
 
 ```sh
 dsh plugin --profile headless add dsh-super
