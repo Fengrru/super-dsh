@@ -22,8 +22,8 @@
 - 版本：**0.1.0**（首个开源版本）
 - 仓库：<https://github.com/Fengrru/super-dsh>
 - 发布页：<https://github.com/Fengrru/super-dsh/releases/tag/v0.1.0>
-- 测试：**221 tests / 1,404 assertions**，26 个测试文件
-- 覆盖率：**95.41% lines / 93.01% functions**
+- 测试：**222 tests / 1,412 assertions**，26 个测试文件
+- 覆盖率：**95.50% lines / 93.08% functions**
 - 运行时依赖：**0**
 - 验证宿主：dsh `0.2.1-rc.2`（pre-stable）
 - 实验环境：Windows 10、Node 24、DeepSeek `deepseek-flash`；样本较小，结论以各实验的限制为准

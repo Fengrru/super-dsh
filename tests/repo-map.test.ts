@@ -158,6 +158,34 @@ describe('repository map', () => {
     expect(JSON.stringify(map)).not.toContain('node_modules')
   })
 
+  test('extracts symbols from Python, Rust, Go, and Java sources', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'super-dsh-repo-langs-'))
+    mkdirSync(join(root, 'py'), { recursive: true })
+    mkdirSync(join(root, 'rs'), { recursive: true })
+    mkdirSync(join(root, 'go'), { recursive: true })
+    mkdirSync(join(root, 'java'), { recursive: true })
+    writeFileSync(join(root, 'py', 'app.py'), 'def python_helper():\n    return 1\n', 'utf8')
+    writeFileSync(join(root, 'rs', 'lib.rs'), 'pub fn rust_helper() -> i32 {\n    1\n}\n', 'utf8')
+    writeFileSync(join(root, 'go', 'main.go'), 'package main\n\nfunc GoHelper() int {\n\treturn 1\n}\n', 'utf8')
+    writeFileSync(
+      join(root, 'java', 'Main.java'),
+      'public class Main {\n  public static int javaHelper() {\n    return 1;\n  }\n}\n',
+      'utf8',
+    )
+
+    const tools = repo(root)
+    for (const [name, file] of [
+      ['python_helper', 'py/app.py'],
+      ['rust_helper', 'rs/lib.rs'],
+      ['GoHelper', 'go/main.go'],
+      ['Main', 'java/Main.java'],
+    ] as const) {
+      const found = await tools.find.execute({ name }, exec())
+      expect(found.count).toBeGreaterThan(0)
+      expect((found.symbols as FoundSymbol[]).some(symbol => symbol.file === file)).toBe(true)
+    }
+  })
+
   test('impact_of returns an empty result for an unknown symbol', async () => {
     const root = fixture()
     const tools = repo(root)

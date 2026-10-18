@@ -43,7 +43,7 @@ one zero-runtime-dependency ESM plugin bundle. Pre-release development notes
   causal invalidation, deterministic consolidation, TTL, and MEMORY.md-style
   import/export.
 - **Repo map** — `repo_map`, `find_symbol`, `impact_of`, and `search_code` for
-  TS/JS, Python, Rust, Go, and Java. A 2,000-file build takes **2.4–4.5 s**
+  TS/JS, Python, Rust, Go, and Java. A 2,000-file build takes **2.4–4.6 s**
   (down from 33.3 s), with TTL-warm queries at **0.1 ms**.
 - **Versioned knowledge**, **session notes**, **deterministic handoff**,
   **machine-readable replay plans**, **budgeted history compaction**, and
@@ -68,8 +68,10 @@ one zero-runtime-dependency ESM plugin bundle. Pre-release development notes
 
 ### Evidence
 
-The repository contains 16 experiment write-ups (E1–E16), 24 scripts, and 26
-raw JSON result files. Negative results are kept: Best-of-N planning, Valid8,
+The repository contains 16 experiment write-ups (E1–E16), 24 scripts, and 27
+raw JSON result files. Cross-session memory was expanded from two to ten pairs:
+baseline **0/10**, treatment **10/10**, with session-2 output tokens
+**222–678** vs **44–107**. Negative results are kept: Best-of-N planning, Valid8,
 POMDP, reasoning-search, process-reward, agent-metacog,
 hallucination-detector, and code-sandbox were not added; repair memory was
 demoted to opt-in. See [`docs/experiments.md`](docs/experiments.md) and
@@ -77,8 +79,8 @@ demoted to opt-in. See [`docs/experiments.md`](docs/experiments.md) and
 
 ### Validation
 
-- 221 tests / 1,404 assertions across 26 files.
-- 95.41% line / 93.01% function coverage.
+- 222 tests / 1,412 assertions across 26 files.
+- 95.50% line / 93.08% function coverage.
 - `bun run typecheck`, `bun run build`, and `bun run smoke:install` pass.
 - Manual install and `artifact_put` / `artifact_verify` smoke on published
   dsh `0.2.1-rc.2`.

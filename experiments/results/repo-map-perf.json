@@ -1,18 +1,18 @@
 {
   "experiment": "repo-map-perf",
-  "generatedAt": "2026-10-18T03:09:07.505Z",
-  "root": "C:\\Users\\fengrru\\Desktop\\新建文件夹\\deepseek-harness",
+  "generatedAt": "2026-10-18T05:06:36.992Z",
+  "root": "..\\deepseek-harness",
   "maxFiles": 2000,
   "files": 2000,
   "returnedSymbols": 10,
-  "coldMs": 2375.6,
+  "coldMs": 4607.7,
   "warmMs": {
     "p50": 0.1,
     "max": 0.2
   },
   "forcedScanMs": {
-    "p50": 230.3,
-    "max": 2364.2
+    "p50": 267.5,
+    "max": 2636.2
   },
   "thresholds": {
     "coldMs": 5000,

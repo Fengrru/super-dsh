@@ -51,7 +51,7 @@ Match strategies used: literal 19, whitespace-normalized 29, token-match 10, ind
 
 **Hypothesis.** A project-scoped, file-backed memory can carry durable facts from one session to a new session after the workspace has been wiped.
 
-**Design.** Two arms, two pairs each.
+**Design.** Two arms, ten pairs each. The original two-pair run is archived in `experiments/results/agent-bench-memory-2pairs.json`; the expanded run below uses the same prompts and checker.
 
 - Session 1: the user states a test command (`bun test --coverage`) and a naming convention (`snake_case`), asks the agent to remember them, and forbids file edits/commands.
 - The workspace is deleted and recreated, so no file can carry state.
@@ -65,14 +65,14 @@ Match strategies used: literal 19, whitespace-normalized 29, token-match 10, ind
 
 | Metric | Baseline | Treatment |
 |---|---|---|
-| Pairs recalling both facts | 0/2 | **2/2** |
-| Memory store after session 1 | absent | present in both pairs, with both facts |
+| Pairs recalling both facts | 0/10 | **10/10** |
+| Memory store after session 1 | absent | present in all 10 pairs, with both facts |
 | Session-2 tool calls | 0 | 0 (memory injected automatically) |
-| Session-2 output tokens | 240–317 | 69–87 |
+| Session-2 output tokens | 222–678 | 44–107 |
 
 Baseline session 2 correctly abstained ("I can't answer either question reliably without inspecting the project"). Treatment session 2 answered both facts directly. The workspace was wiped between sessions, so only the external memory store could carry them.
 
-**Verdict: accepted (default on).** Recall was complete in both pairs; baseline was 0/2.
+**Verdict: accepted (default on).** Recall was complete in all 10 pairs; baseline was 0/10. The expanded run confirms the original two-pair result.
 
 Raw data: `experiments/results/agent-bench.json` (`experiment: "memory"`).
 
@@ -394,15 +394,15 @@ SuperDSH 0.1.0 ships these as `core` / `coding` / `full`, with explicit feature 
 | Metric | Result |
 |---|---:|
 | Files indexed | 2,000 |
-| Cold build | **2,375.6 ms** (4,500.2 ms on the first uncached run; previous implementation: 33.3 s) |
+| Cold build | **4,607.7 ms** (2,375.6 ms in a warm-cache run; previous implementation: 33.3 s) |
 | Warm TTL query p50 | **0.1 ms** |
 | Warm TTL query max | 0.2 ms |
-| Forced unchanged rescan p50 | 230.3 ms (363.4 ms in the first run) |
-| Forced unchanged rescan max | 2,364.2 ms (includes the first cold build) |
+| Forced unchanged rescan p50 | 267.5 ms (230.3–363.4 ms across runs) |
+| Forced unchanged rescan max | 2,636.2 ms (includes the first cold build) |
 
 **Verdict: accepted.** Both thresholds pass in every run. The previous 33.3 s cold start is no longer a blocker for `search_code`; even the uncached 4.5 s run stays under the 5 s limit. The 0.1 ms warm number measures a TTL cache hit, not a re-scan; the forced-rescan number is the honest cost when the cache is bypassed.
 
-**Limitations.** The TTL can serve an index up to 5 s stale after an edit; `refreshMs: 0` trades latency for freshness. The cold build is 2.4–4.5 s on this 2,000-file checkout depending on OS cache state. Indexing remains regex-heuristic (comments and strings can be misread) and keys invalidation on mtime+size. The bounded graph (50k reference edges, 20 definitions per token) and 10 PageRank iterations can make centrality/reference results approximate on very dense repositories.
+**Limitations.** The TTL can serve an index up to 5 s stale after an edit; `refreshMs: 0` trades latency for freshness. The cold build is 2.4–4.6 s on this 2,000-file checkout depending on OS cache state. Indexing remains regex-heuristic (comments and strings can be misread) and keys invalidation on mtime+size. The bounded graph (50k reference edges, 20 definitions per token) and 10 PageRank iterations can make centrality/reference results approximate on very dense repositories.
 
 ## E12 — Agent A/B: core vs coding profile
 

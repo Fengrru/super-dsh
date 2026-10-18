@@ -9,8 +9,8 @@ Last updated with 0.1.0.
 Current inventory:
 
 - **41 model-facing tools** at the `full` profile; the default `core` profile registers **21** (coding: 37). Repair memory's three tools are opt-in and outside every profile.
-- **221 tests / 1,404 assertions** across 26 test files; **95.41% line / 93.01% function coverage**. Weak spots remain `vendor/fuzzy-patch.ts` (59.6% lines), `verify.ts` (69.9%), and `repo-map.ts` (80.2%).
-- **24 experiment scripts** and **26 result JSON files** under `experiments/`.
+- **222 tests / 1,412 assertions** across 26 test files; **95.50% line / 93.08% function coverage**. Weak spots remain `vendor/fuzzy-patch.ts` (59.6% lines), `verify.ts` (69.9%), and `repo-map.ts` (86.2%).
+- **24 experiment scripts** and **27 result JSON files** under `experiments/`.
 - **6 quantitative agent/retrieval experiments**: patch drift, cross-session memory, audit tamper, verification gate, profile A/B, repair memory A/B.
 - **Deterministic/prototype experiments**: effects perf + real kill-9, artifact crash, audit anchor gap, budget restart loss, memory v2 consolidation, repair memory, agentic search, repo-map performance, tool-schema overhead, cross-process store writes, package install smoke, best-of-N, Valid8, skill curation, POMDP, reasoning-search, process-reward, agent-metacog, hallucination-detector, code-sandbox.
 
@@ -39,7 +39,7 @@ The table lists the union. `core` = editing + memory + effects/audit + artifacts
 - Memory v2, error-repair memory, retention — implemented and benchmarked; repair memory was later demoted to opt-in by E14.
 - `artifact_reindex` — added after the real kill-9 artifact experiment showed blobs survive without an index and the index must be reconstructable.
 - `core` / `coding` / `full` profiles — tool-overhead measurement plus the E12 agent A/B; `core` is now the default.
-- Repo-map performance work — async reads, TTL cache, precomputed sorted symbols, bounded graph/PageRank; cold 33.3s → 2.4–4.5s.
+- Repo-map performance work — async reads, TTL cache, precomputed sorted symbols, bounded graph/PageRank; cold 33.3s → 2.4–4.6s.
 - Cross-process locks for memory, repair, and knowledge read-modify-write cycles, with two-process tests.
 - Shell-failure detection for repair hints, with deterministic injection/exit-zero/non-shell tests.
 - Package `npm pack` → `dsh plugin add` smoke in CI.
@@ -58,8 +58,9 @@ Best-of-N planning, Valid8 gate, POMDP, reasoning-search, process-reward, agent-
 | full | 41 | 5,610 | Opt-in; verify/budget/retention need config |
 
 - Profile A/B: core 5/5 and coding 5/5; input tokens 18,490 vs 25,357; output 3,740 vs 5,605. Coding did not win a task, so core is the default (E12; run before repairs was demoted, both arms included repairs).
+- Cross-session memory replication: 10 pairs, baseline **0/10**, treatment **10/10**; session-2 output tokens **222–678** vs **44–107** (E2).
 - Repair A/B: 16/16 passes in both arms; hints reached 16/16 treatment sessions but cost +9.1% input and +15.4% output tokens. Repairs moved to opt-in (E14).
-- `repo_map` over 2,000 files: cold **2.4–4.5s** (was 33.3s), TTL warm p50 **0.1ms**, forced unchanged rescan p50 **230–363ms** (E11).
+- `repo_map` over 2,000 files: cold **2.4–4.6s** (was 33.3s), TTL warm p50 **0.1ms**, forced unchanged rescan p50 **230–363ms** (E11).
 - Effects recording: **0.073ms/call**. Audit: ~1.76ms/event.
 - Artifact crash: a blob written before the process was killed is readable/verifiable by hash, and `artifact_reindex` restores the index.
 - Cross-process stores: 50/50 memory rows, 50 repair increments, and 50 contiguous knowledge versions across two writers (E15).

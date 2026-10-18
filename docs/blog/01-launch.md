@@ -59,7 +59,7 @@ SuperDSH 一开始就限制了三件事：
 
 所有工具 schema 都要付费。core 只保留安全和恢复原语；`repair memory` 曾经在 core，后来被一次 null result 移出去了，这是后话。
 
-## 三个改变决策的实验
+## 四个改变决策的实验
 
 ### 1. 容错编辑：33.8% → 90.0%
 
@@ -92,6 +92,12 @@ coding 没有赢下任何一个任务，却贵了约 37% 输入 token。所以�
 这次实验还暴露了一个真实 bug：dsh 的 shell 非零退出是 `isError: false`，原实现只看 `isError`，所以 repair memory 根本看不到 `node --test` 失败。现在它会识别结构化 foreground 结果的非零 `exitCode`，并用 stderr/stdout 匹配提示。
 
 详细过程见 [《一次 null result 如何让一个功能退出默认配置》](03-repairs-null-result.md)。
+
+### 4. 跨会话记忆：0/10 → 10/10
+
+最初的两对 memory 实验后来扩展到十对。两个 session 之间删除并重建 workspace，只保留 `DSH_HOME`。结果 baseline **0/10** 召回，treatment **10/10** 召回；session 2 输出 token 从 **222–678** 降到 **44–107**。
+
+这支持 memory 作为默认能力，但它验证的是“用户明确要求记住、之后能取回”，不是长期记忆质量。检索仍然是词法的。
 
 ## 崩溃之后会发生什么
 

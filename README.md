@@ -47,6 +47,8 @@ Published package (after the npm package is published):
 dsh plugin --profile headless add dsh-super
 ```
 
+`dsh plugin add` uses `pnpm`; install it and make sure it is on `PATH` before adding the plugin.
+
 Local development build:
 
 ```sh
@@ -54,7 +56,7 @@ git clone https://github.com/Fengrru/super-dsh.git   # once published
 cd super-dsh
 bun install        # no runtime dependencies; build/test toolchain only
 bun run build      # emits dist/index.js
-bun test           # 221 deterministic checks
+bun test           # 222 deterministic checks
 bun run smoke:install  # pack → install → profile check
 ```
 
@@ -219,13 +221,13 @@ Quantitative experiments on this machine (Windows 10, Node 24, DeepSeek `deepsee
 | Patch success under formatting drift (80 cases) | 33.8% correct | **90.0% correct** | Accept |
 | Wrong-region edits under drift | 0 | **0** | Guardrail held |
 | Ambiguous / no-match refusals | 100% | **100%** | Guardrail held |
-| Cross-session memory (2 pairs) | 0/2 recalled | **2/2 recalled** | Accept |
+| Cross-session memory (10 pairs) | 0/10 recalled | **10/10 recalled** | Accept |
 | Audit tamper scenarios (4 kinds) | 0% detected | **100% detected** | Accept |
 | Verification gate (4 seeded tasks) | 4/4 pass | 4/4 pass | No gain; keep opt-in |
 
 Nexus-design validation (current counts):
 
-- `bun test`: **221 tests / 1,404 assertions** across 26 files, including schema-subset validation for every registered tool.
+- `bun test`: **222 tests / 1,412 assertions** across 26 files, including schema-subset validation for every registered tool.
 - Effects 10,000 calls: **733 ms total, 0.073 ms/call** (20,000 ledger records, 5.5 MB), down from ~33 ms/call.
 - Real kill-9 (`experiments/kill9-effects.ts`): a separate Bun process records an irreversible intent, is killed with `taskkill /F /T` or `SIGKILL`, a new process reconciles it to `unknown`, and the repeated irreversible call is denied — **duplicateDenied=true, duplicateExecutions=0**; the committed control still allows a repeat.
 - Audit: HMAC signatures, stripped/rehashed tamper detection, export with head/verify, and a byte-pinned golden fixture.
@@ -241,14 +243,15 @@ Memory/repair/retention validation:
 Profile/performance/crash validation:
 
 - Profile A/B (`experiments/profile-ab-bench.ts`): core **5/5**, coding **5/5**, input tokens **18,490 vs 25,357**, output **3,740 vs 5,605**; default is now core.
-- Repo map (`experiments/repo-map-perf.ts`, 2,000 files): cold **2,376 ms** (4,500 ms on the first uncached run; was 33.3 s), TTL warm p50 **0.1 ms**, forced unchanged rescan p50 **230 ms**.
+- Repo map (`experiments/repo-map-perf.ts`, 2,000 files): cold **2.4–4.6 s** (latest 4,607.7 ms; was 33.3 s), TTL warm p50 **0.1 ms**, forced unchanged rescan p50 **230–363 ms**.
 - Kill-9 artifacts: a blob written without an index is readable/verifiable after a real process kill, and `artifact_reindex` restores the index.
 - Audit anchor gap: a record appended without a head update is detected (`head anchor expects N records`), no repair.
 - Budget restart: usage is lost by design (900 → 0); documented as a gap.
 
-Repair/default/concurrency validation:
+Repair/default/concurrency/memory validation:
 
 - Repair A/B (`experiments/repairs-ab-bench.ts`): 16 tasks, both arms 16/16; treatment input **31,156 vs 28,546** (+9.1%), output **+15.4%**; hints were observed in **16/16** treatment sessions and **0/16** baseline sessions. Pre-registered rule: no +2 pass win and no 15% token reduction, so `repairs` moves to opt-in and core drops from 24 to 21 tools.
+- Memory replication (`experiments/agent-bench.ts`): 10 cross-session pairs, baseline **0/10**, treatment **10/10**; session-2 output tokens **222–678** vs **44–107**.
 - Cross-process stores: two Bun processes each write 25 rows to the same memory, repair, and knowledge files. All 50 memory rows and 50 knowledge versions survive; repair `successCount` reaches 50; versions are contiguous and ids unique (`tests/concurrency.test.ts`).
 - Package install smoke: `npm pack` → `dsh plugin add` → `--dump-config` in an isolated `DSH_HOME`; the profile contains `id: super-dsh` (`scripts/install-smoke.ts`, also in CI).
 - Shell-failure hints: repair memory now treats a dsh shell result with `exitCode != 0` as a recoverable failure even though dsh reports it as `isError: false`; a deterministic test covers the injection and the zero-exit/non-shell controls.
@@ -288,7 +291,7 @@ Full methodology and raw results: [`docs/experiments.md`](docs/experiments.md), 
 - dsh's public APIs are **pre-stable** (validated against `0.2.1-rc.2`).
 - `fuzzy_edit` handles one region per call; `replace_all` is intentionally not exposed.
 - `apply_patch` rollback is best-effort: if a restore write itself fails, the error lists files that could not be restored. Locks are advisory: host `write`/`edit`, external editors, and processes with a different lock dir can bypass them. TTL/symlink/case/normalization caveats apply.
-- The repo map is regex-based, not type-aware; comments/strings can produce false positives, compressed one-line code is under-indexed, and mtime+size is the cache key. It indexes at most `repoMap.maxFiles` files (default 1000); a 2,000-file cold build takes ~2.4–4.5 s. Reference graphs are bounded at 50k edges, 20 definitions per token, and 10 PageRank iterations, so centrality can be approximate on very dense repositories. `refreshMs` defaults to 5 s, so a query can see an index up to 5 s stale after an edit (forced unchanged rescan is ~230–363 ms). `search_code` routes by keyword and still inherits those limits; caller-mode references include comments (which can lower MRR). Set `repoMap.search: false` to hide the extra tool.
+- The repo map is regex-based, not type-aware; comments/strings can produce false positives, compressed one-line code is under-indexed, and mtime+size is the cache key. It indexes at most `repoMap.maxFiles` files (default 1000); a 2,000-file cold build takes ~2.4–4.6 s. Reference graphs are bounded at 50k edges, 20 definitions per token, and 10 PageRank iterations, so centrality can be approximate on very dense repositories. `refreshMs` defaults to 5 s, so a query can see an index up to 5 s stale after an edit (forced unchanged rescan is ~230–363 ms). `search_code` routes by keyword and still inherits those limits; caller-mode references include comments (which can lower MRR). Set `repoMap.search: false` to hide the extra tool.
 - Effects and session notes are append-only JSONL per session without cross-process locks; do not run two processes writing the same session concurrently. Memory, repairs, and knowledge serialize their read-modify-write cycles with advisory locks, but readers can still observe a snapshot from before a concurrent write.
 - Memory v2 retrieval is still lexical (no embeddings); consolidation is deterministic token/Jaccard merging, not semantic summarization. `working` entries are session-scoped by the session id available at save time.
 - Repair memory is opt-in. The 16-task A/B was a ceiling experiment on single-file fixes: it shows no benefit and a token cost there, not that hints can never help on harder, cross-session failures.

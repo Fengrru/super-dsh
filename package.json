@@ -12,6 +12,7 @@
     "dist/index.js",
     "cordis.patch.yml",
     "presets",
+    "scripts",
     "README.md",
     "README.zh.md",
     "CHANGELOG.md",

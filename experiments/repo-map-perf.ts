@@ -6,7 +6,7 @@
  */
 
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { join, relative, resolve } from 'node:path'
 import { applyRepoMap } from '../src/features/repo-map.ts'
 import { fakeContext, exec } from '../tests/fake-context.ts'
 
@@ -55,7 +55,7 @@ async function measure(): Promise<void> {
   const result = {
     experiment: 'repo-map-perf',
     generatedAt: new Date().toISOString(),
-    root,
+    root: relative(process.cwd(), root) || '.',
     maxFiles: MAX_FILES,
     files: coldResult.files,
     returnedSymbols: coldResult.count,

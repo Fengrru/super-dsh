@@ -47,6 +47,8 @@ dsh 的插件机制很强，但公共组合仍有执行空白：
 dsh plugin --profile headless add dsh-super
 ```
 
+`dsh plugin add` 依赖 `pnpm`；安装插件前请确保 `pnpm` 在 `PATH` 中。
+
 本地开发构建：
 
 ```sh
@@ -54,7 +56,7 @@ git clone https://github.com/Fengrru/super-dsh.git   # 发布后
 cd super-dsh
 bun install        # 无运行时依赖，仅构建/测试需要
 bun run build      # 生成 dist/index.js
-bun test           # 221 个确定性检查
+bun test           # 222 个确定性检查
 bun run smoke:install  # 打包 → 安装 → profile 检查
 ```
 
@@ -219,13 +221,13 @@ config:
 | 格式漂移补丁（80 例） | 33.8% 正确 | **90.0% 正确** | 接受 |
 | 漂移下错区编辑 | 0 | **0** | 护栏保持 |
 | 歧义/不匹配拒绝 | 100% | **100%** | 护栏保持 |
-| 跨会话记忆（2 组） | 0/2 召回 | **2/2 召回** | 接受 |
+| 跨会话记忆（10 组） | 0/10 召回 | **10/10 召回** | 接受 |
 | 审计篡改（4 类） | 0% 检出 | **100% 检出** | 接受 |
 | 验证闸门（4 个任务） | 4/4 通过 | 4/4 通过 | 无增益，保持可选 |
 
 Nexus 设计验证（当前计数）：
 
-- `bun test`：**221 个测试 / 1,404 个断言**，26 个文件，包含对每个注册工具 schema 子集的校验。
+- `bun test`：**222 个测试 / 1,412 个断言**，26 个文件，包含对每个注册工具 schema 子集的校验。
 - Effects 10,000 次调用：**733ms 总计，0.073ms/次**（20,000 条账本记录，5.5MB），从约 33ms/次降下来。
 - 真实 kill-9（`experiments/kill9-effects.ts`）：独立 Bun 进程记录不可逆 intent，被 `taskkill /F /T` 或 `SIGKILL` 杀死，新进程把它对账为 `unknown`，重复不可逆调用被拒绝——**duplicateDenied=true, duplicateExecutions=0**；committed 对照仍允许重复。
 - 审计：HMAC 签名、删除/重算签名篡改检测、带 head/verify 的导出、字节级 golden fixture。
@@ -241,14 +243,15 @@ Nexus 设计验证（当前计数）：
 Profile/性能/崩溃验证：
 
 - Profile A/B（`experiments/profile-ab-bench.ts`）：core **5/5**、coding **5/5**；输入 token **18,490 vs 25,357**，输出 **3,740 vs 5,605**，墙钟 **86.3s vs 101.5s**；决策规则是 coding 至少多通过一题才选 coding，平局选低 token，因此默认改为 core。
-- Repo map（`experiments/repo-map-perf.ts`，2,000 文件）：冷建 **2,376ms**（首次未缓存 4,500ms；原 33.3s），TTL 暖查询 p50 **0.1ms**，未变更强制重扫 p50 **230ms**；阈值 5s/100ms 通过。
+- Repo map（`experiments/repo-map-perf.ts`，2,000 文件）：冷建 **2.4–4.6s**（最近一次 4,607.7ms；原 33.3s），TTL 暖查询 p50 **0.1ms**，未变更强制重扫 p50 **230–363ms**；阈值 5s/100ms 通过。
 - Kill-9 artifacts：子进程写完 blob、未写索引即被杀；新进程按 hash 读取/校验成功，`artifact_reindex` 重建索引。
 - Audit anchor：追加合法记录但不更新 head anchor，`audit_verify` 报 `head anchor expects N records`；只检测，不自动修复。
 - Budget 重启：用量从 900 变为 0，确认内存态预算在重启后丢失（设计缺口，已记录）。
 
-修复默认值/并发验证：
+修复默认值/并发/记忆验证：
 
 - Repair A/B（`experiments/repairs-ab-bench.ts`）：16 任务，两 arm 均 16/16；treatment 输入 **31,156 vs 28,546**（+9.1%），输出 **+15.4%**；提示在 **16/16** treatment 会话中出现，baseline 为 0/16。预注册规则是“多通过 2 题或输入 token 降低 15%”，两者都不满足，因此 `repairs` 改为 opt-in，core 从 24 个工具降到 21 个。
+- 记忆复现（`experiments/agent-bench.ts`）：10 组跨会话任务，baseline **0/10**、treatment **10/10**；session 2 输出 token **222–678 vs 44–107**。
 - 跨进程 store：两个 Bun 进程同时向同一 memory、repair、knowledge 文件各写 25 条。50 条 memory 和 50 个 knowledge 版本全部保留；repair `successCount` 达到 50；版本连续且 id 唯一（`tests/concurrency.test.ts`）。
 - 安装烟测：`npm pack` → `dsh plugin add` → 隔离 `DSH_HOME` 下的 `--dump-config`，profile 包含 `id: super-dsh`（`scripts/install-smoke.ts`，已接入 CI）。
 - Shell 失败提示：dsh 的 shell 非零退出是 `isError: false`，repair memory 现在会把它当作可恢复失败；确定性测试覆盖注入、零退出和非 shell 对照。
@@ -288,7 +291,7 @@ Profile/性能/崩溃验证：
 - dsh 公共 API 仍是 pre-stable（验证于 `0.2.1-rc.2`）。
 - `fuzzy_edit` 每次只处理单区域；故意不暴露 `replace_all`。
 - `apply_patch` 回滚是尽力而为：若恢复写入本身失败，错误会列出无法恢复的文件。文件锁是 advisory：宿主 `write`/`edit`、外部编辑器、使用不同锁目录的进程可绕过；TTL/symlink/大小写/路径归一化有边界。
-- repo map 是 regex 启发式，不做类型分析；注释/字符串会误报，压缩单行代码召回有限；缓存键是 mtime+size。最多索引 `repoMap.maxFiles` 个文件（默认 1000）；2,000 文件冷建约 2.4–4.5s。引用图上限为 50k 边、每个 token 20 个定义、10 次 PageRank 迭代，因此超密集仓库的中心性可能近似。`refreshMs` 默认 5s，因此编辑后最多 5s 内查询可能看到旧索引；强制未变更重扫约 230–363ms。`search_code` 按关键词路由，继承这些限制；caller 模式会把注释中的符号名当引用（可能降低 MRR）。`repoMap.search: false` 可隐藏该工具。
+- repo map 是 regex 启发式，不做类型分析；注释/字符串会误报，压缩单行代码召回有限；缓存键是 mtime+size。最多索引 `repoMap.maxFiles` 个文件（默认 1000）；2,000 文件冷建约 2.4–4.6s。引用图上限为 50k 边、每个 token 20 个定义、10 次 PageRank 迭代，因此超密集仓库的中心性可能近似。`refreshMs` 默认 5s，因此编辑后最多 5s 内查询可能看到旧索引；强制未变更重扫约 230–363ms。`search_code` 按关键词路由，继承这些限制；caller 模式会把注释中的符号名当引用（可能降低 MRR）。`repoMap.search: false` 可隐藏该工具。
 - effects 和 session notes 是 per-session 追加式 JSONL，没有跨进程锁；不要让两个进程同时写同一 session。memory、repairs、knowledge 的读-改-写已经用 advisory lock 串行化，但读者仍可能看到并发写入前的快照。
 - Memory v2 检索仍是词法级（无 embedding）；巩固是确定性 token/Jaccard 合并，不是语义摘要；`working` 可见性依赖保存时的 session id。
 - Repair memory 是 opt-in。16 任务 A/B 是单文件修复的 ceiling 实验：它只说明在这类任务上没有收益且有 token 成本，不代表更难、跨会话的失败场景永远无益。
