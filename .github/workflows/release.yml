@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -25,6 +26,9 @@ jobs:
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
       - name: Install dev tooling
         run: bun install --frozen-lockfile
       - name: Verify

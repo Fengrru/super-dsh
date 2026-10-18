@@ -14,7 +14,7 @@
 
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { realpathSync } from 'node:fs'
-import { isAbsolute, relative, resolve, sep } from 'node:path'
+import { isAbsolute, basename, dirname, join, relative, resolve, sep } from 'node:path'
 
 export const DEFAULT_CAPABILITY_TTL_MS = 5 * 60 * 1000
 
@@ -214,10 +214,21 @@ function splitPathScope(scope: string): { base: string; path: string } | undefin
 
 function canonicalPath(path: string): string {
   const absolute = resolve(path)
-  try {
-    return realpathSync.native(absolute)
-  } catch {
-    return absolute
+  // Canonicalize the nearest existing ancestor, then append the missing
+  // suffix. A realpath-only fallback can return a different spelling (for
+  // example Windows 8.3 names) and make an in-scope nonexistent path look
+  // outside the grant.
+  const missing: string[] = []
+  let current = absolute
+  for (;;) {
+    try {
+      return join(realpathSync.native(current), ...missing)
+    } catch {
+      const parent = dirname(current)
+      if (parent === current) return absolute
+      missing.unshift(basename(current))
+      current = parent
+    }
   }
 }
 

@@ -16,6 +16,9 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
       - name: Install dev tooling
         run: bun install --frozen-lockfile
       - name: Typecheck

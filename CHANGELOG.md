@@ -32,6 +32,9 @@ one zero-runtime-dependency ESM plugin bundle. Pre-release development notes
   cycles hold per-file advisory locks and reload after acquisition. Two-process
   tests preserve 50/50 memory rows, 50 repair increments, and 50 contiguous
   knowledge versions.
+- **Capability path canonicalization** — nonexistent paths now canonicalize
+  their nearest existing ancestor, so Windows 8.3/temp-path spelling cannot
+  make an in-scope path look outside the grant.
 
 ### Context and knowledge
 
@@ -57,8 +60,8 @@ one zero-runtime-dependency ESM plugin bundle. Pre-release development notes
 - Default profile chosen by a 5-task agent A/B: core **5/5**, coding **5/5**,
   but coding used **25,357 vs 18,490 input tokens**.
 - `npm pack` → `dsh plugin add` → isolated `--dump-config` smoke test, plus a
-  CI matrix on Ubuntu and Windows, typecheck, coverage, and a schema-subset
-  guard for registered tools.
+  CI matrix on Ubuntu and Windows (with pnpm installed for dsh's plugin
+  manager), typecheck, coverage, and a schema-subset guard for registered tools.
 - `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, issue/PR templates,
   and a tag-triggered release workflow.
 
