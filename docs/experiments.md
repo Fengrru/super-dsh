@@ -1,0 +1,155 @@
+# Experiments
+
+SuperDSH follows a pre-registered experiment protocol:
+
+1. State a hypothesis and a **decision rule** before running anything.
+2. Define a baseline that reflects what dsh does without the feature.
+3. Add guardrails that must not regress (wrong edits, unintended changes, test tampering).
+4. Run in isolated workspaces with isolated `DSH_HOME`s.
+5. Keep the feature as a default only if the hypothesis is supported **and** the guardrails hold. Otherwise document it and leave it off.
+
+Environment for the reported runs: Windows 10 (10.0.19044), Node 24.18.1, dsh `0.2.1-rc.2` from source, DeepSeek `deepseek-flash`. Raw outputs live in `experiments/results/`.
+
+## E1 — Patch reliability under formatting drift
+
+**Hypothesis.** A tolerant matcher with safety guards recovers edits whose remembered `old_string` differs from the file only in whitespace, indentation, line endings, or token spacing, without increasing wrong-region edits.
+
+**Baseline.** dsh `edit` semantics: exact literal match, must be unique; otherwise refuse.
+
+**Treatment.** Literal first, then the vendored 8-strategy fuzzy matcher, followed by SuperDSH's guards:
+
+- exact matched bytes must be unique in the file;
+- the matched region must start and end on the request's first/last non-whitespace anchors;
+- token-multiset similarity ≥0.98 (≥0.90 for the typo strategy);
+- the region must cover at least half of the request's non-empty lines;
+- whitespace-only boundary overreach is trimmed; substantive overreach is refused.
+
+**Corpus.** 12 realistic templates (TypeScript, Python, Rust, Go, CSS, YAML, SQL, Markdown, shell, React, Java) × 6 mutations (exact, space drift, indentation drift, line-ending drift, token spacing, blank-line drift). Plus 8 controls: 4 ambiguous duplicate blocks and 4 no-match requests. 80 cases total.
+
+**Decision rule.** Accept if treatment correct rate ≥ baseline + 20 percentage points, wrong-edit rate ≤2%, and refusal rate on controls = 100%.
+
+**Results**
+
+| Metric | Baseline | Treatment |
+|---|---|---|
+| Correct cases (80) | 27 (33.8%) | **72 (90.0%)** |
+| Applied / applicable (72) | 19 (26.4%) | **64 (88.9%)** |
+| Wrong-region edits | 0 | **0** |
+| Correct refusals (8 controls) | 8 (100%) | **8 (100%)** |
+| Median latency | 0.004 ms | 0.6 ms |
+| p95 latency | 0.03 ms | 14.5 ms (noisy; 3–15 ms across runs) |
+
+Per mutation (correct / 12): space drift 5 → 11, indentation 0 → 11, line endings 0 → 11, token spacing 2 → 9, blank-line drift 0 → 10; exact 12 → 12.
+
+Match strategies used: literal 19, whitespace-normalized 29, token-match 10, indentation-normalized 3, line-ending-normalized 3. Eight cases were safely refused, not silently mis-edited.
+
+**Verdict: accepted (default on).** The gain is large and the wrong-edit guardrail holds.
+
+**Limitations.** The corpus isolates formatting drift; it does not estimate how often drift occurs in real sessions. Replace-all is not supported because proving multiple fuzzy regions safe is materially harder. Latency grows with the Levenshtein fallback; p95 stays in single-digit milliseconds on these inputs.
+
+## E2 — Cross-session project memory
+
+**Hypothesis.** A project-scoped, file-backed memory can carry durable facts from one session to a new session after the workspace has been wiped.
+
+**Design.** Two arms, two pairs each.
+
+- Session 1: the user states a test command (`bun test --coverage`) and a naming convention (`snake_case`), asks the agent to remember them, and forbids file edits/commands.
+- The workspace is deleted and recreated, so no file can carry state.
+- Session 2: a new dsh process/session in the same workspace and `DSH_HOME`, asked to recall the two facts without reading files or running commands.
+
+**Baseline.** dsh without the plugin. **Treatment.** SuperDSH memory only (fuzzy/audit/verify disabled to isolate the feature).
+
+**Decision rule.** Accept if treatment recalls both facts in every pair and baseline recalls neither; the memory store must contain both facts after session 1.
+
+**Results.**
+
+| Metric | Baseline | Treatment |
+|---|---|---|
+| Pairs recalling both facts | 0/2 | **2/2** |
+| Memory store after session 1 | absent | present in both pairs, with both facts |
+| Session-2 tool calls | 0 | 0 (memory injected automatically) |
+| Session-2 output tokens | 240–317 | 69–87 |
+
+Baseline session 2 correctly abstained ("I can't answer either question reliably without inspecting the project"). Treatment session 2 answered both facts directly. The workspace was wiped between sessions, so only the external memory store could carry them.
+
+**Verdict: accepted (default on).** Recall was complete in both pairs; baseline was 0/2.
+
+Raw data: `experiments/results/agent-bench.json` (`experiment: "memory"`).
+
+**Limitations.** Lexical retrieval; no embedding. The experiment tests retention and injection, not long-horizon memory quality. The user explicitly asks the agent to remember, which is the supported contract.
+
+## E3 — Verification gate
+
+**Hypothesis.** Refusing to finish a turn until the project's test command passes increases task success and prevents "claimed success with failing tests."
+
+**Design.** Four seeded repositories, each with a deliberately failing `node --test` suite covering edge cases (negatives, repeated spaces/punctuation, trailing junk, off-by-one). The agent is asked to fix `src.js`; the prompt does not require running tests. The test file is hashed and must remain unchanged.
+
+- Baseline: dsh without the plugin.
+- Treatment: SuperDSH verification gate with `command: "node --test"`, `maxAttempts: 2`.
+- External checker after the session: run `node --test` again and verify the test file hash.
+
+**Decision rule.** Keep the gate on by default only if it improves pass rate or reduces false success without materially increasing turns/tokens. Otherwise keep it opt-in and record the result.
+
+**Results.**
+
+| Metric | Baseline | Treatment |
+|---|---|---|
+| Tasks passing the external checker | 4/4 | 4/4 |
+| Test file unchanged | 4/4 | 4/4 |
+| Claimed success with failing tests | 0 | 0 |
+| Turns | 1 per task | 1 per task |
+| Steps (avg) | 4.0 | 4.75 |
+| Output tokens (total) | 2,423 | 3,011 |
+| Test runs observed (per task) | 1, 1, 1, 1 | 1, 2, 1, 1 |
+
+This is a **ceiling effect**: `deepseek-flash` already ran the test suite unprompted in every baseline task, so the gate had nothing to catch. Treatment added one step on two tasks and about 24% more output tokens, with no success gain.
+
+**Verdict: no default enablement.** The gate remains available (opt-in) as a definition-of-done guarantee for models or workflows that do not self-verify, but the evidence here does not justify turning it on by default.
+
+Raw data: `experiments/results/agent-bench.json` (`experiment: "verify"`).
+
+**Limitations.** Small sample, one model, visible tests only. The gate cannot verify untested behavior, and a slow test suite can dominate turn latency. The gate is bounded and fails open after `maxAttempts`; a permanently broken environment can still finish.
+
+## E4 — Tamper-evident audit ledger
+
+**Hypothesis.** A hash-chained ledger with a head anchor detects record edits, deletions, tail truncation, and reordering; a plain JSONL log detects none.
+
+**Design.** 200 mixed session events. For each tamper scenario, rebuild a fresh ledger, apply the mutation, and verify. Baseline is a plain JSONL log checked only for parseability.
+
+**Results**
+
+| Tamper scenario | Hash chain | Plain JSONL | Chain's evidence |
+|---|---|---|---|
+| Edit one record | **detected** | missed | record hash mismatch |
+| Delete a middle record | **detected** | missed | chain link mismatch |
+| Truncate the tail | **detected** | missed | head anchor expects 200 records |
+| Reorder records | **detected** | missed | chain link mismatch |
+
+Append throughput: 120–215 records/s across runs (200 records in 0.9–1.7 s) on this machine, with a synchronous append plus head-anchor update per record. Valid ledger of 200 records verified OK.
+
+**Verdict: accepted (default on).** All four scenarios are detected; the plain log detects none.
+
+**Limitations.** The chain is unkeyed. An attacker with write access who recomputes every hash and the anchor can produce a consistent forged ledger. It detects accidental or naive tampering, not a full rewrite. Use an external WORM sink or signatures for adversarial models. The ledger stores data hashes and compact summaries, not payloads, so sensitive content stays only in dsh's own log.
+
+## E5 — Rejected candidates
+
+Several attractive ideas from `awesome-agent-infra` and `nexus-runtime` did **not** survive review. They are documented in [`decisions.md`](decisions.md): the Nexus kernel bridge, a code-graph repo map, hallucination/confidence heuristics, goal-verifier's fallback, replay/dynamic-workflow recovery, and the LLM request dedup cache. The common reasons were: the implementation was a mock or had correctness bugs, the capability duplicated a stronger dsh primitive, or there was no way to measure a benefit in this environment.
+
+## Reproduction
+
+```sh
+cd super-dsh
+bun run build
+bun test                     # deterministic integration checks
+bun run experiment:patch     # E1
+bun experiments/audit-bench.ts   # E4
+
+# Agent-level E2/E3 (requires a sibling deepseek-harness checkout and DEEPSEEK_API_KEY)
+SUPER_DSH_BENCH_ONLY=memory SUPER_DSH_BENCH_REPS=2 bun experiments/agent-bench.ts
+SUPER_DSH_BENCH_ONLY=verify bun experiments/agent-bench.ts
+SUPER_DSH_BENCH_JUST_MERGE=1 bun experiments/agent-bench.ts   # re-merge saved per-experiment results
+```
+
+Per-experiment raw data is kept in `experiments/results/agent-bench-memory.json` and `agent-bench-verify.json`; the merged view is `agent-bench.json`.
+
+The agent harness spawns the real dsh headless CLI with an explicit tsconfig so the session working directory can be an isolated task workspace. Each run gets its own `DSH_HOME`; the model is `deepseek-flash`; the title-generation request is disabled in every arm.

@@ -1,0 +1,1831 @@
+{
+  "experiment": "patch-bench",
+  "generatedAt": "2026-10-17T13:17:42.075Z",
+  "hypothesis": "A fuzzy fallback recovers formatting-drifted edits without increasing wrong-region edits.",
+  "corpus": {
+    "templates": 12,
+    "mutations": 6,
+    "controls": 8,
+    "total": 80
+  },
+  "baseline": {
+    "cases": 80,
+    "correct": 27,
+    "correctRate": 0.338,
+    "appliedOnApplicable": 19,
+    "applyRate": 0.264,
+    "appliedCorrect": 19,
+    "wrongEdits": 0,
+    "wrongEditRate": 0,
+    "correctRefusals": 8,
+    "refusalRate": 1,
+    "medianMs": 0.004,
+    "p95Ms": 0.033
+  },
+  "treatment": {
+    "cases": 80,
+    "correct": 72,
+    "correctRate": 0.9,
+    "appliedOnApplicable": 64,
+    "applyRate": 0.889,
+    "appliedCorrect": 64,
+    "wrongEdits": 0,
+    "wrongEditRate": 0,
+    "correctRefusals": 8,
+    "refusalRate": 1,
+    "medianMs": 0.597,
+    "p95Ms": 14.481
+  },
+  "byMutation": {
+    "exact": {
+      "cases": 12,
+      "baselineCorrect": 12,
+      "treatmentCorrect": 12
+    },
+    "space_drift": {
+      "cases": 12,
+      "baselineCorrect": 5,
+      "treatmentCorrect": 11
+    },
+    "indent_drift": {
+      "cases": 12,
+      "baselineCorrect": 0,
+      "treatmentCorrect": 11
+    },
+    "line_ending_drift": {
+      "cases": 12,
+      "baselineCorrect": 0,
+      "treatmentCorrect": 11
+    },
+    "token_drift": {
+      "cases": 12,
+      "baselineCorrect": 2,
+      "treatmentCorrect": 9
+    },
+    "context_drift": {
+      "cases": 12,
+      "baselineCorrect": 0,
+      "treatmentCorrect": 10
+    },
+    "ambiguous": {
+      "cases": 4,
+      "baselineCorrect": 4,
+      "treatmentCorrect": 4
+    },
+    "no_match": {
+      "cases": 4,
+      "baselineCorrect": 4,
+      "treatmentCorrect": 4
+    }
+  },
+  "strategies": {
+    "literal": 19,
+    "whitespace_normalized": 29,
+    "token_match": 10,
+    "indentation_normalized": 3,
+    "line_ending_normalized": 3
+  },
+  "rows": [
+    {
+      "id": "typescript-object--exact",
+      "template": "typescript-object",
+      "mutation": "exact",
+      "shouldApply": true,
+      "baseline": {
+        "ok": true,
+        "content": "import { startServer } from \"./server\"\n\nexport const defaults = {  port: 8080,\n  host: \"0.0.0.0\",\n  retries: 5,\n  timeoutMs: 5000,\n}\n\nexport function boot() {\n  return startServer(defaults)\n}\n",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.19700000000011642
+      },
+      "treatment": {
+        "ok": true,
+        "content": "import { startServer } from \"./server\"\n\nexport const defaults = {  port: 8080,\n  host: \"0.0.0.0\",\n  retries: 5,\n  timeoutMs: 5000,\n}\n\nexport function boot() {\n  return startServer(defaults)\n}\n",
+        "strategy": "literal",
+        "correct": true,
+        "wrong": false,
+        "ms": 1.0292000000001735
+      }
+    },
+    {
+      "id": "typescript-object--space_drift",
+      "template": "typescript-object",
+      "mutation": "space_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "import { startServer } from \"./server\"\n\nexport const defaults = {  port: 3000,\n  host: \"localhost\",\n  retries: 3,\n  timeoutMs: 2500,\n}\n\nexport function boot() {\n  return startServer(defaults)\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.01410000000009859
+      },
+      "treatment": {
+        "ok": true,
+        "content": "import { startServer } from \"./server\"\n\nexport const defaults = {  port: 8080,\n  host: \"0.0.0.0\",\n  retries: 5,\n  timeoutMs: 5000,\n}\n\nexport function boot() {\n  return startServer(defaults)\n}\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 6.576400000000149
+      }
+    },
+    {
+      "id": "typescript-object--indent_drift",
+      "template": "typescript-object",
+      "mutation": "indent_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "import { startServer } from \"./server\"\n\nexport const defaults = {  port: 3000,\n  host: \"localhost\",\n  retries: 3,\n  timeoutMs: 2500,\n}\n\nexport function boot() {\n  return startServer(defaults)\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0036999999999807187
+      },
+      "treatment": {
+        "ok": true,
+        "content": "import { startServer } from \"./server\"\n\nexport const defaults = {  port: 8080,\n  host: \"0.0.0.0\",\n  retries: 5,\n  timeoutMs: 5000,\n}\n\nexport function boot() {\n  return startServer(defaults)\n}\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.5488000000000284
+      }
+    },
+    {
+      "id": "typescript-object--line_ending_drift",
+      "template": "typescript-object",
+      "mutation": "line_ending_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "import { startServer } from \"./server\"\n\nexport const defaults = {  port: 3000,\n  host: \"localhost\",\n  retries: 3,\n  timeoutMs: 2500,\n}\n\nexport function boot() {\n  return startServer(defaults)\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0020999999999276042
+      },
+      "treatment": {
+        "ok": true,
+        "content": "import { startServer } from \"./server\"\n\nexport const defaults = {  port: 8080,\n  host: \"0.0.0.0\",\n  retries: 5,\n  timeoutMs: 5000,\n}\n\nexport function boot() {\n  return startServer(defaults)\n}\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.26929999999993015
+      }
+    },
+    {
+      "id": "typescript-object--token_drift",
+      "template": "typescript-object",
+      "mutation": "token_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "import { startServer } from \"./server\"\n\nexport const defaults = {  port: 3000,\n  host: \"localhost\",\n  retries: 3,\n  timeoutMs: 2500,\n}\n\nexport function boot() {\n  return startServer(defaults)\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0018999999999778083
+      },
+      "treatment": {
+        "ok": true,
+        "content": "import { startServer } from \"./server\"\n\nexport const defaults = {  port: 8080,\n  host: \"0.0.0.0\",\n  retries: 5,\n  timeoutMs: 5000,\n}\n\nexport function boot() {\n  return startServer(defaults)\n}\n",
+        "strategy": "token_match",
+        "correct": true,
+        "wrong": false,
+        "ms": 97.89319999999998
+      }
+    },
+    {
+      "id": "typescript-object--context_drift",
+      "template": "typescript-object",
+      "mutation": "context_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "import { startServer } from \"./server\"\n\nexport const defaults = {  port: 3000,\n  host: \"localhost\",\n  retries: 3,\n  timeoutMs: 2500,\n}\n\nexport function boot() {\n  return startServer(defaults)\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0038000000001829903
+      },
+      "treatment": {
+        "ok": true,
+        "content": "import { startServer } from \"./server\"\n\nexport const defaults = {  port: 8080,\n  host: \"0.0.0.0\",\n  retries: 5,\n  timeoutMs: 5000,\n}\n\nexport function boot() {\n  return startServer(defaults)\n}\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 1.539700000000039
+      }
+    },
+    {
+      "id": "typescript-function--exact",
+      "template": "typescript-function",
+      "mutation": "exact",
+      "shouldApply": true,
+      "baseline": {
+        "ok": true,
+        "content": "export function retryDelay(attempt: number, baseMs: number): number {\n  if (attempt <= 0) {\n    return 0\n  }\n  const jitter = Math.random() * 250\n  return Math.min(baseMs * 2 ** attempt + jitter, 30_000)\n}\n\nexport function canRetry(attempt: number): boolean {\n  return attempt < 5\n}\n",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.11920000000009168
+      },
+      "treatment": {
+        "ok": true,
+        "content": "export function retryDelay(attempt: number, baseMs: number): number {\n  if (attempt <= 0) {\n    return 0\n  }\n  const jitter = Math.random() * 250\n  return Math.min(baseMs * 2 ** attempt + jitter, 30_000)\n}\n\nexport function canRetry(attempt: number): boolean {\n  return attempt < 5\n}\n",
+        "strategy": "literal",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.11910000000011678
+      }
+    },
+    {
+      "id": "typescript-function--space_drift",
+      "template": "typescript-function",
+      "mutation": "space_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "export function retryDelay(attempt: number, baseMs: number): number {\n  if (attempt <= 0) {\n    return baseMs\n  }\n  const jitter = Math.random() * 100\n  return baseMs * 2 ** attempt + jitter\n}\n\nexport function canRetry(attempt: number): boolean {\n  return attempt < 5\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.004000000000132786
+      },
+      "treatment": {
+        "ok": true,
+        "content": "export function retryDelay(attempt: number, baseMs: number): number {\n  if (attempt <= 0) {\n    return 0\n  }\n  const jitter = Math.random() * 250\n  return Math.min(baseMs * 2 ** attempt + jitter, 30_000)\n}\n\nexport function canRetry(attempt: number): boolean {\n  return attempt < 5\n}\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 6.30379999999991
+      }
+    },
+    {
+      "id": "typescript-function--indent_drift",
+      "template": "typescript-function",
+      "mutation": "indent_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "export function retryDelay(attempt: number, baseMs: number): number {\n  if (attempt <= 0) {\n    return baseMs\n  }\n  const jitter = Math.random() * 100\n  return baseMs * 2 ** attempt + jitter\n}\n\nexport function canRetry(attempt: number): boolean {\n  return attempt < 5\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0036999999999807187
+      },
+      "treatment": {
+        "ok": true,
+        "content": "export function retryDelay(attempt: number, baseMs: number): number {\n  if (attempt <= 0) {\n    return 0\n  }\n  const jitter = Math.random() * 250\n  return Math.min(baseMs * 2 ** attempt + jitter, 30_000)\n}\n\nexport function canRetry(attempt: number): boolean {\n  return attempt < 5\n}\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 1.7666000000001532
+      }
+    },
+    {
+      "id": "typescript-function--line_ending_drift",
+      "template": "typescript-function",
+      "mutation": "line_ending_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "export function retryDelay(attempt: number, baseMs: number): number {\n  if (attempt <= 0) {\n    return baseMs\n  }\n  const jitter = Math.random() * 100\n  return baseMs * 2 ** attempt + jitter\n}\n\nexport function canRetry(attempt: number): boolean {\n  return attempt < 5\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0036000000000058208
+      },
+      "treatment": {
+        "ok": true,
+        "content": "export function retryDelay(attempt: number, baseMs: number): number {\n  if (attempt <= 0) {\n    return 0\n  }\n  const jitter = Math.random() * 250\n  return Math.min(baseMs * 2 ** attempt + jitter, 30_000)\n}\n\nexport function canRetry(attempt: number): boolean {\n  return attempt < 5\n}\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 1.0711999999998625
+      }
+    },
+    {
+      "id": "typescript-function--token_drift",
+      "template": "typescript-function",
+      "mutation": "token_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "export function retryDelay(attempt: number, baseMs: number): number {\n  if (attempt <= 0) {\n    return baseMs\n  }\n  const jitter = Math.random() * 100\n  return baseMs * 2 ** attempt + jitter\n}\n\nexport function canRetry(attempt: number): boolean {\n  return attempt < 5\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.22100000000000364
+      },
+      "treatment": {
+        "ok": true,
+        "content": "export function retryDelay(attempt: number, baseMs: number): number {\n  if (attempt <= 0) {\n    return 0\n  }\n  const jitter = Math.random() * 250\n  return Math.min(baseMs * 2 ** attempt + jitter, 30_000)\n}\n\nexport function canRetry(attempt: number): boolean {\n  return attempt < 5\n}\n",
+        "strategy": "token_match",
+        "correct": true,
+        "wrong": false,
+        "ms": 1.60349999999994
+      }
+    },
+    {
+      "id": "typescript-function--context_drift",
+      "template": "typescript-function",
+      "mutation": "context_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "export function retryDelay(attempt: number, baseMs: number): number {\n  if (attempt <= 0) {\n    return baseMs\n  }\n  const jitter = Math.random() * 100\n  return baseMs * 2 ** attempt + jitter\n}\n\nexport function canRetry(attempt: number): boolean {\n  return attempt < 5\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.008100000000013097
+      },
+      "treatment": {
+        "ok": true,
+        "content": "export function retryDelay(attempt: number, baseMs: number): number {\n  if (attempt <= 0) {\n    return 0\n  }\n  const jitter = Math.random() * 250\n  return Math.min(baseMs * 2 ** attempt + jitter, 30_000)\n}\n\nexport function canRetry(attempt: number): boolean {\n  return attempt < 5\n}\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 1.89449999999988
+      }
+    },
+    {
+      "id": "python-method--exact",
+      "template": "python-method",
+      "mutation": "exact",
+      "shouldApply": true,
+      "baseline": {
+        "ok": true,
+        "content": "class SessionStore:\n    def __init__(self, path):\n        self.path = path\n\n    def load(self, session_id: str) -> dict:\n        target = os.path.join(self.path, f\"{session_id}.json\")\n        with open(target, \"r\", encoding=\"utf-8\") as handle:\n            raw = handle.read()\n        return json.loads(raw)\n\n    def save(self, session_id: str, value: dict) -> None:\n        raise NotImplementedError\n",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.014000000000123691
+      },
+      "treatment": {
+        "ok": true,
+        "content": "class SessionStore:\n    def __init__(self, path):\n        self.path = path\n\n    def load(self, session_id: str) -> dict:\n        target = os.path.join(self.path, f\"{session_id}.json\")\n        with open(target, \"r\", encoding=\"utf-8\") as handle:\n            raw = handle.read()\n        return json.loads(raw)\n\n    def save(self, session_id: str, value: dict) -> None:\n        raise NotImplementedError\n",
+        "strategy": "literal",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.006300000000010186
+      }
+    },
+    {
+      "id": "python-method--space_drift",
+      "template": "python-method",
+      "mutation": "space_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "class SessionStore:\n    def __init__(self, path):\n        self.path = path\n\n    def load(self, session_id: str) -> dict:\n        with open(self.path, \"r\", encoding=\"utf-8\") as handle:\n            raw = handle.read()\n        return json.loads(raw)\n\n    def save(self, session_id: str, value: dict) -> None:\n        raise NotImplementedError\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.004699999999957072
+      },
+      "treatment": {
+        "ok": false,
+        "content": "class SessionStore:\n    def __init__(self, path):\n        self.path = path\n\n    def load(self, session_id: str) -> dict:\n        with open(self.path, \"r\", encoding=\"utf-8\") as handle:\n            raw = handle.read()\n        return json.loads(raw)\n\n    def save(self, session_id: str, value: dict) -> None:\n        raise NotImplementedError\n",
+        "reason": "fuzzy region does not contain the requested end",
+        "correct": false,
+        "wrong": false,
+        "ms": 9.86570000000006
+      }
+    },
+    {
+      "id": "python-method--indent_drift",
+      "template": "python-method",
+      "mutation": "indent_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "class SessionStore:\n    def __init__(self, path):\n        self.path = path\n\n    def load(self, session_id: str) -> dict:\n        with open(self.path, \"r\", encoding=\"utf-8\") as handle:\n            raw = handle.read()\n        return json.loads(raw)\n\n    def save(self, session_id: str, value: dict) -> None:\n        raise NotImplementedError\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0061000000000603904
+      },
+      "treatment": {
+        "ok": false,
+        "content": "class SessionStore:\n    def __init__(self, path):\n        self.path = path\n\n    def load(self, session_id: str) -> dict:\n        with open(self.path, \"r\", encoding=\"utf-8\") as handle:\n            raw = handle.read()\n        return json.loads(raw)\n\n    def save(self, session_id: str, value: dict) -> None:\n        raise NotImplementedError\n",
+        "reason": "fuzzy region does not contain the requested end",
+        "correct": false,
+        "wrong": false,
+        "ms": 1.0498000000000047
+      }
+    },
+    {
+      "id": "python-method--line_ending_drift",
+      "template": "python-method",
+      "mutation": "line_ending_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "class SessionStore:\n    def __init__(self, path):\n        self.path = path\n\n    def load(self, session_id: str) -> dict:\n        with open(self.path, \"r\", encoding=\"utf-8\") as handle:\n            raw = handle.read()\n        return json.loads(raw)\n\n    def save(self, session_id: str, value: dict) -> None:\n        raise NotImplementedError\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.003400000000056025
+      },
+      "treatment": {
+        "ok": false,
+        "content": "class SessionStore:\n    def __init__(self, path):\n        self.path = path\n\n    def load(self, session_id: str) -> dict:\n        with open(self.path, \"r\", encoding=\"utf-8\") as handle:\n            raw = handle.read()\n        return json.loads(raw)\n\n    def save(self, session_id: str, value: dict) -> None:\n        raise NotImplementedError\n",
+        "reason": "fuzzy region does not contain the requested end",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.8713999999999942
+      }
+    },
+    {
+      "id": "python-method--token_drift",
+      "template": "python-method",
+      "mutation": "token_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "class SessionStore:\n    def __init__(self, path):\n        self.path = path\n\n    def load(self, session_id: str) -> dict:\n        with open(self.path, \"r\", encoding=\"utf-8\") as handle:\n            raw = handle.read()\n        return json.loads(raw)\n\n    def save(self, session_id: str, value: dict) -> None:\n        raise NotImplementedError\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0019999999999527063
+      },
+      "treatment": {
+        "ok": true,
+        "content": "class SessionStore:\n    def __init__(self, path):\n        self.path = path\n\n    def load(self, session_id: str) -> dict:\n        target = os.path.join(self.path, f\"{session_id}.json\")\n        with open(target, \"r\", encoding=\"utf-8\") as handle:\n            raw = handle.read()\n        return json.loads(raw)\n\n    def save(self, session_id: str, value: dict) -> None:\n        raise NotImplementedError\n",
+        "strategy": "token_match",
+        "correct": true,
+        "wrong": false,
+        "ms": 3.654399999999896
+      }
+    },
+    {
+      "id": "python-method--context_drift",
+      "template": "python-method",
+      "mutation": "context_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "class SessionStore:\n    def __init__(self, path):\n        self.path = path\n\n    def load(self, session_id: str) -> dict:\n        with open(self.path, \"r\", encoding=\"utf-8\") as handle:\n            raw = handle.read()\n        return json.loads(raw)\n\n    def save(self, session_id: str, value: dict) -> None:\n        raise NotImplementedError\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.010399999999890497
+      },
+      "treatment": {
+        "ok": false,
+        "content": "class SessionStore:\n    def __init__(self, path):\n        self.path = path\n\n    def load(self, session_id: str) -> dict:\n        with open(self.path, \"r\", encoding=\"utf-8\") as handle:\n            raw = handle.read()\n        return json.loads(raw)\n\n    def save(self, session_id: str, value: dict) -> None:\n        raise NotImplementedError\n",
+        "reason": "fuzzy region does not contain the requested end",
+        "correct": false,
+        "wrong": false,
+        "ms": 10.396199999999908
+      }
+    },
+    {
+      "id": "rust-match--exact",
+      "template": "rust-match",
+      "mutation": "exact",
+      "shouldApply": true,
+      "baseline": {
+        "ok": true,
+        "content": "pub fn describe(code: u16) -> &'static str {\n    match code {\n        200 => \"ok\",\n        201 => \"created\",\n        404 => \"not_found\",\n        409 => \"conflict\",\n        _ => \"unknown\",\n    }\n}\n\npub fn is_error(code: u16) -> bool {\n    code >= 400\n}\n",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.010700000000042564
+      },
+      "treatment": {
+        "ok": true,
+        "content": "pub fn describe(code: u16) -> &'static str {\n    match code {\n        200 => \"ok\",\n        201 => \"created\",\n        404 => \"not_found\",\n        409 => \"conflict\",\n        _ => \"unknown\",\n    }\n}\n\npub fn is_error(code: u16) -> bool {\n    code >= 400\n}\n",
+        "strategy": "literal",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.05759999999986576
+      }
+    },
+    {
+      "id": "rust-match--space_drift",
+      "template": "rust-match",
+      "mutation": "space_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": true,
+        "content": "pub fn describe(code: u16) -> &'static str {\n    match code {\n        200 => \"ok\",\n        201 => \"created\",\n        404 => \"not_found\",\n        409 => \"conflict\",\n        _ => \"unknown\",\n    }\n}\n\npub fn is_error(code: u16) -> bool {\n    code >= 400\n}\n",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.00430000000005748
+      },
+      "treatment": {
+        "ok": true,
+        "content": "pub fn describe(code: u16) -> &'static str {\n    match code {\n        200 => \"ok\",\n        201 => \"created\",\n        404 => \"not_found\",\n        409 => \"conflict\",\n        _ => \"unknown\",\n    }\n}\n\npub fn is_error(code: u16) -> bool {\n    code >= 400\n}\n",
+        "strategy": "literal",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.00430000000005748
+      }
+    },
+    {
+      "id": "rust-match--indent_drift",
+      "template": "rust-match",
+      "mutation": "indent_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "pub fn describe(code: u16) -> &'static str {\n    match code {\n        200 => \"ok\",\n        404 => \"not_found\",\n        429 => \"rate_limited\",\n        _ => \"unknown\",\n    }\n}\n\npub fn is_error(code: u16) -> bool {\n    code >= 400\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.001099999999951251
+      },
+      "treatment": {
+        "ok": true,
+        "content": "pub fn describe(code: u16) -> &'static str {\n    match code {\n        200 => \"ok\",\n        201 => \"created\",\n        404 => \"not_found\",\n        409 => \"conflict\",\n        _ => \"unknown\",\n    }\n}\n\npub fn is_error(code: u16) -> bool {\n    code >= 400\n}\n",
+        "strategy": "indentation_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 6.773200000000088
+      }
+    },
+    {
+      "id": "rust-match--line_ending_drift",
+      "template": "rust-match",
+      "mutation": "line_ending_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "pub fn describe(code: u16) -> &'static str {\n    match code {\n        200 => \"ok\",\n        404 => \"not_found\",\n        429 => \"rate_limited\",\n        _ => \"unknown\",\n    }\n}\n\npub fn is_error(code: u16) -> bool {\n    code >= 400\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.003200000000106229
+      },
+      "treatment": {
+        "ok": true,
+        "content": "pub fn describe(code: u16) -> &'static str {\n    match code {\n        200 => \"ok\",\n        201 => \"created\",\n        404 => \"not_found\",\n        409 => \"conflict\",\n        _ => \"unknown\",\n    }\n}\n\npub fn is_error(code: u16) -> bool {\n    code >= 400\n}\n",
+        "strategy": "line_ending_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 1.0371999999999844
+      }
+    },
+    {
+      "id": "rust-match--token_drift",
+      "template": "rust-match",
+      "mutation": "token_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "pub fn describe(code: u16) -> &'static str {\n    match code {\n        200 => \"ok\",\n        404 => \"not_found\",\n        429 => \"rate_limited\",\n        _ => \"unknown\",\n    }\n}\n\npub fn is_error(code: u16) -> bool {\n    code >= 400\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0039000000001578883
+      },
+      "treatment": {
+        "ok": true,
+        "content": "pub fn describe(code: u16) -> &'static str {\n    match code {\n        200 => \"ok\",\n        201 => \"created\",\n        404 => \"not_found\",\n        409 => \"conflict\",\n        _ => \"unknown\",\n    }\n}\n\npub fn is_error(code: u16) -> bool {\n    code >= 400\n}\n",
+        "strategy": "token_match",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.3917999999998756
+      }
+    },
+    {
+      "id": "rust-match--context_drift",
+      "template": "rust-match",
+      "mutation": "context_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "pub fn describe(code: u16) -> &'static str {\n    match code {\n        200 => \"ok\",\n        404 => \"not_found\",\n        429 => \"rate_limited\",\n        _ => \"unknown\",\n    }\n}\n\npub fn is_error(code: u16) -> bool {\n    code >= 400\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0019999999999527063
+      },
+      "treatment": {
+        "ok": true,
+        "content": "pub fn describe(code: u16) -> &'static str {\n    match code {\n        200 => \"ok\",\n        201 => \"created\",\n        404 => \"not_found\",\n        409 => \"conflict\",\n        _ => \"unknown\",\n    }\n}\n\npub fn is_error(code: u16) -> bool {\n    code >= 400\n}\n",
+        "strategy": "token_match",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.5399999999999636
+      }
+    },
+    {
+      "id": "go-struct--exact",
+      "template": "go-struct",
+      "mutation": "exact",
+      "shouldApply": true,
+      "baseline": {
+        "ok": true,
+        "content": "package config\n\ntype Limits struct {\n\tMaxConcurrent int\n\tMaxQueueDepth int\n\tIdleTimeoutMs int\n\tMaxRetries    int\n}\n\nfunc DefaultLimits() Limits {\n\treturn Limits{MaxConcurrent: 8}\n}\n",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.00430000000005748
+      },
+      "treatment": {
+        "ok": true,
+        "content": "package config\n\ntype Limits struct {\n\tMaxConcurrent int\n\tMaxQueueDepth int\n\tIdleTimeoutMs int\n\tMaxRetries    int\n}\n\nfunc DefaultLimits() Limits {\n\treturn Limits{MaxConcurrent: 8}\n}\n",
+        "strategy": "literal",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.004400000000032378
+      }
+    },
+    {
+      "id": "go-struct--space_drift",
+      "template": "go-struct",
+      "mutation": "space_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": true,
+        "content": "package config\n\ntype Limits struct {\n\tMaxConcurrent int\n\tMaxQueueDepth int\n\tIdleTimeoutMs int\n\tMaxRetries    int\n}\n\nfunc DefaultLimits() Limits {\n\treturn Limits{MaxConcurrent: 8}\n}\n",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.0025000000000545697
+      },
+      "treatment": {
+        "ok": true,
+        "content": "package config\n\ntype Limits struct {\n\tMaxConcurrent int\n\tMaxQueueDepth int\n\tIdleTimeoutMs int\n\tMaxRetries    int\n}\n\nfunc DefaultLimits() Limits {\n\treturn Limits{MaxConcurrent: 8}\n}\n",
+        "strategy": "literal",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.0031999999998788553
+      }
+    },
+    {
+      "id": "go-struct--indent_drift",
+      "template": "go-struct",
+      "mutation": "indent_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "package config\n\ntype Limits struct {\n\tMaxConcurrent int\n\tMaxQueueDepth int\n\tIdleTimeoutMs int\n}\n\nfunc DefaultLimits() Limits {\n\treturn Limits{MaxConcurrent: 8}\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0009999999999763531
+      },
+      "treatment": {
+        "ok": true,
+        "content": "package config\n\ntype Limits struct {\n\tMaxConcurrent int\n\tMaxQueueDepth int\n\tIdleTimeoutMs int\n\tMaxRetries    int\n}\n\nfunc DefaultLimits() Limits {\n\treturn Limits{MaxConcurrent: 8}\n}\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.4171000000001186
+      }
+    },
+    {
+      "id": "go-struct--line_ending_drift",
+      "template": "go-struct",
+      "mutation": "line_ending_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "package config\n\ntype Limits struct {\n\tMaxConcurrent int\n\tMaxQueueDepth int\n\tIdleTimeoutMs int\n}\n\nfunc DefaultLimits() Limits {\n\treturn Limits{MaxConcurrent: 8}\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0018999999999778083
+      },
+      "treatment": {
+        "ok": true,
+        "content": "package config\n\ntype Limits struct {\n\tMaxConcurrent int\n\tMaxQueueDepth int\n\tIdleTimeoutMs int\n\tMaxRetries    int\n}\n\nfunc DefaultLimits() Limits {\n\treturn Limits{MaxConcurrent: 8}\n}\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.26710000000002765
+      }
+    },
+    {
+      "id": "go-struct--token_drift",
+      "template": "go-struct",
+      "mutation": "token_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": true,
+        "content": "package config\n\ntype Limits struct {\n\tMaxConcurrent int\n\tMaxQueueDepth int\n\tIdleTimeoutMs int\n\tMaxRetries    int\n}\n\nfunc DefaultLimits() Limits {\n\treturn Limits{MaxConcurrent: 8}\n}\n",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.0030999999999039574
+      },
+      "treatment": {
+        "ok": true,
+        "content": "package config\n\ntype Limits struct {\n\tMaxConcurrent int\n\tMaxQueueDepth int\n\tIdleTimeoutMs int\n\tMaxRetries    int\n}\n\nfunc DefaultLimits() Limits {\n\treturn Limits{MaxConcurrent: 8}\n}\n",
+        "strategy": "literal",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.0036000000000058208
+      }
+    },
+    {
+      "id": "go-struct--context_drift",
+      "template": "go-struct",
+      "mutation": "context_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "package config\n\ntype Limits struct {\n\tMaxConcurrent int\n\tMaxQueueDepth int\n\tIdleTimeoutMs int\n}\n\nfunc DefaultLimits() Limits {\n\treturn Limits{MaxConcurrent: 8}\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0009999999999763531
+      },
+      "treatment": {
+        "ok": true,
+        "content": "package config\n\ntype Limits struct {\n\tMaxConcurrent int\n\tMaxQueueDepth int\n\tIdleTimeoutMs int\n\tMaxRetries    int\n}\n\nfunc DefaultLimits() Limits {\n\treturn Limits{MaxConcurrent: 8}\n}\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.269800000000032
+      }
+    },
+    {
+      "id": "css-rule--exact",
+      "template": "css-rule",
+      "mutation": "exact",
+      "shouldApply": true,
+      "baseline": {
+        "ok": true,
+        "content": ".toolbar {\n  display: flex;\n  gap: 8px;\n  padding: 4px 12px;\n  border-bottom: 1px solid var(--border);\n  background: var(--surface-raised);\n}\n\n.toolbar__spacer {\n  flex: 1;\n}\n",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.003000000000156433
+      },
+      "treatment": {
+        "ok": true,
+        "content": ".toolbar {\n  display: flex;\n  gap: 8px;\n  padding: 4px 12px;\n  border-bottom: 1px solid var(--border);\n  background: var(--surface-raised);\n}\n\n.toolbar__spacer {\n  flex: 1;\n}\n",
+        "strategy": "literal",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.003500000000030923
+      }
+    },
+    {
+      "id": "css-rule--space_drift",
+      "template": "css-rule",
+      "mutation": "space_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": ".toolbar {\n  display: flex;\n  gap: 12px;\n  padding: 8px 16px;\n  border-bottom: 1px solid var(--border);\n  background: var(--surface);\n}\n\n.toolbar__spacer {\n  flex: 1;\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0011000000001786248
+      },
+      "treatment": {
+        "ok": true,
+        "content": ".toolbar {\n  display: flex;\n  gap: 8px;\n  padding: 4px 12px;\n  border-bottom: 1px solid var(--border);\n  background: var(--surface-raised);\n}\n\n.toolbar__spacer {\n  flex: 1;\n}\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 2.717399999999998
+      }
+    },
+    {
+      "id": "css-rule--indent_drift",
+      "template": "css-rule",
+      "mutation": "indent_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": ".toolbar {\n  display: flex;\n  gap: 12px;\n  padding: 8px 16px;\n  border-bottom: 1px solid var(--border);\n  background: var(--surface);\n}\n\n.toolbar__spacer {\n  flex: 1;\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0031999999998788553
+      },
+      "treatment": {
+        "ok": true,
+        "content": ".toolbar {\n  display: flex;\n  gap: 8px;\n  padding: 4px 12px;\n  border-bottom: 1px solid var(--border);\n  background: var(--surface-raised);\n}\n\n.toolbar__spacer {\n  flex: 1;\n}\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 1.1092999999998483
+      }
+    },
+    {
+      "id": "css-rule--line_ending_drift",
+      "template": "css-rule",
+      "mutation": "line_ending_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": ".toolbar {\n  display: flex;\n  gap: 12px;\n  padding: 8px 16px;\n  border-bottom: 1px solid var(--border);\n  background: var(--surface);\n}\n\n.toolbar__spacer {\n  flex: 1;\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.005199999999831562
+      },
+      "treatment": {
+        "ok": true,
+        "content": ".toolbar {\n  display: flex;\n  gap: 8px;\n  padding: 4px 12px;\n  border-bottom: 1px solid var(--border);\n  background: var(--surface-raised);\n}\n\n.toolbar__spacer {\n  flex: 1;\n}\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.40469999999982065
+      }
+    },
+    {
+      "id": "css-rule--token_drift",
+      "template": "css-rule",
+      "mutation": "token_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": ".toolbar {\n  display: flex;\n  gap: 12px;\n  padding: 8px 16px;\n  border-bottom: 1px solid var(--border);\n  background: var(--surface);\n}\n\n.toolbar__spacer {\n  flex: 1;\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0026000000000294676
+      },
+      "treatment": {
+        "ok": true,
+        "content": ".toolbar {\n  display: flex;\n  gap: 8px;\n  padding: 4px 12px;\n  border-bottom: 1px solid var(--border);\n  background: var(--surface-raised);\n}\n\n.toolbar__spacer {\n  flex: 1;\n}\n",
+        "strategy": "token_match",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.3488999999999578
+      }
+    },
+    {
+      "id": "css-rule--context_drift",
+      "template": "css-rule",
+      "mutation": "context_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": ".toolbar {\n  display: flex;\n  gap: 12px;\n  padding: 8px 16px;\n  border-bottom: 1px solid var(--border);\n  background: var(--surface);\n}\n\n.toolbar__spacer {\n  flex: 1;\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.002199999999902502
+      },
+      "treatment": {
+        "ok": true,
+        "content": ".toolbar {\n  display: flex;\n  gap: 8px;\n  padding: 4px 12px;\n  border-bottom: 1px solid var(--border);\n  background: var(--surface-raised);\n}\n\n.toolbar__spacer {\n  flex: 1;\n}\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 1.103900000000067
+      }
+    },
+    {
+      "id": "yaml-service--exact",
+      "template": "yaml-service",
+      "mutation": "exact",
+      "shouldApply": true,
+      "baseline": {
+        "ok": true,
+        "content": "services:\n  api:\n    image: example/api:1.4.0\n    ports:\n      - \"9090:8080\"\n    environment:\n      LOG_LEVEL: warn\n      WORKERS: \"8\"\n    healthcheck:\n      test: [\"CMD\", \"curl\", \"-f\", \"http://localhost:8080/health\"]\n",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.014800000000150249
+      },
+      "treatment": {
+        "ok": true,
+        "content": "services:\n  api:\n    image: example/api:1.4.0\n    ports:\n      - \"9090:8080\"\n    environment:\n      LOG_LEVEL: warn\n      WORKERS: \"8\"\n    healthcheck:\n      test: [\"CMD\", \"curl\", \"-f\", \"http://localhost:8080/health\"]\n",
+        "strategy": "literal",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.008199999999987995
+      }
+    },
+    {
+      "id": "yaml-service--space_drift",
+      "template": "yaml-service",
+      "mutation": "space_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "services:\n  api:\n    image: example/api:1.4.0\n    ports:\n      - \"8080:8080\"\n    environment:\n      LOG_LEVEL: info\n      WORKERS: \"4\"\n    healthcheck:\n      test: [\"CMD\", \"curl\", \"-f\", \"http://localhost:8080/health\"]\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0026000000000294676
+      },
+      "treatment": {
+        "ok": true,
+        "content": "services:\n  api:\n    image: example/api:1.4.0\n    ports:\n      - \"9090:8080\"\n    environment:\n      LOG_LEVEL: warn\n      WORKERS: \"8\"\n    healthcheck:\n      test: [\"CMD\", \"curl\", \"-f\", \"http://localhost:8080/health\"]\n",
+        "strategy": "token_match",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.7533999999998287
+      }
+    },
+    {
+      "id": "yaml-service--indent_drift",
+      "template": "yaml-service",
+      "mutation": "indent_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "services:\n  api:\n    image: example/api:1.4.0\n    ports:\n      - \"8080:8080\"\n    environment:\n      LOG_LEVEL: info\n      WORKERS: \"4\"\n    healthcheck:\n      test: [\"CMD\", \"curl\", \"-f\", \"http://localhost:8080/health\"]\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0030999999999039574
+      },
+      "treatment": {
+        "ok": true,
+        "content": "services:\n  api:\n    image: example/api:1.4.0\n    ports:\n      - \"9090:8080\"\n    environment:\n      LOG_LEVEL: warn\n      WORKERS: \"8\"\n    healthcheck:\n      test: [\"CMD\", \"curl\", \"-f\", \"http://localhost:8080/health\"]\n",
+        "strategy": "indentation_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.4312999999999647
+      }
+    },
+    {
+      "id": "yaml-service--line_ending_drift",
+      "template": "yaml-service",
+      "mutation": "line_ending_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "services:\n  api:\n    image: example/api:1.4.0\n    ports:\n      - \"8080:8080\"\n    environment:\n      LOG_LEVEL: info\n      WORKERS: \"4\"\n    healthcheck:\n      test: [\"CMD\", \"curl\", \"-f\", \"http://localhost:8080/health\"]\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0027000000000043656
+      },
+      "treatment": {
+        "ok": true,
+        "content": "services:\n  api:\n    image: example/api:1.4.0\n    ports:\n      - \"9090:8080\"\n    environment:\n      LOG_LEVEL: warn\n      WORKERS: \"8\"\n    healthcheck:\n      test: [\"CMD\", \"curl\", \"-f\", \"http://localhost:8080/health\"]\n",
+        "strategy": "line_ending_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 2.890899999999874
+      }
+    },
+    {
+      "id": "yaml-service--token_drift",
+      "template": "yaml-service",
+      "mutation": "token_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "services:\n  api:\n    image: example/api:1.4.0\n    ports:\n      - \"8080:8080\"\n    environment:\n      LOG_LEVEL: info\n      WORKERS: \"4\"\n    healthcheck:\n      test: [\"CMD\", \"curl\", \"-f\", \"http://localhost:8080/health\"]\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.005799999999908323
+      },
+      "treatment": {
+        "ok": false,
+        "content": "services:\n  api:\n    image: example/api:1.4.0\n    ports:\n      - \"8080:8080\"\n    environment:\n      LOG_LEVEL: info\n      WORKERS: \"4\"\n    healthcheck:\n      test: [\"CMD\", \"curl\", \"-f\", \"http://localhost:8080/health\"]\n",
+        "reason": "Could not find match for \"    ports : \n      - \"8080 : 8080\"\n    environment : \n      LOG_LEVEL :  info\n  ...\" with any strategy",
+        "correct": false,
+        "wrong": false,
+        "ms": 330.0453
+      }
+    },
+    {
+      "id": "yaml-service--context_drift",
+      "template": "yaml-service",
+      "mutation": "context_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "services:\n  api:\n    image: example/api:1.4.0\n    ports:\n      - \"8080:8080\"\n    environment:\n      LOG_LEVEL: info\n      WORKERS: \"4\"\n    healthcheck:\n      test: [\"CMD\", \"curl\", \"-f\", \"http://localhost:8080/health\"]\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.00709999999980937
+      },
+      "treatment": {
+        "ok": true,
+        "content": "services:\n  api:\n    image: example/api:1.4.0\n    ports:\n      - \"9090:8080\"\n    environment:\n      LOG_LEVEL: warn\n      WORKERS: \"8\"\n    healthcheck:\n      test: [\"CMD\", \"curl\", \"-f\", \"http://localhost:8080/health\"]\n",
+        "strategy": "token_match",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.5973999999998796
+      }
+    },
+    {
+      "id": "sql-query--exact",
+      "template": "sql-query",
+      "mutation": "exact",
+      "shouldApply": true,
+      "baseline": {
+        "ok": true,
+        "content": "SELECT user_id, COUNT(*) AS sessions\nFROM session_events\nWHERE created_at >= NOW() - INTERVAL '30 days'\n  AND event_type IN ('turn_end', 'turn_aborted')\nGROUP BY user_id\nHAVING COUNT(*) > 3\nORDER BY sessions DESC;\n\n-- keep the report bounded\nLIMIT 100;\n",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.015300000000024738
+      },
+      "treatment": {
+        "ok": true,
+        "content": "SELECT user_id, COUNT(*) AS sessions\nFROM session_events\nWHERE created_at >= NOW() - INTERVAL '30 days'\n  AND event_type IN ('turn_end', 'turn_aborted')\nGROUP BY user_id\nHAVING COUNT(*) > 3\nORDER BY sessions DESC;\n\n-- keep the report bounded\nLIMIT 100;\n",
+        "strategy": "literal",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.031899999999950523
+      }
+    },
+    {
+      "id": "sql-query--space_drift",
+      "template": "sql-query",
+      "mutation": "space_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "SELECT user_id, COUNT(*) AS sessions\nFROM session_events\nWHERE created_at >= NOW() - INTERVAL '7 days'\n  AND event_type = 'turn_end'\nGROUP BY user_id\nHAVING COUNT(*) > 3\nORDER BY sessions DESC;\n\n-- keep the report bounded\nLIMIT 100;\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.025200000000040745
+      },
+      "treatment": {
+        "ok": true,
+        "content": "SELECT user_id, COUNT(*) AS sessions\nFROM session_events\nWHERE created_at >= NOW() - INTERVAL '30 days'\n  AND event_type IN ('turn_end', 'turn_aborted')\nGROUP BY user_id\nHAVING COUNT(*) > 3\nORDER BY sessions DESC;\n\n-- keep the report bounded\nLIMIT 100;\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.5333000000000538
+      }
+    },
+    {
+      "id": "sql-query--indent_drift",
+      "template": "sql-query",
+      "mutation": "indent_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "SELECT user_id, COUNT(*) AS sessions\nFROM session_events\nWHERE created_at >= NOW() - INTERVAL '7 days'\n  AND event_type = 'turn_end'\nGROUP BY user_id\nHAVING COUNT(*) > 3\nORDER BY sessions DESC;\n\n-- keep the report bounded\nLIMIT 100;\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0015000000000782165
+      },
+      "treatment": {
+        "ok": true,
+        "content": "SELECT user_id, COUNT(*) AS sessions\nFROM session_events\nWHERE created_at >= NOW() - INTERVAL '30 days'\n  AND event_type IN ('turn_end', 'turn_aborted')\nGROUP BY user_id\nHAVING COUNT(*) > 3\nORDER BY sessions DESC;\n\n-- keep the report bounded\nLIMIT 100;\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 1.3185000000000855
+      }
+    },
+    {
+      "id": "sql-query--line_ending_drift",
+      "template": "sql-query",
+      "mutation": "line_ending_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "SELECT user_id, COUNT(*) AS sessions\nFROM session_events\nWHERE created_at >= NOW() - INTERVAL '7 days'\n  AND event_type = 'turn_end'\nGROUP BY user_id\nHAVING COUNT(*) > 3\nORDER BY sessions DESC;\n\n-- keep the report bounded\nLIMIT 100;\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0036000000000058208
+      },
+      "treatment": {
+        "ok": true,
+        "content": "SELECT user_id, COUNT(*) AS sessions\nFROM session_events\nWHERE created_at >= NOW() - INTERVAL '30 days'\n  AND event_type IN ('turn_end', 'turn_aborted')\nGROUP BY user_id\nHAVING COUNT(*) > 3\nORDER BY sessions DESC;\n\n-- keep the report bounded\nLIMIT 100;\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 14.481300000000147
+      }
+    },
+    {
+      "id": "sql-query--token_drift",
+      "template": "sql-query",
+      "mutation": "token_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "SELECT user_id, COUNT(*) AS sessions\nFROM session_events\nWHERE created_at >= NOW() - INTERVAL '7 days'\n  AND event_type = 'turn_end'\nGROUP BY user_id\nHAVING COUNT(*) > 3\nORDER BY sessions DESC;\n\n-- keep the report bounded\nLIMIT 100;\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.004699999999957072
+      },
+      "treatment": {
+        "ok": true,
+        "content": "SELECT user_id, COUNT(*) AS sessions\nFROM session_events\nWHERE created_at >= NOW() - INTERVAL '30 days'\n  AND event_type IN ('turn_end', 'turn_aborted')\nGROUP BY user_id\nHAVING COUNT(*) > 3\nORDER BY sessions DESC;\n\n-- keep the report bounded\nLIMIT 100;\n",
+        "strategy": "token_match",
+        "correct": true,
+        "wrong": false,
+        "ms": 1.148300000000063
+      }
+    },
+    {
+      "id": "sql-query--context_drift",
+      "template": "sql-query",
+      "mutation": "context_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "SELECT user_id, COUNT(*) AS sessions\nFROM session_events\nWHERE created_at >= NOW() - INTERVAL '7 days'\n  AND event_type = 'turn_end'\nGROUP BY user_id\nHAVING COUNT(*) > 3\nORDER BY sessions DESC;\n\n-- keep the report bounded\nLIMIT 100;\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0027000000000043656
+      },
+      "treatment": {
+        "ok": true,
+        "content": "SELECT user_id, COUNT(*) AS sessions\nFROM session_events\nWHERE created_at >= NOW() - INTERVAL '30 days'\n  AND event_type IN ('turn_end', 'turn_aborted')\nGROUP BY user_id\nHAVING COUNT(*) > 3\nORDER BY sessions DESC;\n\n-- keep the report bounded\nLIMIT 100;\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.169399999999996
+      }
+    },
+    {
+      "id": "markdown-section--exact",
+      "template": "markdown-section",
+      "mutation": "exact",
+      "shouldApply": true,
+      "baseline": {
+        "ok": true,
+        "content": "# Release checklist\n\n## Before tagging\n\n1. Run the full test suite on Windows, macOS, and Linux.\n2. Update the changelog and migration notes.\n3. Bump the package version.\n4. Verify the signed build artifacts.\n\n## After tagging\n\n- Publish the release notes.\n- Announce in the community channel.\n",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.026499999999941792
+      },
+      "treatment": {
+        "ok": true,
+        "content": "# Release checklist\n\n## Before tagging\n\n1. Run the full test suite on Windows, macOS, and Linux.\n2. Update the changelog and migration notes.\n3. Bump the package version.\n4. Verify the signed build artifacts.\n\n## After tagging\n\n- Publish the release notes.\n- Announce in the community channel.\n",
+        "strategy": "literal",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.019300000000157524
+      }
+    },
+    {
+      "id": "markdown-section--space_drift",
+      "template": "markdown-section",
+      "mutation": "space_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": true,
+        "content": "# Release checklist\n\n## Before tagging\n\n1. Run the full test suite on Windows, macOS, and Linux.\n2. Update the changelog and migration notes.\n3. Bump the package version.\n4. Verify the signed build artifacts.\n\n## After tagging\n\n- Publish the release notes.\n- Announce in the community channel.\n",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.0022999999998774
+      },
+      "treatment": {
+        "ok": true,
+        "content": "# Release checklist\n\n## Before tagging\n\n1. Run the full test suite on Windows, macOS, and Linux.\n2. Update the changelog and migration notes.\n3. Bump the package version.\n4. Verify the signed build artifacts.\n\n## After tagging\n\n- Publish the release notes.\n- Announce in the community channel.\n",
+        "strategy": "literal",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.0019999999999527063
+      }
+    },
+    {
+      "id": "markdown-section--indent_drift",
+      "template": "markdown-section",
+      "mutation": "indent_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "# Release checklist\n\n## Before tagging\n\n1. Run the full test suite.\n2. Update the changelog.\n3. Bump the package version.\n4. Verify the build on Windows.\n\n## After tagging\n\n- Publish the release notes.\n- Announce in the community channel.\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0009000000000014552
+      },
+      "treatment": {
+        "ok": true,
+        "content": "# Release checklist\n\n## Before tagging\n\n1. Run the full test suite on Windows, macOS, and Linux.\n2. Update the changelog and migration notes.\n3. Bump the package version.\n4. Verify the signed build artifacts.\n\n## After tagging\n\n- Publish the release notes.\n- Announce in the community channel.\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.557399999999916
+      }
+    },
+    {
+      "id": "markdown-section--line_ending_drift",
+      "template": "markdown-section",
+      "mutation": "line_ending_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "# Release checklist\n\n## Before tagging\n\n1. Run the full test suite.\n2. Update the changelog.\n3. Bump the package version.\n4. Verify the build on Windows.\n\n## After tagging\n\n- Publish the release notes.\n- Announce in the community channel.\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0031999999998788553
+      },
+      "treatment": {
+        "ok": true,
+        "content": "# Release checklist\n\n## Before tagging\n\n1. Run the full test suite on Windows, macOS, and Linux.\n2. Update the changelog and migration notes.\n3. Bump the package version.\n4. Verify the signed build artifacts.\n\n## After tagging\n\n- Publish the release notes.\n- Announce in the community channel.\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 31.022399999999834
+      }
+    },
+    {
+      "id": "markdown-section--token_drift",
+      "template": "markdown-section",
+      "mutation": "token_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": true,
+        "content": "# Release checklist\n\n## Before tagging\n\n1. Run the full test suite on Windows, macOS, and Linux.\n2. Update the changelog and migration notes.\n3. Bump the package version.\n4. Verify the signed build artifacts.\n\n## After tagging\n\n- Publish the release notes.\n- Announce in the community channel.\n",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.00479999999993197
+      },
+      "treatment": {
+        "ok": true,
+        "content": "# Release checklist\n\n## Before tagging\n\n1. Run the full test suite on Windows, macOS, and Linux.\n2. Update the changelog and migration notes.\n3. Bump the package version.\n4. Verify the signed build artifacts.\n\n## After tagging\n\n- Publish the release notes.\n- Announce in the community channel.\n",
+        "strategy": "literal",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.0052999999998064595
+      }
+    },
+    {
+      "id": "markdown-section--context_drift",
+      "template": "markdown-section",
+      "mutation": "context_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "# Release checklist\n\n## Before tagging\n\n1. Run the full test suite.\n2. Update the changelog.\n3. Bump the package version.\n4. Verify the build on Windows.\n\n## After tagging\n\n- Publish the release notes.\n- Announce in the community channel.\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.004100000000107684
+      },
+      "treatment": {
+        "ok": true,
+        "content": "# Release checklist\n\n## Before tagging\n\n1. Run the full test suite on Windows, macOS, and Linux.\n2. Update the changelog and migration notes.\n3. Bump the package version.\n4. Verify the signed build artifacts.\n\n## After tagging\n\n- Publish the release notes.\n- Announce in the community channel.\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.3066999999998643
+      }
+    },
+    {
+      "id": "shell-function--exact",
+      "template": "shell-function",
+      "mutation": "exact",
+      "shouldApply": true,
+      "baseline": {
+        "ok": true,
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\n\nbackup_db() {\n  local target=\"$1\"\n  pg_dump --no-owner \"$DATABASE_URL\" > \"$target\"\n  gzip -9 -f \"$target\"\n  sha256sum \"$target.gz\" > \"$target.gz.sha256\"\n}\n\ncleanup_old_backups() {\n  find ./backups -name \"*.gz\" -mtime +14 -delete\n}\n",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.004899999999906868
+      },
+      "treatment": {
+        "ok": true,
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\n\nbackup_db() {\n  local target=\"$1\"\n  pg_dump --no-owner \"$DATABASE_URL\" > \"$target\"\n  gzip -9 -f \"$target\"\n  sha256sum \"$target.gz\" > \"$target.gz.sha256\"\n}\n\ncleanup_old_backups() {\n  find ./backups -name \"*.gz\" -mtime +14 -delete\n}\n",
+        "strategy": "literal",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.0027999999999792635
+      }
+    },
+    {
+      "id": "shell-function--space_drift",
+      "template": "shell-function",
+      "mutation": "space_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": true,
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\n\nbackup_db() {\n  local target=\"$1\"\n  pg_dump --no-owner \"$DATABASE_URL\" > \"$target\"\n  gzip -9 -f \"$target\"\n  sha256sum \"$target.gz\" > \"$target.gz.sha256\"\n}\n\ncleanup_old_backups() {\n  find ./backups -name \"*.gz\" -mtime +14 -delete\n}\n",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.0014000000001033186
+      },
+      "treatment": {
+        "ok": true,
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\n\nbackup_db() {\n  local target=\"$1\"\n  pg_dump --no-owner \"$DATABASE_URL\" > \"$target\"\n  gzip -9 -f \"$target\"\n  sha256sum \"$target.gz\" > \"$target.gz.sha256\"\n}\n\ncleanup_old_backups() {\n  find ./backups -name \"*.gz\" -mtime +14 -delete\n}\n",
+        "strategy": "literal",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.0015000000000782165
+      }
+    },
+    {
+      "id": "shell-function--indent_drift",
+      "template": "shell-function",
+      "mutation": "indent_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\n\nbackup_db() {\n  local target=\"$1\"\n  pg_dump \"$DATABASE_URL\" > \"$target\"\n  gzip -f \"$target\"\n}\n\ncleanup_old_backups() {\n  find ./backups -name \"*.gz\" -mtime +14 -delete\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0009999999999763531
+      },
+      "treatment": {
+        "ok": true,
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\n\nbackup_db() {\n  local target=\"$1\"\n  pg_dump --no-owner \"$DATABASE_URL\" > \"$target\"\n  gzip -9 -f \"$target\"\n  sha256sum \"$target.gz\" > \"$target.gz.sha256\"\n}\n\ncleanup_old_backups() {\n  find ./backups -name \"*.gz\" -mtime +14 -delete\n}\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.3307999999999538
+      }
+    },
+    {
+      "id": "shell-function--line_ending_drift",
+      "template": "shell-function",
+      "mutation": "line_ending_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\n\nbackup_db() {\n  local target=\"$1\"\n  pg_dump \"$DATABASE_URL\" > \"$target\"\n  gzip -f \"$target\"\n}\n\ncleanup_old_backups() {\n  find ./backups -name \"*.gz\" -mtime +14 -delete\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0022999999998774
+      },
+      "treatment": {
+        "ok": true,
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\n\nbackup_db() {\n  local target=\"$1\"\n  pg_dump --no-owner \"$DATABASE_URL\" > \"$target\"\n  gzip -9 -f \"$target\"\n  sha256sum \"$target.gz\" > \"$target.gz.sha256\"\n}\n\ncleanup_old_backups() {\n  find ./backups -name \"*.gz\" -mtime +14 -delete\n}\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.22460000000000946
+      }
+    },
+    {
+      "id": "shell-function--token_drift",
+      "template": "shell-function",
+      "mutation": "token_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\n\nbackup_db() {\n  local target=\"$1\"\n  pg_dump \"$DATABASE_URL\" > \"$target\"\n  gzip -f \"$target\"\n}\n\ncleanup_old_backups() {\n  find ./backups -name \"*.gz\" -mtime +14 -delete\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0025000000000545697
+      },
+      "treatment": {
+        "ok": false,
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\n\nbackup_db() {\n  local target=\"$1\"\n  pg_dump \"$DATABASE_URL\" > \"$target\"\n  gzip -f \"$target\"\n}\n\ncleanup_old_backups() {\n  find ./backups -name \"*.gz\" -mtime +14 -delete\n}\n",
+        "reason": "fuzzy region does not contain the requested end",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.25979999999981374
+      }
+    },
+    {
+      "id": "shell-function--context_drift",
+      "template": "shell-function",
+      "mutation": "context_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\n\nbackup_db() {\n  local target=\"$1\"\n  pg_dump \"$DATABASE_URL\" > \"$target\"\n  gzip -f \"$target\"\n}\n\ncleanup_old_backups() {\n  find ./backups -name \"*.gz\" -mtime +14 -delete\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0015999999998257408
+      },
+      "treatment": {
+        "ok": true,
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\n\nbackup_db() {\n  local target=\"$1\"\n  pg_dump --no-owner \"$DATABASE_URL\" > \"$target\"\n  gzip -9 -f \"$target\"\n  sha256sum \"$target.gz\" > \"$target.gz.sha256\"\n}\n\ncleanup_old_backups() {\n  find ./backups -name \"*.gz\" -mtime +14 -delete\n}\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 2.2850999999998294
+      }
+    },
+    {
+      "id": "react-component--exact",
+      "template": "react-component",
+      "mutation": "exact",
+      "shouldApply": true,
+      "baseline": {
+        "ok": true,
+        "content": "export function Counter({ start = 0 }: { start?: number }) {\n  const [count, setCount] = useState(start)\n  const increment = () => setCount(value => value + 1)\n  return <button type=\"button\" onClick={increment}>Count: {count}</button>\n}\n\nexport function Reset() {\n  return <button>Reset</button>\n}\n",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.006900000000086948
+      },
+      "treatment": {
+        "ok": true,
+        "content": "export function Counter({ start = 0 }: { start?: number }) {\n  const [count, setCount] = useState(start)\n  const increment = () => setCount(value => value + 1)\n  return <button type=\"button\" onClick={increment}>Count: {count}</button>\n}\n\nexport function Reset() {\n  return <button>Reset</button>\n}\n",
+        "strategy": "literal",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.004500000000007276
+      }
+    },
+    {
+      "id": "react-component--space_drift",
+      "template": "react-component",
+      "mutation": "space_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "export function Counter({ start = 0 }: { start?: number }) {\n  const [count, setCount] = useState(start)\n  const increment = () => setCount(count + 1)\n  return <button onClick={increment}>Count: {count}</button>\n}\n\nexport function Reset() {\n  return <button>Reset</button>\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0015000000000782165
+      },
+      "treatment": {
+        "ok": true,
+        "content": "export function Counter({ start = 0 }: { start?: number }) {\n  const [count, setCount] = useState(start)\n  const increment = () => setCount(value => value + 1)\n  return <button type=\"button\" onClick={increment}>Count: {count}</button>\n}\n\nexport function Reset() {\n  return <button>Reset</button>\n}\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 2.7357999999999265
+      }
+    },
+    {
+      "id": "react-component--indent_drift",
+      "template": "react-component",
+      "mutation": "indent_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "export function Counter({ start = 0 }: { start?: number }) {\n  const [count, setCount] = useState(start)\n  const increment = () => setCount(count + 1)\n  return <button onClick={increment}>Count: {count}</button>\n}\n\nexport function Reset() {\n  return <button>Reset</button>\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.005199999999831562
+      },
+      "treatment": {
+        "ok": true,
+        "content": "export function Counter({ start = 0 }: { start?: number }) {\n  const [count, setCount] = useState(start)\n  const increment = () => setCount(value => value + 1)\n  return <button type=\"button\" onClick={increment}>Count: {count}</button>\n}\n\nexport function Reset() {\n  return <button>Reset</button>\n}\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 1.812199999999848
+      }
+    },
+    {
+      "id": "react-component--line_ending_drift",
+      "template": "react-component",
+      "mutation": "line_ending_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "export function Counter({ start = 0 }: { start?: number }) {\n  const [count, setCount] = useState(start)\n  const increment = () => setCount(count + 1)\n  return <button onClick={increment}>Count: {count}</button>\n}\n\nexport function Reset() {\n  return <button>Reset</button>\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.004500000000007276
+      },
+      "treatment": {
+        "ok": true,
+        "content": "export function Counter({ start = 0 }: { start?: number }) {\n  const [count, setCount] = useState(start)\n  const increment = () => setCount(value => value + 1)\n  return <button type=\"button\" onClick={increment}>Count: {count}</button>\n}\n\nexport function Reset() {\n  return <button>Reset</button>\n}\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 5.604399999999941
+      }
+    },
+    {
+      "id": "react-component--token_drift",
+      "template": "react-component",
+      "mutation": "token_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "export function Counter({ start = 0 }: { start?: number }) {\n  const [count, setCount] = useState(start)\n  const increment = () => setCount(count + 1)\n  return <button onClick={increment}>Count: {count}</button>\n}\n\nexport function Reset() {\n  return <button>Reset</button>\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.005300000000033833
+      },
+      "treatment": {
+        "ok": true,
+        "content": "export function Counter({ start = 0 }: { start?: number }) {\n  const [count, setCount] = useState(start)\n  const increment = () => setCount(value => value + 1)\n  return <button type=\"button\" onClick={increment}>Count: {count}</button>\n}\n\nexport function Reset() {\n  return <button>Reset</button>\n}\n",
+        "strategy": "token_match",
+        "correct": true,
+        "wrong": false,
+        "ms": 2.3315000000000055
+      }
+    },
+    {
+      "id": "react-component--context_drift",
+      "template": "react-component",
+      "mutation": "context_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "export function Counter({ start = 0 }: { start?: number }) {\n  const [count, setCount] = useState(start)\n  const increment = () => setCount(count + 1)\n  return <button onClick={increment}>Count: {count}</button>\n}\n\nexport function Reset() {\n  return <button>Reset</button>\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0036999999999807187
+      },
+      "treatment": {
+        "ok": true,
+        "content": "export function Counter({ start = 0 }: { start?: number }) {\n  const [count, setCount] = useState(start)\n  const increment = () => setCount(value => value + 1)\n  return <button type=\"button\" onClick={increment}>Count: {count}</button>\n}\n\nexport function Reset() {\n  return <button>Reset</button>\n}\n",
+        "strategy": "whitespace_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.5417999999999665
+      }
+    },
+    {
+      "id": "java-method--exact",
+      "template": "java-method",
+      "mutation": "exact",
+      "shouldApply": true,
+      "baseline": {
+        "ok": true,
+        "content": "public final class TokenBucket {\n    private long tokens;\n\n    public boolean tryAcquire(long now) {\n        refill(now);\n        if (tokens <= 0) {\n            return false;\n        }\n        tokens -= 1;\n        return true;\n    }\n\n    private void refill(long now) {\n        tokens = Math.min(tokens + 1, 10);\n    }\n}\n",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.008000000000038199
+      },
+      "treatment": {
+        "ok": true,
+        "content": "public final class TokenBucket {\n    private long tokens;\n\n    public boolean tryAcquire(long now) {\n        refill(now);\n        if (tokens <= 0) {\n            return false;\n        }\n        tokens -= 1;\n        return true;\n    }\n\n    private void refill(long now) {\n        tokens = Math.min(tokens + 1, 10);\n    }\n}\n",
+        "strategy": "literal",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.005200000000058935
+      }
+    },
+    {
+      "id": "java-method--space_drift",
+      "template": "java-method",
+      "mutation": "space_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": true,
+        "content": "public final class TokenBucket {\n    private long tokens;\n\n    public boolean tryAcquire(long now) {\n        refill(now);\n        if (tokens <= 0) {\n            return false;\n        }\n        tokens -= 1;\n        return true;\n    }\n\n    private void refill(long now) {\n        tokens = Math.min(tokens + 1, 10);\n    }\n}\n",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.001399999999875945
+      },
+      "treatment": {
+        "ok": true,
+        "content": "public final class TokenBucket {\n    private long tokens;\n\n    public boolean tryAcquire(long now) {\n        refill(now);\n        if (tokens <= 0) {\n            return false;\n        }\n        tokens -= 1;\n        return true;\n    }\n\n    private void refill(long now) {\n        tokens = Math.min(tokens + 1, 10);\n    }\n}\n",
+        "strategy": "literal",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.0017000000000280124
+      }
+    },
+    {
+      "id": "java-method--indent_drift",
+      "template": "java-method",
+      "mutation": "indent_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "public final class TokenBucket {\n    private long tokens;\n\n    public boolean tryAcquire(long now) {\n        if (tokens <= 0) {\n            return false;\n        }\n        tokens -= 1;\n        return true;\n    }\n\n    private void refill(long now) {\n        tokens = Math.min(tokens + 1, 10);\n    }\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.001099999999951251
+      },
+      "treatment": {
+        "ok": true,
+        "content": "public final class TokenBucket {\n    private long tokens;\n\n    public boolean tryAcquire(long now) {\n        refill(now);\n        if (tokens <= 0) {\n            return false;\n        }\n        tokens -= 1;\n        return true;\n    }\n\n    private void refill(long now) {\n        tokens = Math.min(tokens + 1, 10);\n    }\n}\n",
+        "strategy": "indentation_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 1.3724999999999454
+      }
+    },
+    {
+      "id": "java-method--line_ending_drift",
+      "template": "java-method",
+      "mutation": "line_ending_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "public final class TokenBucket {\n    private long tokens;\n\n    public boolean tryAcquire(long now) {\n        if (tokens <= 0) {\n            return false;\n        }\n        tokens -= 1;\n        return true;\n    }\n\n    private void refill(long now) {\n        tokens = Math.min(tokens + 1, 10);\n    }\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.03279999999995198
+      },
+      "treatment": {
+        "ok": true,
+        "content": "public final class TokenBucket {\n    private long tokens;\n\n    public boolean tryAcquire(long now) {\n        refill(now);\n        if (tokens <= 0) {\n            return false;\n        }\n        tokens -= 1;\n        return true;\n    }\n\n    private void refill(long now) {\n        tokens = Math.min(tokens + 1, 10);\n    }\n}\n",
+        "strategy": "line_ending_normalized",
+        "correct": true,
+        "wrong": false,
+        "ms": 1.9526999999998225
+      }
+    },
+    {
+      "id": "java-method--token_drift",
+      "template": "java-method",
+      "mutation": "token_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "public final class TokenBucket {\n    private long tokens;\n\n    public boolean tryAcquire(long now) {\n        if (tokens <= 0) {\n            return false;\n        }\n        tokens -= 1;\n        return true;\n    }\n\n    private void refill(long now) {\n        tokens = Math.min(tokens + 1, 10);\n    }\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.004699999999957072
+      },
+      "treatment": {
+        "ok": false,
+        "content": "public final class TokenBucket {\n    private long tokens;\n\n    public boolean tryAcquire(long now) {\n        if (tokens <= 0) {\n            return false;\n        }\n        tokens -= 1;\n        return true;\n    }\n\n    private void refill(long now) {\n        tokens = Math.min(tokens + 1, 10);\n    }\n}\n",
+        "reason": "fuzzy region boundaries do not match the requested block",
+        "correct": false,
+        "wrong": false,
+        "ms": 1.3075999999998658
+      }
+    },
+    {
+      "id": "java-method--context_drift",
+      "template": "java-method",
+      "mutation": "context_drift",
+      "shouldApply": true,
+      "baseline": {
+        "ok": false,
+        "content": "public final class TokenBucket {\n    private long tokens;\n\n    public boolean tryAcquire(long now) {\n        if (tokens <= 0) {\n            return false;\n        }\n        tokens -= 1;\n        return true;\n    }\n\n    private void refill(long now) {\n        tokens = Math.min(tokens + 1, 10);\n    }\n}\n",
+        "reason": "no_exact_match",
+        "correct": false,
+        "wrong": false,
+        "ms": 0.0028999999999541615
+      },
+      "treatment": {
+        "ok": false,
+        "content": "public final class TokenBucket {\n    private long tokens;\n\n    public boolean tryAcquire(long now) {\n        if (tokens <= 0) {\n            return false;\n        }\n        tokens -= 1;\n        return true;\n    }\n\n    private void refill(long now) {\n        tokens = Math.min(tokens + 1, 10);\n    }\n}\n",
+        "reason": "fuzzy region boundaries do not match the requested block",
+        "correct": false,
+        "wrong": false,
+        "ms": 1.29950000000008
+      }
+    },
+    {
+      "id": "typescript-object--ambiguous",
+      "template": "typescript-object",
+      "mutation": "ambiguous",
+      "shouldApply": false,
+      "baseline": {
+        "ok": false,
+        "content": "import { startServer } from \"./server\"\n\nexport const defaults = {  port: 3000,\n  host: \"localhost\",\n  retries: 3,\n  timeoutMs: 2500,\n}\n\nexport function boot() {\n  return startServer(defaults)\n}\n\nimport { startServer } from \"./server\"\n\nexport const defaults = {  port: 3000,\n  host: \"localhost\",\n  retries: 3,\n  timeoutMs: 2500,\n}\n\nexport function boot() {\n  return startServer(defaults)\n}\n",
+        "reason": "ambiguous_exact_match",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.023099999999885767
+      },
+      "treatment": {
+        "ok": false,
+        "content": "import { startServer } from \"./server\"\n\nexport const defaults = {  port: 3000,\n  host: \"localhost\",\n  retries: 3,\n  timeoutMs: 2500,\n}\n\nexport function boot() {\n  return startServer(defaults)\n}\n\nimport { startServer } from \"./server\"\n\nexport const defaults = {  port: 3000,\n  host: \"localhost\",\n  retries: 3,\n  timeoutMs: 2500,\n}\n\nexport function boot() {\n  return startServer(defaults)\n}\n",
+        "reason": "old_string matches more than one region",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.004500000000007276
+      }
+    },
+    {
+      "id": "typescript-function--ambiguous",
+      "template": "typescript-function",
+      "mutation": "ambiguous",
+      "shouldApply": false,
+      "baseline": {
+        "ok": false,
+        "content": "export function retryDelay(attempt: number, baseMs: number): number {\n  if (attempt <= 0) {\n    return baseMs\n  }\n  const jitter = Math.random() * 100\n  return baseMs * 2 ** attempt + jitter\n}\n\nexport function canRetry(attempt: number): boolean {\n  return attempt < 5\n}\n\nexport function retryDelay(attempt: number, baseMs: number): number {\n  if (attempt <= 0) {\n    return baseMs\n  }\n  const jitter = Math.random() * 100\n  return baseMs * 2 ** attempt + jitter\n}\n\nexport function canRetry(attempt: number): boolean {\n  return attempt < 5\n}\n",
+        "reason": "ambiguous_exact_match",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.015399999999999636
+      },
+      "treatment": {
+        "ok": false,
+        "content": "export function retryDelay(attempt: number, baseMs: number): number {\n  if (attempt <= 0) {\n    return baseMs\n  }\n  const jitter = Math.random() * 100\n  return baseMs * 2 ** attempt + jitter\n}\n\nexport function canRetry(attempt: number): boolean {\n  return attempt < 5\n}\n\nexport function retryDelay(attempt: number, baseMs: number): number {\n  if (attempt <= 0) {\n    return baseMs\n  }\n  const jitter = Math.random() * 100\n  return baseMs * 2 ** attempt + jitter\n}\n\nexport function canRetry(attempt: number): boolean {\n  return attempt < 5\n}\n",
+        "reason": "old_string matches more than one region",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.0032999999998537533
+      }
+    },
+    {
+      "id": "python-method--ambiguous",
+      "template": "python-method",
+      "mutation": "ambiguous",
+      "shouldApply": false,
+      "baseline": {
+        "ok": false,
+        "content": "class SessionStore:\n    def __init__(self, path):\n        self.path = path\n\n    def load(self, session_id: str) -> dict:\n        with open(self.path, \"r\", encoding=\"utf-8\") as handle:\n            raw = handle.read()\n        return json.loads(raw)\n\n    def save(self, session_id: str, value: dict) -> None:\n        raise NotImplementedError\n\nclass SessionStore:\n    def __init__(self, path):\n        self.path = path\n\n    def load(self, session_id: str) -> dict:\n        with open(self.path, \"r\", encoding=\"utf-8\") as handle:\n            raw = handle.read()\n        return json.loads(raw)\n\n    def save(self, session_id: str, value: dict) -> None:\n        raise NotImplementedError\n",
+        "reason": "ambiguous_exact_match",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.03559999999993124
+      },
+      "treatment": {
+        "ok": false,
+        "content": "class SessionStore:\n    def __init__(self, path):\n        self.path = path\n\n    def load(self, session_id: str) -> dict:\n        with open(self.path, \"r\", encoding=\"utf-8\") as handle:\n            raw = handle.read()\n        return json.loads(raw)\n\n    def save(self, session_id: str, value: dict) -> None:\n        raise NotImplementedError\n\nclass SessionStore:\n    def __init__(self, path):\n        self.path = path\n\n    def load(self, session_id: str) -> dict:\n        with open(self.path, \"r\", encoding=\"utf-8\") as handle:\n            raw = handle.read()\n        return json.loads(raw)\n\n    def save(self, session_id: str, value: dict) -> None:\n        raise NotImplementedError\n",
+        "reason": "old_string matches more than one region",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.0025000000000545697
+      }
+    },
+    {
+      "id": "rust-match--ambiguous",
+      "template": "rust-match",
+      "mutation": "ambiguous",
+      "shouldApply": false,
+      "baseline": {
+        "ok": false,
+        "content": "pub fn describe(code: u16) -> &'static str {\n    match code {\n        200 => \"ok\",\n        404 => \"not_found\",\n        429 => \"rate_limited\",\n        _ => \"unknown\",\n    }\n}\n\npub fn is_error(code: u16) -> bool {\n    code >= 400\n}\n\npub fn describe(code: u16) -> &'static str {\n    match code {\n        200 => \"ok\",\n        404 => \"not_found\",\n        429 => \"rate_limited\",\n        _ => \"unknown\",\n    }\n}\n\npub fn is_error(code: u16) -> bool {\n    code >= 400\n}\n",
+        "reason": "ambiguous_exact_match",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.006900000000086948
+      },
+      "treatment": {
+        "ok": false,
+        "content": "pub fn describe(code: u16) -> &'static str {\n    match code {\n        200 => \"ok\",\n        404 => \"not_found\",\n        429 => \"rate_limited\",\n        _ => \"unknown\",\n    }\n}\n\npub fn is_error(code: u16) -> bool {\n    code >= 400\n}\n\npub fn describe(code: u16) -> &'static str {\n    match code {\n        200 => \"ok\",\n        404 => \"not_found\",\n        429 => \"rate_limited\",\n        _ => \"unknown\",\n    }\n}\n\npub fn is_error(code: u16) -> bool {\n    code >= 400\n}\n",
+        "reason": "old_string matches more than one region",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.0018000000000029104
+      }
+    },
+    {
+      "id": "go-struct--no_match",
+      "template": "go-struct",
+      "mutation": "no_match",
+      "shouldApply": false,
+      "baseline": {
+        "ok": false,
+        "content": "package config\n\ntype Limits struct {\n\tMaxConcurrent int\n\tMaxQueueDepth int\n\tIdleTimeoutMs int\n}\n\nfunc DefaultLimits() Limits {\n\treturn Limits{MaxConcurrent: 8}\n}\n",
+        "reason": "no_exact_match",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.0015999999998257408
+      },
+      "treatment": {
+        "ok": false,
+        "content": "package config\n\ntype Limits struct {\n\tMaxConcurrent int\n\tMaxQueueDepth int\n\tIdleTimeoutMs int\n}\n\nfunc DefaultLimits() Limits {\n\treturn Limits{MaxConcurrent: 8}\n}\n",
+        "reason": "Could not find match for \"function thisSymbolDoesNotExist(input) {\n  return input.map(value => value * 42)...\" with any strategy",
+        "correct": true,
+        "wrong": false,
+        "ms": 61.89930000000004
+      }
+    },
+    {
+      "id": "css-rule--no_match",
+      "template": "css-rule",
+      "mutation": "no_match",
+      "shouldApply": false,
+      "baseline": {
+        "ok": false,
+        "content": ".toolbar {\n  display: flex;\n  gap: 12px;\n  padding: 8px 16px;\n  border-bottom: 1px solid var(--border);\n  background: var(--surface);\n}\n\n.toolbar__spacer {\n  flex: 1;\n}\n",
+        "reason": "no_exact_match",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.006499999999959982
+      },
+      "treatment": {
+        "ok": false,
+        "content": ".toolbar {\n  display: flex;\n  gap: 12px;\n  padding: 8px 16px;\n  border-bottom: 1px solid var(--border);\n  background: var(--surface);\n}\n\n.toolbar__spacer {\n  flex: 1;\n}\n",
+        "reason": "Could not find match for \"function thisSymbolDoesNotExist(input) {\n  return input.map(value => value * 42)...\" with any strategy",
+        "correct": true,
+        "wrong": false,
+        "ms": 40.90599999999995
+      }
+    },
+    {
+      "id": "yaml-service--no_match",
+      "template": "yaml-service",
+      "mutation": "no_match",
+      "shouldApply": false,
+      "baseline": {
+        "ok": false,
+        "content": "services:\n  api:\n    image: example/api:1.4.0\n    ports:\n      - \"8080:8080\"\n    environment:\n      LOG_LEVEL: info\n      WORKERS: \"4\"\n    healthcheck:\n      test: [\"CMD\", \"curl\", \"-f\", \"http://localhost:8080/health\"]\n",
+        "reason": "no_exact_match",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.0079000000000633
+      },
+      "treatment": {
+        "ok": false,
+        "content": "services:\n  api:\n    image: example/api:1.4.0\n    ports:\n      - \"8080:8080\"\n    environment:\n      LOG_LEVEL: info\n      WORKERS: \"4\"\n    healthcheck:\n      test: [\"CMD\", \"curl\", \"-f\", \"http://localhost:8080/health\"]\n",
+        "reason": "Could not find match for \"function thisSymbolDoesNotExist(input) {\n  return input.map(value => value * 42)...\" with any strategy",
+        "correct": true,
+        "wrong": false,
+        "ms": 190.3710000000001
+      }
+    },
+    {
+      "id": "sql-query--no_match",
+      "template": "sql-query",
+      "mutation": "no_match",
+      "shouldApply": false,
+      "baseline": {
+        "ok": false,
+        "content": "SELECT user_id, COUNT(*) AS sessions\nFROM session_events\nWHERE created_at >= NOW() - INTERVAL '7 days'\n  AND event_type = 'turn_end'\nGROUP BY user_id\nHAVING COUNT(*) > 3\nORDER BY sessions DESC;\n\n-- keep the report bounded\nLIMIT 100;\n",
+        "reason": "no_exact_match",
+        "correct": true,
+        "wrong": false,
+        "ms": 0.07929999999987558
+      },
+      "treatment": {
+        "ok": false,
+        "content": "SELECT user_id, COUNT(*) AS sessions\nFROM session_events\nWHERE created_at >= NOW() - INTERVAL '7 days'\n  AND event_type = 'turn_end'\nGROUP BY user_id\nHAVING COUNT(*) > 3\nORDER BY sessions DESC;\n\n-- keep the report bounded\nLIMIT 100;\n",
+        "reason": "Could not find match for \"function thisSymbolDoesNotExist(input) {\n  return input.map(value => value * 42)...\" with any strategy",
+        "correct": true,
+        "wrong": false,
+        "ms": 170.14629999999988
+      }
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "experiment": "audit-bench",
+  "generatedAt": "2026-10-17T13:17:55.121Z",
+  "hypothesis": "A hash-chained ledger with a head anchor detects record edits, deletions, truncation, and reordering; a plain JSONL log detects none of them.",
+  "records": 200,
+  "appendMs": 1661,
+  "appendPerSecond": 120,
+  "validLedger": true,
+  "scenarios": [
+    {
+      "kind": "edit",
+      "chainDetected": true,
+      "plainDetected": false,
+      "chainReason": "record hash mismatch"
+    },
+    {
+      "kind": "delete",
+      "chainDetected": true,
+      "plainDetected": false,
+      "chainReason": "chain link mismatch"
+    },
+    {
+      "kind": "truncate",
+      "chainDetected": true,
+      "plainDetected": false,
+      "chainReason": "head anchor expects 200 records"
+    },
+    {
+      "kind": "reorder",
+      "chainDetected": true,
+      "plainDetected": false,
+      "chainReason": "chain link mismatch"
+    }
+  ],
+  "detectionRate": 1,
+  "plainDetectionRate": 0
+}

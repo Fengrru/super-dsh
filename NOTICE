@@ -1,0 +1,28 @@
+SuperDSH
+Copyright (c) 2026 Fengrru
+
+This software is released under the MIT License (see LICENSE).
+
+Third-party notices
+-------------------
+
+1. fuzzy-patch — part of awesome-agent-infra
+   Source: https://github.com/Fengrru/awesome-agent-infra
+   Package: @fengrru/fuzzy-patch
+   License: MIT
+   Copyright (c) 2025-2026 fengru
+   Files: src/vendor/fuzzy-patch.ts (vendored, with added match offsets and
+   matched-text reporting, and a separate safety wrapper in src/fuzzy-apply.ts)
+
+2. DeepSeek Harness (dsh)
+   Source: https://github.com/deepseek-ai/deepseek-harness
+   License: MIT
+   SuperDSH is an independent plugin; no dsh source code is copied into this
+   repository. The plugin targets dsh's documented Cordis extension seams.
+
+3. Nexus Runtime
+   Source: https://github.com/Fengrru/nexus-runtime
+   License: MIT OR Apache-2.0
+   SuperDSH borrows design invariants (event log as truth, hash-chained audit,
+   external verification) but no Nexus source code is copied into this
+   repository.

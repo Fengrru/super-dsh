@@ -1,0 +1,197 @@
+{
+  "experiment": "memory",
+  "generatedAt": "2026-10-17T13:15:49.784Z",
+  "model": "deepseek-flash",
+  "runs": 4,
+  "summary": {
+    "baseline": 0,
+    "treatment": 2,
+    "totalPerArm": 2
+  },
+  "trials": [
+    {
+      "experiment": "memory",
+      "arm": "baseline",
+      "task": "pair-1",
+      "passed": false,
+      "detail": "session1 tools=none; memory_file=none; session2=command:false naming:false",
+      "session": {
+        "final": "I can't answer either question reliably without inspecting the project — I have no prior knowledge of this workspace, and guessing a test command or naming convention would just produce invented facts.\n\nTo answer accurately I'd need to look at a few things, e.g.:\n- **Test command:** `package.json` scripts, `Makefile`, `pyproject.toml`, `Cargo.toml`, README, or CI config.\n- **Field-name convention:** README/API docs, lint or schema config (e.g. ESLint `camelcase`, OpenAPI spec), or existing response models/serializers.\n\nSay the word and I'll check those and give you the two answers.",
+        "exitCode": 0,
+        "reason": "completed",
+        "turns": 1,
+        "steps": 1,
+        "toolCalls": [],
+        "inputTokens": 531,
+        "outputTokens": 317,
+        "wallMs": 176902,
+        "timedOut": false
+      },
+      "extra": {
+        "first": {
+          "final": "SAVED",
+          "exitCode": 0,
+          "reason": "completed",
+          "turns": 1,
+          "steps": 1,
+          "toolCalls": [],
+          "inputTokens": 536,
+          "outputTokens": 53,
+          "wallMs": 220098,
+          "timedOut": false
+        },
+        "memoryStored": false
+      }
+    },
+    {
+      "experiment": "memory",
+      "arm": "baseline",
+      "task": "pair-2",
+      "passed": false,
+      "detail": "session1 tools=none; memory_file=none; session2=command:false naming:false",
+      "session": {
+        "final": "I can't answer either question from the information available — no project details (test command or API conventions) are present in the conversation, and you've asked me not to inspect the files or run commands.\n\nIf you allow me to read the project (e.g., `README`, `package.json`, `CONTRIBUTING.md`, or docs), I can answer both immediately.",
+        "exitCode": 0,
+        "reason": "completed",
+        "turns": 1,
+        "steps": 1,
+        "toolCalls": [],
+        "inputTokens": 531,
+        "outputTokens": 240,
+        "wallMs": 177583,
+        "timedOut": false
+      },
+      "extra": {
+        "first": {
+          "final": "SAVED",
+          "exitCode": 0,
+          "reason": "completed",
+          "turns": 1,
+          "steps": 1,
+          "toolCalls": [],
+          "inputTokens": 536,
+          "outputTokens": 179,
+          "wallMs": 218572,
+          "timedOut": false
+        },
+        "memoryStored": false
+      }
+    },
+    {
+      "experiment": "memory",
+      "arm": "treatment",
+      "task": "pair-1",
+      "passed": true,
+      "detail": "session1 tools=memory_save,memory_save; memory_file=present; session2=command:true naming:true",
+      "session": {
+        "final": "**(1) Test command:** `bun test --coverage`\n\n**(2) API field names:** `snake_case`",
+        "exitCode": 0,
+        "reason": "completed",
+        "turns": 1,
+        "steps": 1,
+        "toolCalls": [],
+        "inputTokens": 478,
+        "outputTokens": 87,
+        "wallMs": 258079,
+        "timedOut": false
+      },
+      "extra": {
+        "first": {
+          "final": "SAVED",
+          "exitCode": 0,
+          "reason": "completed",
+          "turns": 1,
+          "steps": 2,
+          "toolCalls": [
+            {
+              "tool": "memory_save",
+              "input": {
+                "text": "The project test command is `bun test --coverage`.",
+                "tags": [
+                  "testing",
+                  "commands"
+                ],
+                "importance": 0.8
+              }
+            },
+            {
+              "tool": "memory_save",
+              "input": {
+                "text": "API responses in this project must use snake_case field names.",
+                "tags": [
+                  "api",
+                  "convention"
+                ],
+                "importance": 0.8
+              }
+            }
+          ],
+          "inputTokens": 747,
+          "outputTokens": 262,
+          "wallMs": 235840,
+          "timedOut": false
+        },
+        "memoryStored": true
+      }
+    },
+    {
+      "experiment": "memory",
+      "arm": "treatment",
+      "task": "pair-2",
+      "passed": true,
+      "detail": "session1 tools=memory_save,memory_save; memory_file=present; session2=command:true naming:true",
+      "session": {
+        "final": "1. **Test command:** `bun test --coverage`\n2. **Field-name convention:** `snake_case` for API response fields.",
+        "exitCode": 0,
+        "reason": "completed",
+        "turns": 1,
+        "steps": 1,
+        "toolCalls": [],
+        "inputTokens": 611,
+        "outputTokens": 69,
+        "wallMs": 256098,
+        "timedOut": false
+      },
+      "extra": {
+        "first": {
+          "final": "SAVED",
+          "exitCode": 0,
+          "reason": "completed",
+          "turns": 1,
+          "steps": 2,
+          "toolCalls": [
+            {
+              "tool": "memory_save",
+              "input": {
+                "text": "The project's test command is `bun test --coverage`.",
+                "tags": [
+                  "testing",
+                  "commands",
+                  "convention"
+                ],
+                "importance": 0.8
+              }
+            },
+            {
+              "tool": "memory_save",
+              "input": {
+                "text": "API responses in this project must use snake_case field names.",
+                "tags": [
+                  "api",
+                  "convention",
+                  "style"
+                ],
+                "importance": 0.8
+              }
+            }
+          ],
+          "inputTokens": 742,
+          "outputTokens": 257,
+          "wallMs": 236672,
+          "timedOut": false
+        },
+        "memoryStored": true
+      }
+    }
+  ]
+}

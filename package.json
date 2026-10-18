@@ -1,0 +1,56 @@
+{
+  "name": "dsh-super",
+  "version": "0.1.0",
+  "description": "SuperDSH — reliable edits, cross-session project memory, a verification gate, and a tamper-evident audit ledger for DeepSeek Harness (dsh)",
+  "type": "module",
+  "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/index.js",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh.md",
+    "LICENSE",
+    "NOTICE",
+    "docs"
+  ],
+  "engines": {
+    "dsh": ">=0.2.1-rc.2 <0.3.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --target=node --format=esm --outfile=dist/index.js",
+    "prepare": "bun run build",
+    "prepublishOnly": "bun run build",
+    "test": "bun test",
+    "experiment:patch": "bun experiments/patch-bench.ts",
+    "experiment:units": "bun experiments/unit-checks.ts",
+    "experiment:agent": "bun experiments/agent-bench.ts"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "agent",
+    "memory",
+    "audit",
+    "verification"
+  ],
+  "author": "Fengrru",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Fengrru/super-dsh.git"
+  },
+  "homepage": "https://github.com/Fengrru/super-dsh#readme",
+  "bugs": {
+    "url": "https://github.com/Fengrru/super-dsh/issues"
+  },
+  "license": "MIT"
+}

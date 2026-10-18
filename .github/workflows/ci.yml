@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Unit and integration tests
+        run: bun test
+      - name: Build bundle
+        run: bun run build
+      - name: Patch reliability experiment
+        run: bun experiments/patch-bench.ts
+      - name: Audit integrity experiment
+        run: bun experiments/audit-bench.ts

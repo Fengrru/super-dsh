@@ -1,0 +1,637 @@
+{
+  "experiment": "agent-bench",
+  "generatedAt": "2026-10-18T00:38:38.833Z",
+  "model": "deepseek-flash",
+  "dsh": "0.2.1-rc.2 (source checkout)",
+  "runs": 12,
+  "memory": {
+    "baseline": 0,
+    "treatment": 2,
+    "totalPerArm": 2
+  },
+  "verify": {
+    "baseline": 4,
+    "treatment": 4,
+    "totalPerArm": 4
+  },
+  "trials": [
+    {
+      "experiment": "memory",
+      "arm": "baseline",
+      "task": "pair-1",
+      "passed": false,
+      "detail": "session1 tools=none; memory_file=none; session2=command:false naming:false",
+      "session": {
+        "final": "I can't answer either question reliably without inspecting the project — I have no prior knowledge of this workspace, and guessing a test command or naming convention would just produce invented facts.\n\nTo answer accurately I'd need to look at a few things, e.g.:\n- **Test command:** `package.json` scripts, `Makefile`, `pyproject.toml`, `Cargo.toml`, README, or CI config.\n- **Field-name convention:** README/API docs, lint or schema config (e.g. ESLint `camelcase`, OpenAPI spec), or existing response models/serializers.\n\nSay the word and I'll check those and give you the two answers.",
+        "exitCode": 0,
+        "reason": "completed",
+        "turns": 1,
+        "steps": 1,
+        "toolCalls": [],
+        "inputTokens": 531,
+        "outputTokens": 317,
+        "wallMs": 176902,
+        "timedOut": false
+      },
+      "extra": {
+        "first": {
+          "final": "SAVED",
+          "exitCode": 0,
+          "reason": "completed",
+          "turns": 1,
+          "steps": 1,
+          "toolCalls": [],
+          "inputTokens": 536,
+          "outputTokens": 53,
+          "wallMs": 220098,
+          "timedOut": false
+        },
+        "memoryStored": false
+      }
+    },
+    {
+      "experiment": "memory",
+      "arm": "baseline",
+      "task": "pair-2",
+      "passed": false,
+      "detail": "session1 tools=none; memory_file=none; session2=command:false naming:false",
+      "session": {
+        "final": "I can't answer either question from the information available — no project details (test command or API conventions) are present in the conversation, and you've asked me not to inspect the files or run commands.\n\nIf you allow me to read the project (e.g., `README`, `package.json`, `CONTRIBUTING.md`, or docs), I can answer both immediately.",
+        "exitCode": 0,
+        "reason": "completed",
+        "turns": 1,
+        "steps": 1,
+        "toolCalls": [],
+        "inputTokens": 531,
+        "outputTokens": 240,
+        "wallMs": 177583,
+        "timedOut": false
+      },
+      "extra": {
+        "first": {
+          "final": "SAVED",
+          "exitCode": 0,
+          "reason": "completed",
+          "turns": 1,
+          "steps": 1,
+          "toolCalls": [],
+          "inputTokens": 536,
+          "outputTokens": 179,
+          "wallMs": 218572,
+          "timedOut": false
+        },
+        "memoryStored": false
+      }
+    },
+    {
+      "experiment": "memory",
+      "arm": "treatment",
+      "task": "pair-1",
+      "passed": true,
+      "detail": "session1 tools=memory_save,memory_save; memory_file=present; session2=command:true naming:true",
+      "session": {
+        "final": "**(1) Test command:** `bun test --coverage`\n\n**(2) API field names:** `snake_case`",
+        "exitCode": 0,
+        "reason": "completed",
+        "turns": 1,
+        "steps": 1,
+        "toolCalls": [],
+        "inputTokens": 478,
+        "outputTokens": 87,
+        "wallMs": 258079,
+        "timedOut": false
+      },
+      "extra": {
+        "first": {
+          "final": "SAVED",
+          "exitCode": 0,
+          "reason": "completed",
+          "turns": 1,
+          "steps": 2,
+          "toolCalls": [
+            {
+              "tool": "memory_save",
+              "input": {
+                "text": "The project test command is `bun test --coverage`.",
+                "tags": [
+                  "testing",
+                  "commands"
+                ],
+                "importance": 0.8
+              }
+            },
+            {
+              "tool": "memory_save",
+              "input": {
+                "text": "API responses in this project must use snake_case field names.",
+                "tags": [
+                  "api",
+                  "convention"
+                ],
+                "importance": 0.8
+              }
+            }
+          ],
+          "inputTokens": 747,
+          "outputTokens": 262,
+          "wallMs": 235840,
+          "timedOut": false
+        },
+        "memoryStored": true
+      }
+    },
+    {
+      "experiment": "memory",
+      "arm": "treatment",
+      "task": "pair-2",
+      "passed": true,
+      "detail": "session1 tools=memory_save,memory_save; memory_file=present; session2=command:true naming:true",
+      "session": {
+        "final": "1. **Test command:** `bun test --coverage`\n2. **Field-name convention:** `snake_case` for API response fields.",
+        "exitCode": 0,
+        "reason": "completed",
+        "turns": 1,
+        "steps": 1,
+        "toolCalls": [],
+        "inputTokens": 611,
+        "outputTokens": 69,
+        "wallMs": 256098,
+        "timedOut": false
+      },
+      "extra": {
+        "first": {
+          "final": "SAVED",
+          "exitCode": 0,
+          "reason": "completed",
+          "turns": 1,
+          "steps": 2,
+          "toolCalls": [
+            {
+              "tool": "memory_save",
+              "input": {
+                "text": "The project's test command is `bun test --coverage`.",
+                "tags": [
+                  "testing",
+                  "commands",
+                  "convention"
+                ],
+                "importance": 0.8
+              }
+            },
+            {
+              "tool": "memory_save",
+              "input": {
+                "text": "API responses in this project must use snake_case field names.",
+                "tags": [
+                  "api",
+                  "convention",
+                  "style"
+                ],
+                "importance": 0.8
+              }
+            }
+          ],
+          "inputTokens": 742,
+          "outputTokens": 257,
+          "wallMs": 236672,
+          "timedOut": false
+        },
+        "memoryStored": true
+      }
+    },
+    {
+      "experiment": "verify",
+      "arm": "baseline",
+      "task": "sum-negative",
+      "passed": true,
+      "detail": "tests=pass test_file_intact=true test_runs=1 turn_end=completed",
+      "session": {
+        "final": "Fixed the bug in `src.js`: the loop was taking the absolute value of each number (`value > 0 ? value : -value`), which made negative numbers add positively. It now adds each value directly.\n\nAll 3 tests pass (`node --test`: 3 pass, 0 fail). `test.js` was not modified.",
+        "exitCode": 0,
+        "reason": "completed",
+        "turns": 1,
+        "steps": 3,
+        "toolCalls": [
+          {
+            "tool": "read",
+            "input": {
+              "file_path": "C:\\Users\\<user>\\Desktop\\<root>\\super-dsh\\experiments\\runs\\2026-10-17T12-39-56-523Z\\verify\\baseline\\sum-negative\\workspace\\src.js"
+            }
+          },
+          {
+            "tool": "read",
+            "input": {
+              "file_path": "C:\\Users\\<user>\\Desktop\\<root>\\super-dsh\\experiments\\runs\\2026-10-17T12-39-56-523Z\\verify\\baseline\\sum-negative\\workspace\\test.js"
+            }
+          },
+          {
+            "tool": "edit",
+            "input": {
+              "file_path": "C:\\Users\\<user>\\Desktop\\<root>\\super-dsh\\experiments\\runs\\2026-10-17T12-39-56-523Z\\verify\\baseline\\sum-negative\\workspace\\src.js",
+              "old_string": "    total += value > 0 ? value : -value",
+              "new_string": "    total += value"
+            }
+          },
+          {
+            "tool": "pwsh",
+            "input": {
+              "command": "node --test",
+              "description": "Run project tests with node test runner",
+              "workdir": "C:\\Users\\<user>\\Desktop\\<root>\\super-dsh\\experiments\\runs\\2026-10-17T12-39-56-523Z\\verify\\baseline\\sum-negative\\workspace"
+            }
+          }
+        ],
+        "inputTokens": 1080,
+        "outputTokens": 516,
+        "wallMs": 311339,
+        "timedOut": false
+      },
+      "extra": {
+        "testRuns": 1,
+        "testUnchanged": true
+      }
+    },
+    {
+      "experiment": "verify",
+      "arm": "treatment",
+      "task": "sum-negative",
+      "passed": true,
+      "detail": "tests=pass test_file_intact=true test_runs=1 turn_end=completed",
+      "session": {
+        "final": "Fixed the bug in `src.js`.\n\nThe loop was treating every number as its absolute value (`total += value > 0 ? value : -value`), so negatives were added as positives. It now adds values directly:\n\n```js\nexport function sum(numbers) {\n  let total = 0\n  for (const value of numbers) {\n    total += value\n  }\n  return total\n}\n```\n\nAll 3 tests pass (`adds positives`, `adds negatives`, `handles empty`). `test.js` was not modified.",
+        "exitCode": 0,
+        "reason": "completed",
+        "turns": 1,
+        "steps": 4,
+        "toolCalls": [
+          {
+            "tool": "read",
+            "input": {
+              "file_path": "C:\\Users\\<user>\\Desktop\\<root>\\super-dsh\\experiments\\runs\\2026-10-17T12-39-56-523Z\\verify\\treatment\\sum-negative\\workspace\\src.js"
+            }
+          },
+          {
+            "tool": "read",
+            "input": {
+              "file_path": "C:\\Users\\<user>\\Desktop\\<root>\\super-dsh\\experiments\\runs\\2026-10-17T12-39-56-523Z\\verify\\treatment\\sum-negative\\workspace\\test.js"
+            }
+          },
+          {
+            "tool": "edit",
+            "input": {
+              "file_path": "C:\\Users\\<user>\\Desktop\\<root>\\super-dsh\\experiments\\runs\\2026-10-17T12-39-56-523Z\\verify\\treatment\\sum-negative\\workspace\\src.js",
+              "old_string": "    total += value > 0 ? value : -value",
+              "new_string": "    total += value"
+            }
+          },
+          {
+            "tool": "verify",
+            "input": {}
+          }
+        ],
+        "inputTokens": 7018,
+        "outputTokens": 446,
+        "wallMs": 302848,
+        "timedOut": false
+      },
+      "extra": {
+        "testRuns": 1,
+        "testUnchanged": true
+      }
+    },
+    {
+      "experiment": "verify",
+      "arm": "baseline",
+      "task": "slugify",
+      "passed": true,
+      "detail": "tests=pass test_file_intact=true test_runs=1 turn_end=completed",
+      "session": {
+        "final": "Fixed `slugify` in `src.js`:\n\n- Removes punctuation via `.replace(/[^\\w\\s-]/g, '')`\n- Collapses runs of whitespace/hyphens into a single `-` via `.replace(/[\\s-]+/g, '-')`\n\nAll 3 tests pass with `node --test`. `test.js` was left untouched.",
+        "exitCode": 0,
+        "reason": "completed",
+        "turns": 1,
+        "steps": 4,
+        "toolCalls": [
+          {
+            "tool": "read",
+            "input": {
+              "file_path": "src.js"
+            }
+          },
+          {
+            "tool": "read",
+            "input": {
+              "file_path": "test.js"
+            }
+          },
+          {
+            "tool": "edit",
+            "input": {
+              "file_path": "src.js",
+              "old_string": "  return text.toLowerCase().trim().replace(/ /g, '-')",
+              "new_string": "  return text\n    .toLowerCase()\n    .trim()\n    .replace(/[^\\w\\s-]/g, '')\n    .replace(/[\\s-]+/g, '-')"
+            }
+          },
+          {
+            "tool": "pwsh",
+            "input": {
+              "command": "node --test",
+              "description": "Run node built-in test suite",
+              "workdir": "C:\\Users\\<user>\\Desktop\\<root>\\super-dsh\\experiments\\runs\\2026-10-17T12-39-56-523Z\\verify\\baseline\\slugify\\workspace"
+            }
+          }
+        ],
+        "inputTokens": 1308,
+        "outputTokens": 536,
+        "wallMs": 329575,
+        "timedOut": false
+      },
+      "extra": {
+        "testRuns": 1,
+        "testUnchanged": true
+      }
+    },
+    {
+      "experiment": "verify",
+      "arm": "treatment",
+      "task": "slugify",
+      "passed": true,
+      "detail": "tests=pass test_file_intact=true test_runs=2 turn_end=completed",
+      "session": {
+        "final": "Fixed `src.js`. The bug was that it only replaced single spaces and never stripped punctuation.\n\nThe new implementation:\n\n```js\nexport function slugify(text) {\n  return text\n    .toLowerCase()\n    .trim()\n    .replace(/[^\\w\\s-]/g, '')\n    .replace(/\\s+/g, '-')\n}\n```\n\n- `\\s+` collapses runs of whitespace into a single `-` (fixes `'Hello  World'` → `hello-world`)\n- The punctuation strip removes `,`, `!`, etc. (fixes `'Hello, World!'` → `hello-world`)\n\nVerification (`node --test`): 3 tests passed, 0 failed. `test.js` was not modified.",
+        "exitCode": 0,
+        "reason": "completed",
+        "turns": 1,
+        "steps": 5,
+        "toolCalls": [
+          {
+            "tool": "read",
+            "input": {
+              "file_path": "C:\\Users\\<user>\\Desktop\\<root>\\super-dsh\\experiments\\runs\\2026-10-17T12-39-56-523Z\\verify\\treatment\\slugify\\workspace\\src.js"
+            }
+          },
+          {
+            "tool": "read",
+            "input": {
+              "file_path": "C:\\Users\\<user>\\Desktop\\<root>\\super-dsh\\experiments\\runs\\2026-10-17T12-39-56-523Z\\verify\\treatment\\slugify\\workspace\\test.js"
+            }
+          },
+          {
+            "tool": "edit",
+            "input": {
+              "file_path": "C:\\Users\\<user>\\Desktop\\<root>\\super-dsh\\experiments\\runs\\2026-10-17T12-39-56-523Z\\verify\\treatment\\slugify\\workspace\\src.js",
+              "old_string": "export function slugify(text) {\n  return text.toLowerCase().trim().replace(/ /g, '-')\n}",
+              "new_string": "export function slugify(text) {\n  return text\n    .toLowerCase()\n    .trim()\n    .replace(/[^\\w\\s-]/g, '')\n    .replace(/\\s+/g, '-')\n}"
+            }
+          },
+          {
+            "tool": "pwsh",
+            "input": {
+              "command": "node --test",
+              "description": "Run project tests with node test runner",
+              "workdir": "C:\\Users\\<user>\\Desktop\\<root>\\super-dsh\\experiments\\runs\\2026-10-17T12-39-56-523Z\\verify\\treatment\\slugify\\workspace"
+            }
+          },
+          {
+            "tool": "verify",
+            "input": {}
+          }
+        ],
+        "inputTokens": 1321,
+        "outputTokens": 934,
+        "wallMs": 343948,
+        "timedOut": false
+      },
+      "extra": {
+        "testRuns": 2,
+        "testUnchanged": true
+      }
+    },
+    {
+      "experiment": "verify",
+      "arm": "baseline",
+      "task": "parse-port",
+      "passed": true,
+      "detail": "tests=pass test_file_intact=true test_runs=1 turn_end=completed",
+      "session": {
+        "final": "Fixed `src.js` by replacing `Number.parseInt(value)` with `Number(value)`, so partial numeric strings like `'8080abc'` are rejected instead of silently parsed as `8080`.\n\nAll 4 tests pass (`node --test`). `test.js` was not modified.",
+        "exitCode": 0,
+        "reason": "completed",
+        "turns": 1,
+        "steps": 5,
+        "toolCalls": [
+          {
+            "tool": "pwsh",
+            "input": {
+              "command": "Get-ChildItem -Force | Format-Table Mode, Length, Name -AutoSize",
+              "description": "List files in working directory"
+            }
+          },
+          {
+            "tool": "read",
+            "input": {
+              "file_path": "C:\\Users\\<user>\\Desktop\\<root>\\super-dsh\\experiments\\runs\\2026-10-17T12-39-56-523Z\\verify\\baseline\\parse-port\\workspace\\src.js"
+            }
+          },
+          {
+            "tool": "read",
+            "input": {
+              "file_path": "C:\\Users\\<user>\\Desktop\\<root>\\super-dsh\\experiments\\runs\\2026-10-17T12-39-56-523Z\\verify\\baseline\\parse-port\\workspace\\test.js"
+            }
+          },
+          {
+            "tool": "read",
+            "input": {
+              "file_path": "C:\\Users\\<user>\\Desktop\\<root>\\super-dsh\\experiments\\runs\\2026-10-17T12-39-56-523Z\\verify\\baseline\\parse-port\\workspace\\package.json"
+            }
+          },
+          {
+            "tool": "edit",
+            "input": {
+              "file_path": "C:\\Users\\<user>\\Desktop\\<root>\\super-dsh\\experiments\\runs\\2026-10-17T12-39-56-523Z\\verify\\baseline\\parse-port\\workspace\\src.js",
+              "old_string": "  const port = Number.parseInt(value)",
+              "new_string": "  const port = Number(value)"
+            }
+          },
+          {
+            "tool": "pwsh",
+            "input": {
+              "command": "node --test",
+              "description": "Run project tests with node test runner"
+            }
+          }
+        ],
+        "inputTokens": 1480,
+        "outputTokens": 814,
+        "wallMs": 309870,
+        "timedOut": false
+      },
+      "extra": {
+        "testRuns": 1,
+        "testUnchanged": true
+      }
+    },
+    {
+      "experiment": "verify",
+      "arm": "treatment",
+      "task": "parse-port",
+      "passed": true,
+      "detail": "tests=pass test_file_intact=true test_runs=1 turn_end=completed",
+      "session": {
+        "final": "All 4 tests pass. \n\n**Fix:** `Number.parseInt` parses leading digits and ignores everything after them, so `'8080abc'` was wrongly accepted as `8080`. `src.js` now:\n\n- Requires the input to be a string of only digits (`/^\\d+$/`), so trailing junk, empty strings, decimals, and other malformed values throw `Error('invalid port')`.\n- Still accepts actual numbers, validating integer type and the 1–65535 range.\n- Preserves the original range check and return type.\n\nTest file was left untouched, and `node --test` passes 4/4.",
+        "exitCode": 0,
+        "reason": "completed",
+        "turns": 1,
+        "steps": 6,
+        "toolCalls": [
+          {
+            "tool": "read",
+            "input": {
+              "file_path": "src.js"
+            }
+          },
+          {
+            "tool": "read",
+            "input": {
+              "file_path": "test.js"
+            }
+          },
+          {
+            "tool": "glob",
+            "input": {
+              "pattern": "**/*"
+            }
+          },
+          {
+            "tool": "read",
+            "input": {
+              "file_path": "package.json"
+            }
+          },
+          {
+            "tool": "write",
+            "input": {
+              "file_path": "src.js",
+              "content": "export function parsePort(value) {\n  if (typeof value === 'number') {\n    if (!Number.isInteger(value) || value < 1 || value > 65535) throw new Error('invalid port')\n    return value\n  }\n  if (typeof value !== 'string' || !/^\\d+$/.test(value)) throw new Error('invalid port')\n  const port = Number(value)\n  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('invalid port')\n  return port\n}\n"
+            }
+          },
+          {
+            "tool": "verify",
+            "input": {}
+          }
+        ],
+        "inputTokens": 1683,
+        "outputTokens": 1263,
+        "wallMs": 290555,
+        "timedOut": false
+      },
+      "extra": {
+        "testRuns": 1,
+        "testUnchanged": true
+      }
+    },
+    {
+      "experiment": "verify",
+      "arm": "baseline",
+      "task": "clamp",
+      "passed": true,
+      "detail": "tests=pass test_file_intact=true test_runs=1 turn_end=completed",
+      "session": {
+        "final": "Fixed. The bug was in `src.js`: `clamp` returned `value + 1`, shifting every result by one.\n\n```js\nexport function clamp(value, min, max) {\n  return Math.max(min, Math.min(max, value))\n}\n```\n\n`test.js` was untouched. All 3 tests pass (`node --test`): 3 pass, 0 fail.",
+        "exitCode": 0,
+        "reason": "completed",
+        "turns": 1,
+        "steps": 4,
+        "toolCalls": [
+          {
+            "tool": "read",
+            "input": {
+              "file_path": "C:\\Users\\<user>\\Desktop\\<root>\\super-dsh\\experiments\\runs\\2026-10-17T12-39-56-523Z\\verify\\baseline\\clamp\\workspace\\src.js"
+            }
+          },
+          {
+            "tool": "read",
+            "input": {
+              "file_path": "C:\\Users\\<user>\\Desktop\\<root>\\super-dsh\\experiments\\runs\\2026-10-17T12-39-56-523Z\\verify\\baseline\\clamp\\workspace\\test.js"
+            }
+          },
+          {
+            "tool": "edit",
+            "input": {
+              "file_path": "C:\\Users\\<user>\\Desktop\\<root>\\super-dsh\\experiments\\runs\\2026-10-17T12-39-56-523Z\\verify\\baseline\\clamp\\workspace\\src.js",
+              "old_string": "  return Math.max(min, Math.min(max, value + 1))",
+              "new_string": "  return Math.max(min, Math.min(max, value))"
+            }
+          },
+          {
+            "tool": "pwsh",
+            "input": {
+              "command": "node --test",
+              "description": "Run project tests with node test runner",
+              "workdir": "C:\\Users\\<user>\\Desktop\\<root>\\super-dsh\\experiments\\runs\\2026-10-17T12-39-56-523Z\\verify\\baseline\\clamp\\workspace"
+            }
+          }
+        ],
+        "inputTokens": 1340,
+        "outputTokens": 557,
+        "wallMs": 220586,
+        "timedOut": false
+      },
+      "extra": {
+        "testRuns": 1,
+        "testUnchanged": true
+      }
+    },
+    {
+      "experiment": "verify",
+      "arm": "treatment",
+      "task": "clamp",
+      "passed": true,
+      "detail": "tests=pass test_file_intact=true test_runs=1 turn_end=completed",
+      "session": {
+        "final": "Fixed. `clamp` was adding `+ 1` to the value before clamping, so `clamp(5, 0, 10)` returned 6 instead of 5.\n\n**Change in `src.js`:**\n```js\n- return Math.max(min, Math.min(max, value + 1))\n+ return Math.max(min, Math.min(max, value))\n```\n\nAll 3 tests pass (`node --test`), and `test.js` was left untouched.",
+        "exitCode": 0,
+        "reason": "completed",
+        "turns": 1,
+        "steps": 4,
+        "toolCalls": [
+          {
+            "tool": "read",
+            "input": {
+              "file_path": "src.js"
+            }
+          },
+          {
+            "tool": "read",
+            "input": {
+              "file_path": "test.js"
+            }
+          },
+          {
+            "tool": "edit",
+            "input": {
+              "file_path": "src.js",
+              "old_string": "  return Math.max(min, Math.min(max, value + 1))",
+              "new_string": "  return Math.max(min, Math.min(max, value))"
+            }
+          },
+          {
+            "tool": "pwsh",
+            "input": {
+              "command": "node --test",
+              "description": "Run the project test suite"
+            }
+          }
+        ],
+        "inputTokens": 1257,
+        "outputTokens": 368,
+        "wallMs": 223648,
+        "timedOut": false
+      },
+      "extra": {
+        "testRuns": 1,
+        "testUnchanged": true
+      }
+    }
+  ]
+}

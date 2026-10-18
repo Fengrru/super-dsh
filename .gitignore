@@ -1,0 +1,8 @@
+node_modules/
+dist/
+experiments/runs/
+experiments/workspaces/*/
+!experiments/workspaces/.gitkeep
+*.log
+.dsh-*/
+*.tmp

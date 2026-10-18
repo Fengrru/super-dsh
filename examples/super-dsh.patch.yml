@@ -1,0 +1,18 @@
+# Load SuperDSH from a local build as a startup overlay.
+# Replace <ABSOLUTE_PATH> with the absolute path to dist/index.js.
+- insert:
+    - id: super-dsh
+      name: '<ABSOLUTE_PATH>/dist/index.js'
+      config:
+        fuzzyEdit: true
+        memory: true
+        audit: true
+        # The verification gate is opt-in; uncomment to enforce a command.
+        # verify:
+        #   command: 'bun test'
+        #   timeoutMs: 120000
+        #   maxAttempts: 2
+
+# Avoid an extra title-generation model request in scripted runs.
+- id: session-title-llm
+  disabled: true
