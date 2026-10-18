@@ -48,6 +48,17 @@ These were deliberately not bundled initially; each has a pre-registered experim
 | Valid8 output gate | FP 0/10, TP **1/10**; AST degraded (`experiments/results/valid8-bench.json`) | **Do not add.** Does not catch logic errors. |
 | Skill curation / dreamdistill | Synthetic hit@3 83.3% → 100%, stale slots 25% → 0%, but only synthetic data (`experiments/results/skill-curation-bench.json`) | **Defer** until a real skill corpus/agent-task experiment. |
 
+Research prototypes (`docs/experiments.md` E9):
+
+| Candidate | Evidence | Decision |
+|---|---|---|
+| POMDP planner | 100% success but ties greedy (100%), more steps (3.45 vs 2.98), 163 ms/plan with 1.4 s tails; no observations correct the belief (`experiments/results/pomdp-bench.json`) | **Do not add.** The original OR rule passed only via random; a planner that cannot beat greedy is not worth it. |
+| reasoning-search | MCTS-general 0 calls/empty solution; best_of_n equals budget-matched standard (100% vs 100%); finalScore invalid (`experiments/results/reasoning-search-bench.json`) | **Do not add.** |
+| process-reward | Holdout step AUC 0.500, trained 0.500 (0/250 scores changed), no inference path (`experiments/results/process-reward-bench.json`) | **Do not add.** Not a usable PRM. |
+| agent-metacog | Holdout ECE -0.0016 / Brier -0.0028; raw confidence ECE 0.0826 far better; random-noise training (`experiments/results/agent-metacog-bench.json`) | **Do not add.** |
+| hallucination-detector | F1 0.6154; 15/15 true/false pairs identical; single claims never flagged (`experiments/results/hallucination-detector-bench.json`) | **Do not add.** Internal consistency is not factuality. |
+| code-sandbox | 7 probes: E7 escaped via `process.getBuiltinModule('fs')`, read secret and wrote marker (`experiments/results/code-sandbox-security-bench.json`) | **Do not add.** Not a security boundary. |
+
 ## Rejected or deferred
 
 ### Nexus Runtime as a runtime dependency

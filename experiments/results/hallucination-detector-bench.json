@@ -1,0 +1,954 @@
+{
+  "experiment": "hallucination-detector-bench",
+  "generatedAt": "2026-10-18T02:38:20.679Z",
+  "package": {
+    "source": "../../awesome-agent-infra/packages/hallucination-detector/src/index.ts",
+    "version": "0.1.1",
+    "detector": "HallucinationDetector",
+    "api": {
+      "detect": "detect(text, options?: { referenceFacts?: string[]; knowledgeBase?: string[] }): HallucinationReport",
+      "optionalExternalEvidenceParams": [
+        "referenceFacts",
+        "knowledgeBase"
+      ],
+      "externalEvidenceUsed": false,
+      "internalConsistencyOnly": "Without caller-supplied referenceFacts/knowledgeBase, scoring is claim confidence + TF-IDF/Jaccard cluster coherence. The detector has no world knowledge and performs no fact lookup.",
+      "negationHandling": "Similarity is lexical (TF-IDF cosine + Jaccard); contradictory sentences that share words are treated as similar, not contradictory."
+    }
+  },
+  "dataset": {
+    "totalClaims": 30,
+    "trueClaims": 15,
+    "falseClaims": 15,
+    "contradictionProbes": 5,
+    "note": "False claims are fluent, single-claim self-consistent statements with one wrong location, date, person, quantity, or entity. Ground truth comes from manual fact labels, not from the detector."
+  },
+  "methodology": {
+    "primaryEvaluation": "corpus",
+    "secondaryEvaluation": "per-claim",
+    "decisionRule": "F1 >= 0.70 => add-opt-in; otherwise do-not-add",
+    "evaluationBoundary": "No external evidence is supplied. The experiment measures intrinsic factual judgment, not the optional caller-supplied knowledgeBase path."
+  },
+  "primary": {
+    "mode": "corpus",
+    "description": "One detect() call over all 30 claims joined by newlines.",
+    "durationMs": 7,
+    "extractedClaimCount": 30,
+    "clusterCount": 5,
+    "overallScore": 0.2983,
+    "details": "Detected 24 hallucinated claim(s) out of 30 total claims. Overall score: 0.30.",
+    "metrics": {
+      "actualPositives": 15,
+      "predictedPositives": 24,
+      "truePositives": 12,
+      "falsePositives": 12,
+      "falseNegatives": 3,
+      "trueNegatives": 3,
+      "precision": 0.5,
+      "recall": 0.8,
+      "f1": 0.6154,
+      "precisionDefined": true
+    },
+    "claims": [
+      {
+        "id": "T01",
+        "pair": "paris",
+        "label": "true",
+        "category": "location",
+        "text": "The Eiffel Tower is located in Paris, France.",
+        "detected": false,
+        "extracted": true,
+        "confidence": 0.5,
+        "clusterId": 0,
+        "clusterCoherence": 1,
+        "derivedScore": 0.8
+      },
+      {
+        "id": "F01",
+        "pair": "paris",
+        "label": "false",
+        "category": "location",
+        "text": "The Eiffel Tower is located in Berlin, Germany.",
+        "detected": false,
+        "extracted": true,
+        "confidence": 0.5,
+        "clusterId": 1,
+        "clusterCoherence": 1,
+        "derivedScore": 0.8
+      },
+      {
+        "id": "T02",
+        "pair": "pacific",
+        "label": "true",
+        "category": "quantity",
+        "text": "The Pacific Ocean is the largest ocean on Earth.",
+        "detected": false,
+        "extracted": true,
+        "confidence": 0.5,
+        "clusterId": 2,
+        "clusterCoherence": 0.8569,
+        "derivedScore": 0.7141
+      },
+      {
+        "id": "F02",
+        "pair": "pacific",
+        "label": "false",
+        "category": "quantity",
+        "text": "The Pacific Ocean is the smallest ocean on Earth.",
+        "detected": false,
+        "extracted": true,
+        "confidence": 0.5,
+        "clusterId": 2,
+        "clusterCoherence": 0.8569,
+        "derivedScore": 0.7141
+      },
+      {
+        "id": "T03",
+        "pair": "everest",
+        "label": "true",
+        "category": "location",
+        "text": "Mount Everest is the highest mountain above sea level.",
+        "detected": false,
+        "extracted": true,
+        "confidence": 0.45,
+        "clusterId": 3,
+        "clusterCoherence": 1,
+        "derivedScore": 0.78
+      },
+      {
+        "id": "F03",
+        "pair": "everest",
+        "label": "false",
+        "category": "location",
+        "text": "Mount Everest is the highest mountain in Australia.",
+        "detected": false,
+        "extracted": true,
+        "confidence": 0.45,
+        "clusterId": 4,
+        "clusterCoherence": 1,
+        "derivedScore": 0.78
+      },
+      {
+        "id": "T04",
+        "pair": "gold",
+        "label": "true",
+        "category": "entity",
+        "text": "The chemical symbol for gold is Au.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.4,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.16
+      },
+      {
+        "id": "F04",
+        "pair": "gold",
+        "label": "false",
+        "category": "entity",
+        "text": "The chemical symbol for gold is Ag.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.4,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.16
+      },
+      {
+        "id": "T05",
+        "pair": "boiling",
+        "label": "true",
+        "category": "quantity",
+        "text": "Water boils at 100 degrees Celsius at sea level.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.5,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.2
+      },
+      {
+        "id": "F05",
+        "pair": "boiling",
+        "label": "false",
+        "category": "quantity",
+        "text": "Water boils at 50 degrees Celsius at sea level.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.5,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.2
+      },
+      {
+        "id": "T06",
+        "pair": "great-wall",
+        "label": "true",
+        "category": "location",
+        "text": "The Great Wall of China is located in China.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.55,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.22
+      },
+      {
+        "id": "F06",
+        "pair": "great-wall",
+        "label": "false",
+        "category": "location",
+        "text": "The Great Wall of China is located in India.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.55,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.22
+      },
+      {
+        "id": "T07",
+        "pair": "tokyo",
+        "label": "true",
+        "category": "location",
+        "text": "The capital of Japan is Tokyo.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.45,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.18
+      },
+      {
+        "id": "F07",
+        "pair": "tokyo",
+        "label": "false",
+        "category": "location",
+        "text": "The capital of Japan is Kyoto.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.45,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.18
+      },
+      {
+        "id": "T08",
+        "pair": "einstein",
+        "label": "true",
+        "category": "person",
+        "text": "Albert Einstein developed the theory of relativity.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.35,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.14
+      },
+      {
+        "id": "F08",
+        "pair": "einstein",
+        "label": "false",
+        "category": "person",
+        "text": "Albert Einstein developed the theory of evolution.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.35,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.14
+      },
+      {
+        "id": "T09",
+        "pair": "amazon",
+        "label": "true",
+        "category": "location",
+        "text": "The Amazon River flows through Brazil.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.4,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.16
+      },
+      {
+        "id": "F09",
+        "pair": "amazon",
+        "label": "false",
+        "category": "location",
+        "text": "The Amazon River flows through Egypt.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.4,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.16
+      },
+      {
+        "id": "T10",
+        "pair": "heart",
+        "label": "true",
+        "category": "quantity",
+        "text": "The human heart has four chambers.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.4,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.16
+      },
+      {
+        "id": "F10",
+        "pair": "heart",
+        "label": "false",
+        "category": "quantity",
+        "text": "The human heart has three chambers.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.4,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.16
+      },
+      {
+        "id": "T11",
+        "pair": "moon",
+        "label": "true",
+        "category": "entity",
+        "text": "The Moon orbits the Earth.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.35,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.14
+      },
+      {
+        "id": "F11",
+        "pair": "moon",
+        "label": "false",
+        "category": "entity",
+        "text": "The Moon orbits Mars.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.35,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.14
+      },
+      {
+        "id": "T12",
+        "pair": "nobel",
+        "label": "true",
+        "category": "person",
+        "text": "The Nobel Prize was established by Alfred Nobel.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.55,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.22
+      },
+      {
+        "id": "F12",
+        "pair": "nobel",
+        "label": "false",
+        "category": "person",
+        "text": "The Nobel Prize was established by Isaac Newton.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.55,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.22
+      },
+      {
+        "id": "T13",
+        "pair": "revolution",
+        "label": "true",
+        "category": "date",
+        "text": "The French Revolution began in 1789.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.55,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.22
+      },
+      {
+        "id": "F13",
+        "pair": "revolution",
+        "label": "false",
+        "category": "date",
+        "text": "The French Revolution began in 1912.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.55,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.22
+      },
+      {
+        "id": "T14",
+        "pair": "python",
+        "label": "true",
+        "category": "person",
+        "text": "Python is a programming language created by Guido van Rossum.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.45,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.18
+      },
+      {
+        "id": "F14",
+        "pair": "python",
+        "label": "false",
+        "category": "person",
+        "text": "Python is a programming language created by James Gosling.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.45,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.18
+      },
+      {
+        "id": "T15",
+        "pair": "sahara",
+        "label": "true",
+        "category": "location",
+        "text": "The Sahara Desert is located in Africa.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.5,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.2
+      },
+      {
+        "id": "F15",
+        "pair": "sahara",
+        "label": "false",
+        "category": "location",
+        "text": "The Sahara Desert is located in Australia.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.5,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.2
+      }
+    ],
+    "clusters": [
+      {
+        "clusterId": 0,
+        "size": 1,
+        "coherence": 1,
+        "claimIds": [
+          "T01"
+        ]
+      },
+      {
+        "clusterId": 1,
+        "size": 1,
+        "coherence": 1,
+        "claimIds": [
+          "F01"
+        ]
+      },
+      {
+        "clusterId": 2,
+        "size": 2,
+        "coherence": 0.8569,
+        "claimIds": [
+          "T02",
+          "F02"
+        ]
+      },
+      {
+        "clusterId": 3,
+        "size": 1,
+        "coherence": 1,
+        "claimIds": [
+          "T03"
+        ]
+      },
+      {
+        "clusterId": 4,
+        "size": 1,
+        "coherence": 1,
+        "claimIds": [
+          "F03"
+        ]
+      }
+    ],
+    "pairAnalysis": {
+      "pairsTested": 15,
+      "symmetricOutcomes": 15,
+      "falseOnlyDetected": 0,
+      "pairs": [
+        {
+          "pair": "paris",
+          "trueId": "T01",
+          "falseId": "F01",
+          "trueDetected": false,
+          "falseDetected": false,
+          "symmetricOutcome": true,
+          "falseOnlyDetected": false
+        },
+        {
+          "pair": "pacific",
+          "trueId": "T02",
+          "falseId": "F02",
+          "trueDetected": false,
+          "falseDetected": false,
+          "symmetricOutcome": true,
+          "falseOnlyDetected": false
+        },
+        {
+          "pair": "everest",
+          "trueId": "T03",
+          "falseId": "F03",
+          "trueDetected": false,
+          "falseDetected": false,
+          "symmetricOutcome": true,
+          "falseOnlyDetected": false
+        },
+        {
+          "pair": "gold",
+          "trueId": "T04",
+          "falseId": "F04",
+          "trueDetected": true,
+          "falseDetected": true,
+          "symmetricOutcome": true,
+          "falseOnlyDetected": false
+        },
+        {
+          "pair": "boiling",
+          "trueId": "T05",
+          "falseId": "F05",
+          "trueDetected": true,
+          "falseDetected": true,
+          "symmetricOutcome": true,
+          "falseOnlyDetected": false
+        },
+        {
+          "pair": "great-wall",
+          "trueId": "T06",
+          "falseId": "F06",
+          "trueDetected": true,
+          "falseDetected": true,
+          "symmetricOutcome": true,
+          "falseOnlyDetected": false
+        },
+        {
+          "pair": "tokyo",
+          "trueId": "T07",
+          "falseId": "F07",
+          "trueDetected": true,
+          "falseDetected": true,
+          "symmetricOutcome": true,
+          "falseOnlyDetected": false
+        },
+        {
+          "pair": "einstein",
+          "trueId": "T08",
+          "falseId": "F08",
+          "trueDetected": true,
+          "falseDetected": true,
+          "symmetricOutcome": true,
+          "falseOnlyDetected": false
+        },
+        {
+          "pair": "amazon",
+          "trueId": "T09",
+          "falseId": "F09",
+          "trueDetected": true,
+          "falseDetected": true,
+          "symmetricOutcome": true,
+          "falseOnlyDetected": false
+        },
+        {
+          "pair": "heart",
+          "trueId": "T10",
+          "falseId": "F10",
+          "trueDetected": true,
+          "falseDetected": true,
+          "symmetricOutcome": true,
+          "falseOnlyDetected": false
+        },
+        {
+          "pair": "moon",
+          "trueId": "T11",
+          "falseId": "F11",
+          "trueDetected": true,
+          "falseDetected": true,
+          "symmetricOutcome": true,
+          "falseOnlyDetected": false
+        },
+        {
+          "pair": "nobel",
+          "trueId": "T12",
+          "falseId": "F12",
+          "trueDetected": true,
+          "falseDetected": true,
+          "symmetricOutcome": true,
+          "falseOnlyDetected": false
+        },
+        {
+          "pair": "revolution",
+          "trueId": "T13",
+          "falseId": "F13",
+          "trueDetected": true,
+          "falseDetected": true,
+          "symmetricOutcome": true,
+          "falseOnlyDetected": false
+        },
+        {
+          "pair": "python",
+          "trueId": "T14",
+          "falseId": "F14",
+          "trueDetected": true,
+          "falseDetected": true,
+          "symmetricOutcome": true,
+          "falseOnlyDetected": false
+        },
+        {
+          "pair": "sahara",
+          "trueId": "T15",
+          "falseId": "F15",
+          "trueDetected": true,
+          "falseDetected": true,
+          "symmetricOutcome": true,
+          "falseOnlyDetected": false
+        }
+      ],
+      "note": "A fact-aware detector should flag the false member of a pair while leaving the true member unflagged (falseOnlyDetected). Symmetric outcomes mean the flag carries no factuality signal."
+    },
+    "falsePositives": [
+      {
+        "id": "T04",
+        "pair": "gold",
+        "label": "true",
+        "category": "entity",
+        "text": "The chemical symbol for gold is Au.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.4,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.16
+      },
+      {
+        "id": "T05",
+        "pair": "boiling",
+        "label": "true",
+        "category": "quantity",
+        "text": "Water boils at 100 degrees Celsius at sea level.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.5,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.2
+      },
+      {
+        "id": "T06",
+        "pair": "great-wall",
+        "label": "true",
+        "category": "location",
+        "text": "The Great Wall of China is located in China.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.55,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.22
+      },
+      {
+        "id": "T07",
+        "pair": "tokyo",
+        "label": "true",
+        "category": "location",
+        "text": "The capital of Japan is Tokyo.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.45,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.18
+      },
+      {
+        "id": "T08",
+        "pair": "einstein",
+        "label": "true",
+        "category": "person",
+        "text": "Albert Einstein developed the theory of relativity.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.35,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.14
+      },
+      {
+        "id": "T09",
+        "pair": "amazon",
+        "label": "true",
+        "category": "location",
+        "text": "The Amazon River flows through Brazil.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.4,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.16
+      },
+      {
+        "id": "T10",
+        "pair": "heart",
+        "label": "true",
+        "category": "quantity",
+        "text": "The human heart has four chambers.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.4,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.16
+      },
+      {
+        "id": "T11",
+        "pair": "moon",
+        "label": "true",
+        "category": "entity",
+        "text": "The Moon orbits the Earth.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.35,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.14
+      },
+      {
+        "id": "T12",
+        "pair": "nobel",
+        "label": "true",
+        "category": "person",
+        "text": "The Nobel Prize was established by Alfred Nobel.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.55,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.22
+      },
+      {
+        "id": "T13",
+        "pair": "revolution",
+        "label": "true",
+        "category": "date",
+        "text": "The French Revolution began in 1789.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.55,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.22
+      },
+      {
+        "id": "T14",
+        "pair": "python",
+        "label": "true",
+        "category": "person",
+        "text": "Python is a programming language created by Guido van Rossum.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.45,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.18
+      },
+      {
+        "id": "T15",
+        "pair": "sahara",
+        "label": "true",
+        "category": "location",
+        "text": "The Sahara Desert is located in Africa.",
+        "detected": true,
+        "extracted": true,
+        "confidence": 0.5,
+        "clusterId": null,
+        "clusterCoherence": 0,
+        "derivedScore": 0.2
+      }
+    ],
+    "falseNegatives": [
+      {
+        "id": "F01",
+        "pair": "paris",
+        "label": "false",
+        "category": "location",
+        "text": "The Eiffel Tower is located in Berlin, Germany.",
+        "detected": false,
+        "extracted": true,
+        "confidence": 0.5,
+        "clusterId": 1,
+        "clusterCoherence": 1,
+        "derivedScore": 0.8
+      },
+      {
+        "id": "F02",
+        "pair": "pacific",
+        "label": "false",
+        "category": "quantity",
+        "text": "The Pacific Ocean is the smallest ocean on Earth.",
+        "detected": false,
+        "extracted": true,
+        "confidence": 0.5,
+        "clusterId": 2,
+        "clusterCoherence": 0.8569,
+        "derivedScore": 0.7141
+      },
+      {
+        "id": "F03",
+        "pair": "everest",
+        "label": "false",
+        "category": "location",
+        "text": "Mount Everest is the highest mountain in Australia.",
+        "detected": false,
+        "extracted": true,
+        "confidence": 0.45,
+        "clusterId": 4,
+        "clusterCoherence": 1,
+        "derivedScore": 0.78
+      }
+    ]
+  },
+  "secondary": {
+    "mode": "per-claim",
+    "description": "One detect() call per claim in isolation (no cross-claim context).",
+    "durationMs": 0,
+    "metrics": {
+      "actualPositives": 15,
+      "predictedPositives": 0,
+      "truePositives": 0,
+      "falsePositives": 0,
+      "falseNegatives": 15,
+      "trueNegatives": 15,
+      "precision": 0,
+      "recall": 0,
+      "f1": 0,
+      "precisionDefined": false
+    },
+    "detectedClaims": [],
+    "note": "A single claim forms a one-member cluster with coherence 1, so the internal-consistency score cannot flag it."
+  },
+  "diagnostics": {
+    "noClusterCap": {
+      "description": "Same corpus and default threshold, but every claim keeps its cluster (maxClusters=100, minClusterSize=1). This isolates the factuality signal from the default maxClusters=5 truncation.",
+      "config": {
+        "maxClusters": 100,
+        "minClusterSize": 1
+      },
+      "extractedClaimCount": 30,
+      "clusterCount": 20,
+      "flaggedCount": 0,
+      "metrics": {
+        "actualPositives": 15,
+        "predictedPositives": 0,
+        "truePositives": 0,
+        "falsePositives": 0,
+        "falseNegatives": 15,
+        "trueNegatives": 15,
+        "precision": 0,
+        "recall": 0,
+        "f1": 0,
+        "precisionDefined": false
+      },
+      "falsePositiveIds": [],
+      "falseNegativeIds": [
+        "F01",
+        "F02",
+        "F03",
+        "F04",
+        "F05",
+        "F06",
+        "F07",
+        "F08",
+        "F09",
+        "F10",
+        "F11",
+        "F12",
+        "F13",
+        "F14",
+        "F15"
+      ]
+    }
+  },
+  "contradictionProbes": {
+    "description": "Five two-sentence passages that explicitly contradict themselves; ground truth is 'should be detected'.",
+    "durationMs": 1,
+    "detectedCount": 2,
+    "detectionRate": 0.4,
+    "probes": [
+      {
+        "id": "C1",
+        "text": "The Eiffel Tower is located in Paris.\nThe Eiffel Tower is not located in Paris.",
+        "similarity": 0.8791,
+        "extractedClaimCount": 2,
+        "flaggedCount": 0,
+        "detected": false,
+        "flaggedTexts": []
+      },
+      {
+        "id": "C2",
+        "text": "Water boils at 100 degrees Celsius at sea level.\nWater does not boil at 100 degrees Celsius at sea level.",
+        "similarity": 0.6802,
+        "extractedClaimCount": 2,
+        "flaggedCount": 0,
+        "detected": false,
+        "flaggedTexts": []
+      },
+      {
+        "id": "C3",
+        "text": "The Moon orbits the Earth.\nThe Moon does not orbit the Earth.",
+        "similarity": 0.5219,
+        "extractedClaimCount": 2,
+        "flaggedCount": 1,
+        "detected": true,
+        "flaggedTexts": [
+          "The Moon does not orbit the Earth."
+        ]
+      },
+      {
+        "id": "C4",
+        "text": "The capital of Japan is Tokyo.\nThe capital of Japan is not Tokyo.",
+        "similarity": 0.8623,
+        "extractedClaimCount": 2,
+        "flaggedCount": 0,
+        "detected": false,
+        "flaggedTexts": []
+      },
+      {
+        "id": "C5",
+        "text": "Albert Einstein developed the theory of relativity.\nAlbert Einstein did not develop the theory of relativity.",
+        "similarity": 0.6076,
+        "extractedClaimCount": 2,
+        "flaggedCount": 1,
+        "detected": true,
+        "flaggedTexts": [
+          "Albert Einstein did not develop the theory of relativity."
+        ]
+      }
+    ]
+  },
+  "decision": {
+    "value": "do-not-add",
+    "threshold": 0.7,
+    "observedF1": 0.6154,
+    "rationale": "Corpus F1 0.6154 is below the 0.70 gate. 15/15 true/false pairs received the same verdict, so the observed flags do not discriminate facts; without external evidence the detector is not a factual judge."
+  }
+}

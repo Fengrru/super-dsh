@@ -9,6 +9,7 @@ Memory and recovery upgrades from awesome-agent-infra, implemented without its d
 - **Log retention** — opt-in `archive_ledgers` with gzip + SHA-256 + manifest + verified deletes, and `restore_archive` with path-traversal/symlink/overwrite guards.
 - **`search_code`** — experiment-supported natural-language routing to definition/caller/text modes over the repo map (hit@5 80%→100%, MRR 0.70→0.90 on the fixture benchmark). `repoMap.search: false` disables it.
 - **Deferred-candidate experiments** — Best-of-N planning: do not add (ceiling effect, 2.64× tokens); Valid8 gate: do not add (10% buggy detection); skill curation: defer (synthetic-only evidence).
+- **Research prototypes** — POMDP, reasoning-search, process-reward, agent-metacog, hallucination-detector, and code-sandbox were each tested; all six are do-not-add (ties greedy / empty MCTS / AUC 0.5 / worse calibration / F1 0.615 / 1-of-7 sandbox escape).
 - **Benchmarks** — memory consolidation: 60 facts, recall@3 1.0 before/after, stale injections 0, injection chars 13775→12565; repair memory: known-error hit 10/10, correct hint 10/10, unknown-error false hits 0/10.
 - **Schema guard** extended to the new tools; repair parameter schemas no longer advertise unsupported keywords.
 

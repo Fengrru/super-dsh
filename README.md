@@ -201,6 +201,17 @@ Deferred-candidate experiments (pre-registered decision rules):
 | Valid8 output gate | correct false positives 0/10, buggy detected **1/10 (10%)**; AST degraded | **Do not add** |
 | Skill curation | synthetic hit@3 83.3% → 100%, stale slots 25% → 0%, but only synthetic data | **Defer** until real skill corpus/agent tasks |
 
+Research prototypes (all **do-not-add** after experiments):
+
+| Candidate | Evidence | Decision |
+|---|---|---|
+| POMDP planner | Ties greedy at 100% success, more steps (3.45 vs 2.98), 163 ms/plan, tails to 1.4 s; no observation correction | No |
+| reasoning-search | MCTS-general makes 0 calls / empty solution; best_of_n ties budget-matched standard; invalid finalScore | No |
+| process-reward | Holdout step AUC 0.500, unchanged after training; no inference path | No |
+| agent-metacog | Holdout ECE/Brier get worse; raw confidence is far better; random-noise training | No |
+| hallucination-detector | F1 0.615; 15/15 true/false pairs identical; single claims never flagged | No |
+| code-sandbox | 1/7 escape: `process.getBuiltinModule('fs')` read a secret and wrote a marker | No |
+
 Full methodology and raw results: [`docs/experiments.md`](docs/experiments.md), [`experiments/`](experiments/). Invariant mapping: [`docs/invariants.md`](docs/invariants.md). The 88-item source analysis: [`docs/analysis/`](docs/analysis/README.md).
 
 ## Design principles

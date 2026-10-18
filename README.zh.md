@@ -201,6 +201,17 @@ dsh --profile headless --dump-config | grep super-dsh
 | Valid8 输出门禁 | 正确片段误报 0/10，错误片段检出 **1/10（10%）**；AST 退化 | **不加** |
 | Skill curation | 合成 hit@3 83.3%→100%、stale 槽位 25%→0%，但只有合成数据 | **延后**，等真实技能语料/Agent 任务 |
 
+研究原型（实验后全部 **不加**）：
+
+| 候选 | 证据 | 决策 |
+|---|---|---|
+| POMDP planner | 成功率 100% 但与 greedy 打平；步数更多（3.45 vs 2.98），163ms/plan，长尾 1.4s；belief 无观测修正 | 不加 |
+| reasoning-search | MCTS-general 0 次调用/空解；best_of_n 与同预算 standard 打平；finalScore 无效 | 不加 |
+| process-reward | holdout 步骤 AUC 0.500，训练后仍 0.500；没有推理接口 | 不加 |
+| agent-metacog | holdout ECE/Brier 变差；原始 confidence 更好；训练是随机噪声 | 不加 |
+| hallucination-detector | F1 0.615；15/15 true/false 判定相同；单条 claim 永不标记 | 不加 |
+| code-sandbox | 7 个探针中 1 个逃逸：`process.getBuiltinModule('fs')` 读到 secret 并写 marker | 不加 |
+
 完整方法与原始结果见 [`docs/experiments.md`](docs/experiments.md) 与 [`experiments/`](experiments/)。不变量映射见 [`docs/invariants.md`](docs/invariants.md)。88 项来源分析见 [`docs/analysis/`](docs/analysis/README.md)。
 
 ## 设计原则

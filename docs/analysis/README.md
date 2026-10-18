@@ -42,7 +42,7 @@
 | capability token / causal clock / worker protocol | nexus security/types/RPC | 纯 TS 库，有测试，暂不作为模型工具 |
 | 验证闸门 | dsh/nexus 不变量 | 已实验，无增益，保持 opt-in |
 
-仍未实现的主要是 C/D 类：Nexus 运行时/worker/SDK、codegraph 原实现、embedding/memory v2、valid8、reasoning-search、POMDP、process-reward、dynamic-workflow、branch 等。它们要么需要重写核心，要么属于已拒绝的安全/正确性问题。
+仍未实现的主要是 C/D 类：Nexus 运行时/worker/SDK、codegraph 原实现、embedding 原实现、valid8、reasoning-search、POMDP、process-reward、dynamic-workflow、branch 等。E9 已对 POMDP/reasoning-search/process-reward/agent-metacog/hallucination-detector/code-sandbox 做实验，全部 do-not-add；Memory v2/repairs/retention/search_code 已落地。
 
 ## 怎么看“能不能做”
 

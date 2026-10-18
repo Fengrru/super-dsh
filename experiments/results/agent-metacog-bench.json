@@ -1,0 +1,1320 @@
+{
+  "experiment": "agent-metacog-bench",
+  "package": "@fengrru/agent-metacog",
+  "generatedAt": "2026-10-18T02:39:49.808Z",
+  "gitCommit": null,
+  "config": {
+    "dataSeed": 54242517030,
+    "predictions": 200,
+    "trainSize": 100,
+    "holdoutSize": 100,
+    "calibrationSeeds": [
+      11,
+      29,
+      47,
+      73,
+      101,
+      137,
+      191,
+      239
+    ],
+    "epochs": 10,
+    "learningRate": 0.01,
+    "calibrator": {
+      "hiddenDim": 32,
+      "numLayers": 2,
+      "numHeads": 4,
+      "dropoutRate": 0,
+      "temperature": 1,
+      "numBins": 10,
+      "minSamplesPerBin": 1
+    },
+    "baseHiddenSize": 32,
+    "sequenceLength": 3,
+    "hiddenProbability": "p(correct) = 0.15 + 0.6*q",
+    "eceImprovementThreshold": 0.05,
+    "brierImprovementThreshold": 0.02,
+    "boundaryF1Threshold": 0.7
+  },
+  "design": {
+    "calibration": "200 predictions with stated confidence q evenly covering [0.05, 0.95]; correctness drawn from a hidden miscalibrated probability p=0.15+0.6q; stratified 100/100 split over q. Features are deterministic functions of q only; correctness is never a feature.",
+    "features": "3-token StreamFeatures: hiddenStates basis encoding of q, attentionEntropy from entropy of q, tokenLogLikelihoods = log(q) with fixed offsets. Dropout disabled for deterministic evaluation.",
+    "trainingLabels": "correctness label repeated across 3 token positions; difficulty target = 1-q. These are the labels the API accepts; randomness comes from model init and trainStep.",
+    "seeds": "8 independent model seeds; the dataset is fixed. Variance across seeds is reported because trainStep is stochastic.",
+    "knowledgeBoundary": "40 domains: 10 recent known (3 successes), 10 recent unknown (3 failures), 10 old known (3 successes, 25-40 days), 10 old unknown (3 failures, 25-40 days). Boundary F1 evaluated on the 20 recent domains.",
+    "forgetting": "Ground-truth alert = old known domain. Old unknown domains are false positives (never learned, so nothing to forget); recent domains should not alert.",
+    "gaps": "Ground-truth gap = unknown domain (failures supplied a failureReason); known domains never received a failureReason."
+  },
+  "dataset": {
+    "train": {
+      "count": 100,
+      "positives": 40,
+      "negatives": 60,
+      "meanStatedConfidence": 0.497739,
+      "meanHiddenProbability": 0.448643
+    },
+    "holdout": {
+      "count": 100,
+      "positives": 50,
+      "negatives": 50,
+      "meanStatedConfidence": 0.502261,
+      "meanHiddenProbability": 0.451357
+    },
+    "statedConfidenceReference": {
+      "note": "Reference metrics for the raw stated confidence q, before any calibrator.",
+      "train": {
+        "ece": 0.146291,
+        "brier": 0.229445,
+        "auc": 0.703333,
+        "meanConfidence": 0.497739,
+        "accuracy": 0.66
+      },
+      "holdout": {
+        "ece": 0.082608,
+        "brier": 0.204751,
+        "auc": 0.7508,
+        "meanConfidence": 0.502261,
+        "accuracy": 0.7
+      }
+    }
+  },
+  "calibration": {
+    "perSeed": [
+      {
+        "seed": 11,
+        "baseline": {
+          "train": {
+            "sampleCount": 100,
+            "ece": 0.320879,
+            "brier": 0.332714,
+            "auc": 0.4775,
+            "meanConfidence": 0.112883,
+            "stdConfidence": 0.048227,
+            "minConfidence": 0.064527,
+            "maxConfidence": 0.281061,
+            "accuracy": 0.6,
+            "internalReportedEceMean": 0.887117,
+            "internalReportedBrierMean": 0.697642,
+            "nonFiniteConfidences": 0
+          },
+          "holdout": {
+            "sampleCount": 100,
+            "ece": 0.420668,
+            "brier": 0.410103,
+            "auc": 0.4696,
+            "meanConfidence": 0.112224,
+            "stdConfidence": 0.046751,
+            "minConfidence": 0.064532,
+            "maxConfidence": 0.273568,
+            "accuracy": 0.5,
+            "internalReportedEceMean": 0.887776,
+            "internalReportedBrierMean": 0.699209,
+            "nonFiniteConfidences": 0
+          }
+        },
+        "postTraining": {
+          "train": {
+            "sampleCount": 100,
+            "ece": 0.33615,
+            "brier": 0.344726,
+            "auc": 0.462917,
+            "meanConfidence": 0.098209,
+            "stdConfidence": 0.051732,
+            "minConfidence": 0.05381,
+            "maxConfidence": 0.295278,
+            "accuracy": 0.6,
+            "internalReportedEceMean": 0.901791,
+            "internalReportedBrierMean": 0.715403,
+            "nonFiniteConfidences": 0
+          },
+          "holdout": {
+            "sampleCount": 100,
+            "ece": 0.431972,
+            "brier": 0.425466,
+            "auc": 0.4464,
+            "meanConfidence": 0.097389,
+            "stdConfidence": 0.049786,
+            "minConfidence": 0.053814,
+            "maxConfidence": 0.285454,
+            "accuracy": 0.5,
+            "internalReportedEceMean": 0.902611,
+            "internalReportedBrierMean": 0.717098,
+            "nonFiniteConfidences": 0
+          }
+        },
+        "improvement": {
+          "holdoutEce": -0.011304,
+          "holdoutBrier": -0.015363,
+          "holdoutAuc": -0.0232
+        },
+        "scoreChange": {
+          "maxAbsDiff": 0.026367,
+          "meanAbsDiff": 0.015361,
+          "changedFraction": 1,
+          "pearson": 0.988315
+        },
+        "confidenceDistribution": {
+          "baselineHoldout": {
+            "count": 100,
+            "min": 0.064532,
+            "max": 0.273568,
+            "mean": 0.112224,
+            "std": 0.046751,
+            "p10": 0.065913,
+            "p50": 0.099611,
+            "p90": 0.165192
+          },
+          "postTrainingHoldout": {
+            "count": 100,
+            "min": 0.053814,
+            "max": 0.285454,
+            "mean": 0.097389,
+            "std": 0.049786,
+            "p10": 0.054703,
+            "p50": 0.08053,
+            "p90": 0.157364
+          }
+        },
+        "training": {
+          "durationMs": 587.963,
+          "epochs": 10,
+          "initialLoss": 14.127537,
+          "finalLoss": 14.30382,
+          "lossDecreased": false,
+          "finiteHistory": true,
+          "lossHistory": [
+            14.127537,
+            14.150519,
+            14.167434,
+            14.186936,
+            14.202206,
+            14.22678,
+            14.246323,
+            14.27247,
+            14.300282,
+            14.30382
+          ],
+          "calibrationErrorHistory": [
+            0.889844,
+            0.903015,
+            0.910924,
+            0.905037,
+            0.900993,
+            0.913609,
+            0.906611,
+            0.9197,
+            0.931806,
+            0.913099
+          ]
+        }
+      },
+      {
+        "seed": 29,
+        "baseline": {
+          "train": {
+            "sampleCount": 100,
+            "ece": 0.498533,
+            "brier": 0.475313,
+            "auc": 0.705,
+            "meanConfidence": 0.898533,
+            "stdConfidence": 0.04893,
+            "minConfidence": 0.794668,
+            "maxConfidence": 0.946994,
+            "accuracy": 0.4,
+            "internalReportedEceMean": 0.101467,
+            "internalReportedBrierMean": 0.141092,
+            "nonFiniteConfidences": 0
+          },
+          "holdout": {
+            "sampleCount": 100,
+            "ece": 0.399119,
+            "brier": 0.391666,
+            "auc": 0.732,
+            "meanConfidence": 0.899119,
+            "stdConfidence": 0.048371,
+            "minConfidence": 0.7964,
+            "maxConfidence": 0.946985,
+            "accuracy": 0.5,
+            "internalReportedEceMean": 0.100881,
+            "internalReportedBrierMean": 0.14051,
+            "nonFiniteConfidences": 0
+          }
+        },
+        "postTraining": {
+          "train": {
+            "sampleCount": 100,
+            "ece": 0.426768,
+            "brier": 0.40542,
+            "auc": 0.69875,
+            "meanConfidence": 0.826768,
+            "stdConfidence": 0.069363,
+            "minConfidence": 0.703768,
+            "maxConfidence": 0.902699,
+            "accuracy": 0.4,
+            "internalReportedEceMean": 0.173232,
+            "internalReportedBrierMean": 0.1521,
+            "nonFiniteConfidences": 0
+          },
+          "holdout": {
+            "sampleCount": 100,
+            "ece": 0.327447,
+            "brier": 0.334163,
+            "auc": 0.7252,
+            "meanConfidence": 0.827447,
+            "stdConfidence": 0.068815,
+            "minConfidence": 0.704242,
+            "maxConfidence": 0.902684,
+            "accuracy": 0.5,
+            "internalReportedEceMean": 0.172553,
+            "internalReportedBrierMean": 0.151075,
+            "nonFiniteConfidences": 0
+          }
+        },
+        "improvement": {
+          "holdoutEce": 0.071672,
+          "holdoutBrier": 0.057503,
+          "holdoutAuc": -0.0068
+        },
+        "scoreChange": {
+          "maxAbsDiff": 0.105356,
+          "meanAbsDiff": 0.071672,
+          "changedFraction": 1,
+          "pearson": 0.995173
+        },
+        "confidenceDistribution": {
+          "baselineHoldout": {
+            "count": 100,
+            "min": 0.7964,
+            "max": 0.946985,
+            "mean": 0.899119,
+            "std": 0.048371,
+            "p10": 0.81602,
+            "p50": 0.919138,
+            "p90": 0.945688
+          },
+          "postTrainingHoldout": {
+            "count": 100,
+            "min": 0.704242,
+            "max": 0.902684,
+            "mean": 0.827447,
+            "std": 0.068815,
+            "p10": 0.711495,
+            "p50": 0.849356,
+            "p90": 0.899962
+          }
+        },
+        "training": {
+          "durationMs": 637.237,
+          "epochs": 10,
+          "initialLoss": 13.968592,
+          "finalLoss": 14.108669,
+          "lossDecreased": false,
+          "finiteHistory": true,
+          "lossHistory": [
+            13.968592,
+            13.995293,
+            14.002265,
+            14.026686,
+            14.04073,
+            14.057912,
+            14.076156,
+            14.095296,
+            14.102599,
+            14.108669
+          ],
+          "calibrationErrorHistory": [
+            0.096674,
+            0.099652,
+            0.128546,
+            0.13617,
+            0.166864,
+            0.158644,
+            0.158562,
+            0.170159,
+            0.159257,
+            0.152675
+          ]
+        }
+      },
+      {
+        "seed": 47,
+        "baseline": {
+          "train": {
+            "sampleCount": 100,
+            "ece": 0.23581,
+            "brier": 0.29366,
+            "auc": 0.295417,
+            "meanConfidence": 0.273963,
+            "stdConfidence": 0.086079,
+            "minConfidence": 0.179274,
+            "maxConfidence": 0.499818,
+            "accuracy": 0.6,
+            "internalReportedEceMean": 0.726037,
+            "internalReportedBrierMean": 0.469643,
+            "nonFiniteConfidences": 0
+          },
+          "holdout": {
+            "sampleCount": 100,
+            "ece": 0.32933,
+            "brier": 0.346206,
+            "auc": 0.242,
+            "meanConfidence": 0.272418,
+            "stdConfidence": 0.084729,
+            "minConfidence": 0.179253,
+            "maxConfidence": 0.494838,
+            "accuracy": 0.5,
+            "internalReportedEceMean": 0.727582,
+            "internalReportedBrierMean": 0.471418,
+            "nonFiniteConfidences": 0
+          }
+        },
+        "postTraining": {
+          "train": {
+            "sampleCount": 100,
+            "ece": 0.3136,
+            "brier": 0.321669,
+            "auc": 0.4,
+            "meanConfidence": 0.149972,
+            "stdConfidence": 0.053934,
+            "minConfidence": 0.115149,
+            "maxConfidence": 0.327903,
+            "accuracy": 0.6,
+            "internalReportedEceMean": 0.850028,
+            "internalReportedBrierMean": 0.632617,
+            "nonFiniteConfidences": 0
+          },
+          "holdout": {
+            "sampleCount": 100,
+            "ece": 0.369861,
+            "brier": 0.395091,
+            "auc": 0.2836,
+            "meanConfidence": 0.148954,
+            "stdConfidence": 0.052422,
+            "minConfidence": 0.115155,
+            "maxConfidence": 0.323128,
+            "accuracy": 0.5,
+            "internalReportedEceMean": 0.851046,
+            "internalReportedBrierMean": 0.633949,
+            "nonFiniteConfidences": 0
+          }
+        },
+        "improvement": {
+          "holdoutEce": -0.040531,
+          "holdoutBrier": -0.048885,
+          "holdoutAuc": 0.0416
+        },
+        "scoreChange": {
+          "maxAbsDiff": 0.17171,
+          "meanAbsDiff": 0.123464,
+          "changedFraction": 1,
+          "pearson": 0.916959
+        },
+        "confidenceDistribution": {
+          "baselineHoldout": {
+            "count": 100,
+            "min": 0.179253,
+            "max": 0.494838,
+            "mean": 0.272418,
+            "std": 0.084729,
+            "p10": 0.183268,
+            "p50": 0.246469,
+            "p90": 0.402987
+          },
+          "postTrainingHoldout": {
+            "count": 100,
+            "min": 0.115155,
+            "max": 0.323128,
+            "mean": 0.148954,
+            "std": 0.052422,
+            "p10": 0.1159,
+            "p50": 0.122991,
+            "p90": 0.234014
+          }
+        },
+        "training": {
+          "durationMs": 631.091,
+          "epochs": 10,
+          "initialLoss": 14.026341,
+          "finalLoss": 14.245272,
+          "lossDecreased": false,
+          "finiteHistory": true,
+          "lossHistory": [
+            14.026341,
+            14.072789,
+            14.096148,
+            14.122367,
+            14.159552,
+            14.200019,
+            14.203673,
+            14.203794,
+            14.23387,
+            14.245272
+          ],
+          "calibrationErrorHistory": [
+            0.735991,
+            0.79339,
+            0.800233,
+            0.800873,
+            0.834221,
+            0.8643,
+            0.881963,
+            0.865283,
+            0.870523,
+            0.854021
+          ]
+        }
+      },
+      {
+        "seed": 73,
+        "baseline": {
+          "train": {
+            "sampleCount": 100,
+            "ece": 0.359714,
+            "brier": 0.356156,
+            "auc": 0.6525,
+            "meanConfidence": 0.759714,
+            "stdConfidence": 0.067657,
+            "minConfidence": 0.605299,
+            "maxConfidence": 0.827503,
+            "accuracy": 0.4,
+            "internalReportedEceMean": 0.240286,
+            "internalReportedBrierMean": 0.150967,
+            "nonFiniteConfidences": 0
+          },
+          "holdout": {
+            "sampleCount": 100,
+            "ece": 0.260037,
+            "brier": 0.306936,
+            "auc": 0.6376,
+            "meanConfidence": 0.760037,
+            "stdConfidence": 0.067475,
+            "minConfidence": 0.605056,
+            "maxConfidence": 0.82749,
+            "accuracy": 0.5,
+            "internalReportedEceMean": 0.239963,
+            "internalReportedBrierMean": 0.150803,
+            "nonFiniteConfidences": 0
+          }
+        },
+        "postTraining": {
+          "train": {
+            "sampleCount": 100,
+            "ece": 0.444966,
+            "brier": 0.425755,
+            "auc": 0.664167,
+            "meanConfidence": 0.844966,
+            "stdConfidence": 0.050342,
+            "minConfidence": 0.721441,
+            "maxConfidence": 0.897585,
+            "accuracy": 0.4,
+            "internalReportedEceMean": 0.155034,
+            "internalReportedBrierMean": 0.134978,
+            "nonFiniteConfidences": 0
+          },
+          "holdout": {
+            "sampleCount": 100,
+            "ece": 0.345119,
+            "brier": 0.359565,
+            "auc": 0.6328,
+            "meanConfidence": 0.845119,
+            "stdConfidence": 0.050287,
+            "minConfidence": 0.721484,
+            "maxConfidence": 0.897585,
+            "accuracy": 0.5,
+            "internalReportedEceMean": 0.154881,
+            "internalReportedBrierMean": 0.134757,
+            "nonFiniteConfidences": 0
+          }
+        },
+        "improvement": {
+          "holdoutEce": -0.085082,
+          "holdoutBrier": -0.052629,
+          "holdoutAuc": -0.0048
+        },
+        "scoreChange": {
+          "maxAbsDiff": 0.132198,
+          "meanAbsDiff": 0.085082,
+          "changedFraction": 1,
+          "pearson": 0.986819
+        },
+        "confidenceDistribution": {
+          "baselineHoldout": {
+            "count": 100,
+            "min": 0.605056,
+            "max": 0.82749,
+            "mean": 0.760037,
+            "std": 0.067475,
+            "p10": 0.630547,
+            "p50": 0.793592,
+            "p90": 0.823331
+          },
+          "postTrainingHoldout": {
+            "count": 100,
+            "min": 0.721484,
+            "max": 0.897585,
+            "mean": 0.845119,
+            "std": 0.050287,
+            "p10": 0.74537,
+            "p50": 0.864562,
+            "p90": 0.894208
+          }
+        },
+        "training": {
+          "durationMs": 606.585,
+          "epochs": 10,
+          "initialLoss": 13.985233,
+          "finalLoss": 14.166443,
+          "lossDecreased": false,
+          "finiteHistory": true,
+          "lossHistory": [
+            13.985233,
+            14.044107,
+            14.064557,
+            14.088054,
+            14.080116,
+            14.09117,
+            14.123548,
+            14.152066,
+            14.147068,
+            14.166443
+          ],
+          "calibrationErrorHistory": [
+            0.196109,
+            0.151134,
+            0.150425,
+            0.162801,
+            0.17774,
+            0.178254,
+            0.166231,
+            0.157054,
+            0.195931,
+            0.19387
+          ]
+        }
+      },
+      {
+        "seed": 101,
+        "baseline": {
+          "train": {
+            "sampleCount": 100,
+            "ece": 0.576169,
+            "brier": 0.569785,
+            "auc": 0.680417,
+            "meanConfidence": 0.976169,
+            "stdConfidence": 0.008437,
+            "minConfidence": 0.960146,
+            "maxConfidence": 0.984187,
+            "accuracy": 0.4,
+            "internalReportedEceMean": 0.023831,
+            "internalReportedBrierMean": 0.135937,
+            "nonFiniteConfidences": 0
+          },
+          "holdout": {
+            "sampleCount": 100,
+            "ece": 0.476246,
+            "brier": 0.473596,
+            "auc": 0.7308,
+            "meanConfidence": 0.976246,
+            "stdConfidence": 0.008438,
+            "minConfidence": 0.960151,
+            "maxConfidence": 0.984186,
+            "accuracy": 0.5,
+            "internalReportedEceMean": 0.023754,
+            "internalReportedBrierMean": 0.135939,
+            "nonFiniteConfidences": 0
+          }
+        },
+        "postTraining": {
+          "train": {
+            "sampleCount": 100,
+            "ece": 0.568559,
+            "brier": 0.558243,
+            "auc": 0.714583,
+            "meanConfidence": 0.968559,
+            "stdConfidence": 0.018381,
+            "minConfidence": 0.935883,
+            "maxConfidence": 0.984628,
+            "accuracy": 0.4,
+            "internalReportedEceMean": 0.031441,
+            "internalReportedBrierMean": 0.137803,
+            "nonFiniteConfidences": 0
+          },
+          "holdout": {
+            "sampleCount": 100,
+            "ece": 0.468787,
+            "brier": 0.462807,
+            "auc": 0.7204,
+            "meanConfidence": 0.968787,
+            "stdConfidence": 0.018263,
+            "minConfidence": 0.935878,
+            "maxConfidence": 0.984629,
+            "accuracy": 0.5,
+            "internalReportedEceMean": 0.031213,
+            "internalReportedBrierMean": 0.13777,
+            "nonFiniteConfidences": 0
+          }
+        },
+        "improvement": {
+          "holdoutEce": 0.007459,
+          "holdoutBrier": 0.010789,
+          "holdoutAuc": -0.0104
+        },
+        "scoreChange": {
+          "maxAbsDiff": 0.030101,
+          "meanAbsDiff": 0.008185,
+          "changedFraction": 1,
+          "pearson": 0.984671
+        },
+        "confidenceDistribution": {
+          "baselineHoldout": {
+            "count": 100,
+            "min": 0.960151,
+            "max": 0.984186,
+            "mean": 0.976246,
+            "std": 0.008438,
+            "p10": 0.961659,
+            "p50": 0.980904,
+            "p90": 0.983885
+          },
+          "postTrainingHoldout": {
+            "count": 100,
+            "min": 0.935878,
+            "max": 0.984629,
+            "mean": 0.968787,
+            "std": 0.018263,
+            "p10": 0.938455,
+            "p50": 0.980088,
+            "p90": 0.984318
+          }
+        },
+        "training": {
+          "durationMs": 615.05,
+          "epochs": 10,
+          "initialLoss": 14.137601,
+          "finalLoss": 14.3111,
+          "lossDecreased": false,
+          "finiteHistory": true,
+          "lossHistory": [
+            14.137601,
+            14.16062,
+            14.192825,
+            14.211226,
+            14.223886,
+            14.256634,
+            14.277557,
+            14.280155,
+            14.293061,
+            14.3111
+          ],
+          "calibrationErrorHistory": [
+            0.022849,
+            0.022393,
+            0.015761,
+            0.014198,
+            0.019076,
+            0.018755,
+            0.023237,
+            0.028461,
+            0.03363,
+            0.033535
+          ]
+        }
+      },
+      {
+        "seed": 137,
+        "baseline": {
+          "train": {
+            "sampleCount": 100,
+            "ece": 0.26746,
+            "brier": 0.299225,
+            "auc": 0.652083,
+            "meanConfidence": 0.66746,
+            "stdConfidence": 0.1387,
+            "minConfidence": 0.459143,
+            "maxConfidence": 0.843906,
+            "accuracy": 0.54,
+            "internalReportedEceMean": 0.33254,
+            "internalReportedBrierMean": 0.21817,
+            "nonFiniteConfidences": 0
+          },
+          "holdout": {
+            "sampleCount": 100,
+            "ece": 0.16742,
+            "brier": 0.2588,
+            "auc": 0.6712,
+            "meanConfidence": 0.66742,
+            "stdConfidence": 0.138757,
+            "minConfidence": 0.459095,
+            "maxConfidence": 0.843965,
+            "accuracy": 0.58,
+            "internalReportedEceMean": 0.33258,
+            "internalReportedBrierMean": 0.217779,
+            "nonFiniteConfidences": 0
+          }
+        },
+        "postTraining": {
+          "train": {
+            "sampleCount": 100,
+            "ece": 0.177228,
+            "brier": 0.254556,
+            "auc": 0.6725,
+            "meanConfidence": 0.577228,
+            "stdConfidence": 0.126857,
+            "minConfidence": 0.392623,
+            "maxConfidence": 0.748817,
+            "accuracy": 0.59,
+            "internalReportedEceMean": 0.422772,
+            "internalReportedBrierMean": 0.268263,
+            "nonFiniteConfidences": 0
+          },
+          "holdout": {
+            "sampleCount": 100,
+            "ece": 0.119267,
+            "brier": 0.230681,
+            "auc": 0.692,
+            "meanConfidence": 0.577434,
+            "stdConfidence": 0.126628,
+            "minConfidence": 0.392641,
+            "maxConfidence": 0.748819,
+            "accuracy": 0.65,
+            "internalReportedEceMean": 0.422566,
+            "internalReportedBrierMean": 0.267965,
+            "nonFiniteConfidences": 0
+          }
+        },
+        "improvement": {
+          "holdoutEce": 0.048153,
+          "holdoutBrier": 0.028119,
+          "holdoutAuc": 0.0208
+        },
+        "scoreChange": {
+          "maxAbsDiff": 0.124174,
+          "meanAbsDiff": 0.089986,
+          "changedFraction": 1,
+          "pearson": 0.982909
+        },
+        "confidenceDistribution": {
+          "baselineHoldout": {
+            "count": 100,
+            "min": 0.459095,
+            "max": 0.843965,
+            "mean": 0.66742,
+            "std": 0.138757,
+            "p10": 0.464883,
+            "p50": 0.681706,
+            "p90": 0.837422
+          },
+          "postTrainingHoldout": {
+            "count": 100,
+            "min": 0.392641,
+            "max": 0.748819,
+            "mean": 0.577434,
+            "std": 0.126628,
+            "p10": 0.398081,
+            "p50": 0.581617,
+            "p90": 0.741261
+          }
+        },
+        "training": {
+          "durationMs": 630.711,
+          "epochs": 10,
+          "initialLoss": 13.890074,
+          "finalLoss": 14.07492,
+          "lossDecreased": false,
+          "finiteHistory": true,
+          "lossHistory": [
+            13.890074,
+            13.915586,
+            13.927833,
+            13.952955,
+            13.987589,
+            14.005833,
+            14.01827,
+            14.049202,
+            14.04661,
+            14.07492
+          ],
+          "calibrationErrorHistory": [
+            0.323052,
+            0.3499,
+            0.368745,
+            0.315142,
+            0.30495,
+            0.316498,
+            0.311669,
+            0.308077,
+            0.382393,
+            0.429859
+          ]
+        }
+      },
+      {
+        "seed": 191,
+        "baseline": {
+          "train": {
+            "sampleCount": 100,
+            "ece": 0.368958,
+            "brier": 0.376606,
+            "auc": 0.370417,
+            "meanConfidence": 0.031042,
+            "stdConfidence": 0.003116,
+            "minConfidence": 0.028674,
+            "maxConfidence": 0.047232,
+            "accuracy": 0.6,
+            "internalReportedEceMean": 0.968958,
+            "internalReportedBrierMean": 0.802823,
+            "nonFiniteConfidences": 0
+          },
+          "holdout": {
+            "sampleCount": 100,
+            "ece": 0.468988,
+            "brier": 0.470406,
+            "auc": 0.3772,
+            "meanConfidence": 0.031012,
+            "stdConfidence": 0.002977,
+            "minConfidence": 0.028673,
+            "maxConfidence": 0.04502,
+            "accuracy": 0.5,
+            "internalReportedEceMean": 0.968988,
+            "internalReportedBrierMean": 0.802949,
+            "nonFiniteConfidences": 0
+          }
+        },
+        "postTraining": {
+          "train": {
+            "sampleCount": 100,
+            "ece": 0.393055,
+            "brier": 0.394507,
+            "auc": 0.45375,
+            "meanConfidence": 0.006945,
+            "stdConfidence": 0.001256,
+            "minConfidence": 0.005976,
+            "maxConfidence": 0.011981,
+            "accuracy": 0.6,
+            "internalReportedEceMean": 0.993055,
+            "internalReportedBrierMean": 0.844787,
+            "nonFiniteConfidences": 0
+          },
+          "holdout": {
+            "sampleCount": 100,
+            "ece": 0.493047,
+            "brier": 0.493088,
+            "auc": 0.4104,
+            "meanConfidence": 0.006953,
+            "stdConfidence": 0.001285,
+            "minConfidence": 0.005976,
+            "maxConfidence": 0.012376,
+            "accuracy": 0.5,
+            "internalReportedEceMean": 0.993047,
+            "internalReportedBrierMean": 0.844803,
+            "nonFiniteConfidences": 0
+          }
+        },
+        "improvement": {
+          "holdoutEce": -0.024059,
+          "holdoutBrier": -0.022682,
+          "holdoutAuc": 0.0332
+        },
+        "scoreChange": {
+          "maxAbsDiff": 0.034871,
+          "meanAbsDiff": 0.024059,
+          "changedFraction": 1,
+          "pearson": 0.862715
+        },
+        "confidenceDistribution": {
+          "baselineHoldout": {
+            "count": 100,
+            "min": 0.028673,
+            "max": 0.04502,
+            "mean": 0.031012,
+            "std": 0.002977,
+            "p10": 0.028877,
+            "p50": 0.030041,
+            "p90": 0.034578
+          },
+          "postTrainingHoldout": {
+            "count": 100,
+            "min": 0.005976,
+            "max": 0.012376,
+            "mean": 0.006953,
+            "std": 0.001285,
+            "p10": 0.005995,
+            "p50": 0.006541,
+            "p90": 0.008644
+          }
+        },
+        "training": {
+          "durationMs": 646.118,
+          "epochs": 10,
+          "initialLoss": 14.201264,
+          "finalLoss": 14.398374,
+          "lossDecreased": false,
+          "finiteHistory": true,
+          "lossHistory": [
+            14.201264,
+            14.223628,
+            14.256542,
+            14.269457,
+            14.292104,
+            14.30832,
+            14.320703,
+            14.344619,
+            14.37585,
+            14.398374
+          ],
+          "calibrationErrorHistory": [
+            0.972218,
+            0.976404,
+            0.987221,
+            0.986722,
+            0.987127,
+            0.984909,
+            0.981083,
+            0.986061,
+            0.991648,
+            0.99226
+          ]
+        }
+      },
+      {
+        "seed": 239,
+        "baseline": {
+          "train": {
+            "sampleCount": 100,
+            "ece": 0.23156,
+            "brier": 0.277326,
+            "auc": 0.6875,
+            "meanConfidence": 0.63156,
+            "stdConfidence": 0.068843,
+            "minConfidence": 0.523645,
+            "maxConfidence": 0.73485,
+            "accuracy": 0.4,
+            "internalReportedEceMean": 0.36844,
+            "internalReportedBrierMean": 0.177035,
+            "nonFiniteConfidences": 0
+          },
+          "holdout": {
+            "sampleCount": 100,
+            "ece": 0.154581,
+            "brier": 0.243044,
+            "auc": 0.73,
+            "meanConfidence": 0.632428,
+            "stdConfidence": 0.069067,
+            "minConfidence": 0.523615,
+            "maxConfidence": 0.735991,
+            "accuracy": 0.5,
+            "internalReportedEceMean": 0.367572,
+            "internalReportedBrierMean": 0.176344,
+            "nonFiniteConfidences": 0
+          }
+        },
+        "postTraining": {
+          "train": {
+            "sampleCount": 100,
+            "ece": 0.130173,
+            "brier": 0.237487,
+            "auc": 0.715833,
+            "meanConfidence": 0.530173,
+            "stdConfidence": 0.081852,
+            "minConfidence": 0.400676,
+            "maxConfidence": 0.614186,
+            "accuracy": 0.58,
+            "internalReportedEceMean": 0.469827,
+            "internalReportedBrierMean": 0.233636,
+            "nonFiniteConfidences": 0
+          },
+          "holdout": {
+            "sampleCount": 100,
+            "ece": 0.133518,
+            "brier": 0.222377,
+            "auc": 0.7308,
+            "meanConfidence": 0.531077,
+            "stdConfidence": 0.081706,
+            "minConfidence": 0.400703,
+            "maxConfidence": 0.614161,
+            "accuracy": 0.7,
+            "internalReportedEceMean": 0.468923,
+            "internalReportedBrierMean": 0.232543,
+            "nonFiniteConfidences": 0
+          }
+        },
+        "improvement": {
+          "holdoutEce": 0.021063,
+          "holdoutBrier": 0.020667,
+          "holdoutAuc": 0.0008
+        },
+        "scoreChange": {
+          "maxAbsDiff": 0.135807,
+          "meanAbsDiff": 0.101351,
+          "changedFraction": 1,
+          "pearson": 0.978785
+        },
+        "confidenceDistribution": {
+          "baselineHoldout": {
+            "count": 100,
+            "min": 0.523615,
+            "max": 0.735991,
+            "mean": 0.632428,
+            "std": 0.069067,
+            "p10": 0.529017,
+            "p50": 0.650946,
+            "p90": 0.71159
+          },
+          "postTrainingHoldout": {
+            "count": 100,
+            "min": 0.400703,
+            "max": 0.614161,
+            "mean": 0.531077,
+            "std": 0.081706,
+            "p10": 0.404919,
+            "p50": 0.564793,
+            "p90": 0.610587
+          }
+        },
+        "training": {
+          "durationMs": 614.077,
+          "epochs": 10,
+          "initialLoss": 13.921733,
+          "finalLoss": 14.07385,
+          "lossDecreased": false,
+          "finiteHistory": true,
+          "lossHistory": [
+            13.921733,
+            13.940277,
+            13.961572,
+            13.981742,
+            14.003884,
+            14.020809,
+            14.045494,
+            14.06193,
+            14.074329,
+            14.07385
+          ],
+          "calibrationErrorHistory": [
+            0.349186,
+            0.347466,
+            0.404765,
+            0.418849,
+            0.456269,
+            0.391164,
+            0.429561,
+            0.506012,
+            0.487534,
+            0.462203
+          ]
+        }
+      }
+    ],
+    "aggregates": {
+      "baselineHoldoutEce": {
+        "count": 8,
+        "mean": 0.334549,
+        "std": 0.120228,
+        "min": 0.154581,
+        "max": 0.476246
+      },
+      "postTrainingHoldoutEce": {
+        "count": 8,
+        "mean": 0.336127,
+        "std": 0.132656,
+        "min": 0.119267,
+        "max": 0.493047
+      },
+      "holdoutEceImprovement": {
+        "count": 8,
+        "mean": -0.001579,
+        "std": 0.046802,
+        "min": -0.085082,
+        "max": 0.071672
+      },
+      "baselineHoldoutBrier": {
+        "count": 8,
+        "mean": 0.362595,
+        "std": 0.083276,
+        "min": 0.243044,
+        "max": 0.473596
+      },
+      "postTrainingHoldoutBrier": {
+        "count": 8,
+        "mean": 0.365405,
+        "std": 0.093472,
+        "min": 0.222377,
+        "max": 0.493088
+      },
+      "holdoutBrierImprovement": {
+        "count": 8,
+        "mean": -0.00281,
+        "std": 0.036207,
+        "min": -0.052629,
+        "max": 0.057503
+      },
+      "baselineHoldoutAuc": {
+        "count": 8,
+        "mean": 0.5738,
+        "std": 0.175795,
+        "min": 0.242,
+        "max": 0.732
+      },
+      "postTrainingHoldoutAuc": {
+        "count": 8,
+        "mean": 0.5802,
+        "std": 0.163299,
+        "min": 0.2836,
+        "max": 0.7308
+      },
+      "changedFraction": {
+        "count": 8,
+        "mean": 1,
+        "std": 0,
+        "min": 1,
+        "max": 1
+      },
+      "trainingDurationMs": {
+        "count": 8,
+        "mean": 621.104,
+        "std": 17.582539,
+        "min": 587.963,
+        "max": 646.118
+      },
+      "initialLoss": {
+        "count": 8,
+        "mean": 14.032297,
+        "std": 0.104565,
+        "min": 13.890074,
+        "max": 14.201264
+      },
+      "finalLoss": {
+        "count": 8,
+        "mean": 14.210306,
+        "std": 0.114401,
+        "min": 14.07385,
+        "max": 14.398374
+      }
+    },
+    "stability": {
+      "seeds": 8,
+      "seedsWithEceImprovementAtLeastThreshold": 1,
+      "seedsWithBrierImprovementAtLeastThreshold": 3,
+      "seedsWorseEce": 4,
+      "seedsWorseBrier": 4,
+      "seedsWithLossDecrease": 0
+    },
+    "internalMetricCaveat": {
+      "note": "calibrate() computes ECE/Brier against 'corrected' pseudo-labels derived from tokenLogLikelihoods, not against caller-supplied correctness. Its internal numbers are not calibration quality.",
+      "perCallEceWithDefaultMinSamples5": 0,
+      "perCallBrierWithDefaultMinSamples5": 0.746268,
+      "expectedZeroBecauseTokenCountLessThanMinSamples": true
+    }
+  },
+  "knowledgeBoundary": {
+    "domainCount": 40,
+    "recentDomainCount": 20,
+    "metrics": {
+      "tp": 10,
+      "fp": 0,
+      "fn": 0,
+      "tn": 10,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1,
+      "accuracy": 1
+    },
+    "global": {
+      "knownTopics": 10,
+      "unknownTopics": 30,
+      "note": "Global counts include old known domains whose effective confidence has decayed below 0.6; boundary F1 above is computed only on recent domains to isolate classification from decay."
+    }
+  },
+  "forgetting": {
+    "metrics": {
+      "tp": 10,
+      "fp": 10,
+      "fn": 0,
+      "tn": 20,
+      "precision": 0.5,
+      "recall": 1,
+      "f1": 0.666667,
+      "accuracy": 0.75
+    },
+    "detectedAlerts": 20,
+    "expectedAlerts": 10,
+    "alertGroupCounts": {
+      "recent_known": {
+        "expected": 0,
+        "detected": 0
+      },
+      "recent_unknown": {
+        "expected": 0,
+        "detected": 0
+      },
+      "old_known": {
+        "expected": 10,
+        "detected": 10
+      },
+      "old_unknown": {
+        "expected": 0,
+        "detected": 10
+      }
+    },
+    "actionCounts": {
+      "urgent_review": 20
+    },
+    "note": "detectForgetting() keys only on retention; it does not check whether the domain was ever known."
+  },
+  "gaps": {
+    "metrics": {
+      "tp": 20,
+      "fp": 0,
+      "fn": 0,
+      "tn": 20,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1,
+      "accuracy": 1
+    },
+    "gapCount": 20,
+    "severityCounts": {
+      "medium": 20
+    },
+    "note": "Gaps are created directly from failureReason in recordInteraction; this is bookkeeping, not an inferred knowledge-boundary detector."
+  },
+  "consolidation": {
+    "needed": true,
+    "reasons": [
+      "20 domain(s) at risk of forgetting",
+      "24 recent interactions to consolidate"
+    ],
+    "queueLength": 10,
+    "note": "Consolidation tasks are generated for every old domain, including unknown ones, because they share the same decay alert path."
+  },
+  "decision": {
+    "rule": "add-opt-in iff (mean holdout ECE improvement >= 0.05 OR mean holdout Brier improvement >= 0.02) AND knowledge-boundary F1 >= 0.7",
+    "meanHoldoutEceImprovement": -0.001579,
+    "meanHoldoutBrierImprovement": -0.00281,
+    "knowledgeBoundaryF1": 1,
+    "calibrationPass": false,
+    "boundaryPass": true,
+    "verdict": "do-not-add",
+    "reasons": [
+      "mean holdout ECE improvement is -0.0016 (< 0.05) and mean Brier improvement is -0.0028 (< 0.02)",
+      "knowledge-boundary F1 is 1.0000 (>= 0.7)",
+      "only 1/8 seeds reach +0.05 ECE improvement and 3/8 reach +0.02 Brier improvement; 4/8 seeds make ECE worse and 4/8 make Brier worse",
+      "ConfidenceCalibrator.trainStep applies zero-mean random weight noise scaled by loss.total, not a gradient; train() cannot systematically fit the correctness labels",
+      "training loss decreased in only 0/8 seeds (mean 14.0323 -> 14.2103); regularization dominates",
+      "the raw stated confidence already has holdout ECE 0.0826 and Brier 0.2048, far better than the calibrator's 0.3345 / 0.3626",
+      "calibrate() reports ECE/Brier against token-likelihood pseudo-labels, not ground-truth correctness; with default minSamplesPerBin=5 and 3 tokens per call its ECE is 0 by construction",
+      "forgetting precision is 0.5000 because old unknown domains also trigger decay alerts, even though there is no learned knowledge to forget"
+    ]
+  },
+  "limitations": [
+    "Synthetic predictions only; q is a fabricated stated confidence and the hidden correctness probability is monotone, so this does not establish behavior on real LLM streams.",
+    "The calibrator runs at hiddenDim=32, 2 layers, 4 heads with dropout disabled; default hiddenDim=512/baseHidden=4096 may behave differently (and is much slower).",
+    "trainStep adds random noise (randomMatrix) scaled by loss.total, not a loss gradient, and applies 'weight decay' with the wrong sign (+lr*1e-4*W). Any change is a random walk, not learning.",
+    "The only ground-truth metrics here are computed externally; calibrate()'s ece/brierScore fields use token-likelihood pseudo-labels and must not be trusted.",
+    "With seqLen=3 and default minSamplesPerBin=5, per-call ECE is identically 0 because no bin reaches 5 samples.",
+    "Knowledge-boundary F1 is easy in this synthetic setup: known domains have 3 successes, unknown domains 3 failures, and recent access avoids decay. It tests API behavior, not real-world boundary detection.",
+    "Forgetting precision is capped near 0.5 by construction because old unknown domains are indistinguishable from old known domains to a retention-only detector.",
+    "Gap precision/recall is tautological: gaps are created only when a failureReason is supplied.",
+    "No real labels, no LLM hidden states or attention maps, and no temporal sequence beyond one last-access timestamp per domain."
+  ]
+}

@@ -1,0 +1,237 @@
+{
+  "experiment": "code-sandbox-security-bench",
+  "generatedAt": "2026-10-18T02:39:49.053Z",
+  "package": {
+    "source": "../../awesome-agent-infra/packages/code-sandbox/src/index.ts",
+    "version": "0.2.0",
+    "executor": "SecureExecutor",
+    "constructorUsed": "new SecureExecutor({ timeoutMs })",
+    "packageDisclaimer": "SecureExecutor's own docstring calls this a defense-in-depth mitigation, NOT a true isolation boundary; it recommends OS-level isolation for adversarial code."
+  },
+  "runtime": {
+    "node": "v24.18.1",
+    "platform": "win32"
+  },
+  "secretHandling": {
+    "secretFile": "temporary file under the experiment temp directory",
+    "envSecret": "parent process SECRET; the child only receives allowedEnvironment",
+    "secretValuePersisted": false,
+    "note": "The synthetic secret is redacted from stored stdout/stderr; only leak booleans are persisted."
+  },
+  "probes": [
+    {
+      "id": "E1",
+      "label": "fs.readFileSync(secret)",
+      "expectation": "require('fs') must be blocked; secret must not reach stdout/stderr.",
+      "code": "const fs = require(\"fs\")\nconst data = fs.readFileSync(\"C:\\\\Users\\\\fengrru\\\\AppData\\\\Local\\\\Temp\\\\agent-infra-code-sandbox-bench-xERBbk\\\\secret.txt\", \"utf8\")\nconsole.log(\"SECRET_LEAK:\" + data.trim())",
+      "executedSuccessfully": false,
+      "exitCode": 1,
+      "timedOut": false,
+      "durationMs": 45,
+      "error": null,
+      "stdout": "",
+      "stderr": "C:\\Users\\fengrru\\AppData\\Local\\Temp\\sandbox-83499854-6372-474e-bcbd-9bac50ba8077.js:26\r\n        throw new Error('Access to module \\'' + id + '\\' is blocked in sandbox');\r\n        ^\r\n\r\nError: Access to module 'fs' is blocked in sandbox\r\n    at Module.require (C:\\Users\\fengrru\\AppData\\Local\\Temp\\sandbox-83499854-6372-474e-bcbd-9bac50ba8077.js:26:15)\r\n    at require (node:internal/modules/helpers:153:16)\r\n    at C:\\Users\\fengrru\\AppData\\Local\\Temp\\sandbox-83499854-6372-474e-bcbd-9bac50ba8077.js:49:12\r\n    at Object.<anonymous> (C:\\Users\\fengrru\\AppData\\Local\\Temp\\sandbox-83499854-6372-474e-bcbd-9bac50ba8077.js:52:3)\r\n    at Module._compile (node:internal/modules/cjs/loader:1871:14)\r\n    at Object..js (node:internal/modules/cjs/loader:2002:10)\r\n    at Module.load (node:internal/modules/cjs/loader:1594:32)\r\n    at Module.<anonymous> (node:internal/modules/cjs/loader:1396:12)\r\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\r\n    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)\r\n\r\nNode.js v24.18.1\r\n",
+      "secretLeaked": false,
+      "markerCreated": false,
+      "escapeSucceeded": false,
+      "contained": true,
+      "staticGuardBlocked": false,
+      "processObtained": false
+    },
+    {
+      "id": "E2",
+      "label": "process.env.SECRET",
+      "expectation": "The spawned child receives only allowedEnvironment, so SECRET must be undefined.",
+      "code": "console.log(\"ENV_SECRET:\" + process.env.SECRET)",
+      "executedSuccessfully": true,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationMs": 39,
+      "error": null,
+      "stdout": "ENV_SECRET:undefined\n",
+      "stderr": "",
+      "secretLeaked": false,
+      "markerCreated": false,
+      "escapeSucceeded": false,
+      "contained": true,
+      "staticGuardBlocked": false,
+      "processObtained": false
+    },
+    {
+      "id": "E3",
+      "label": "child_process.execSync writes marker",
+      "expectation": "require('child_process') must be blocked; marker file must not be created.",
+      "code": "const cp = require(\"child_process\")\ncp.execSync(\"echo pwned > \\\"C:\\\\Users\\\\fengrru\\\\AppData\\\\Local\\\\Temp\\\\agent-infra-code-sandbox-bench-xERBbk\\\\marker.txt\\\"\")\nconsole.log(\"EXEC_DONE\")",
+      "executedSuccessfully": false,
+      "exitCode": 1,
+      "timedOut": false,
+      "durationMs": 41,
+      "error": null,
+      "stdout": "",
+      "stderr": "C:\\Users\\fengrru\\AppData\\Local\\Temp\\sandbox-c65f9a6b-d1da-4827-9e0e-4c7387779f67.js:26\r\n        throw new Error('Access to module \\'' + id + '\\' is blocked in sandbox');\r\n        ^\r\n\r\nError: Access to module 'child_process' is blocked in sandbox\r\n    at Module.require (C:\\Users\\fengrru\\AppData\\Local\\Temp\\sandbox-c65f9a6b-d1da-4827-9e0e-4c7387779f67.js:26:15)\r\n    at require (node:internal/modules/helpers:153:16)\r\n    at C:\\Users\\fengrru\\AppData\\Local\\Temp\\sandbox-c65f9a6b-d1da-4827-9e0e-4c7387779f67.js:49:12\r\n    at Object.<anonymous> (C:\\Users\\fengrru\\AppData\\Local\\Temp\\sandbox-c65f9a6b-d1da-4827-9e0e-4c7387779f67.js:52:3)\r\n    at Module._compile (node:internal/modules/cjs/loader:1871:14)\r\n    at Object..js (node:internal/modules/cjs/loader:2002:10)\r\n    at Module.load (node:internal/modules/cjs/loader:1594:32)\r\n    at Module.<anonymous> (node:internal/modules/cjs/loader:1396:12)\r\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\r\n    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)\r\n\r\nNode.js v24.18.1\r\n",
+      "secretLeaked": false,
+      "markerCreated": false,
+      "escapeSucceeded": false,
+      "contained": true,
+      "staticGuardBlocked": false,
+      "processObtained": false
+    },
+    {
+      "id": "E4",
+      "label": "await import('node:fs') reads secret",
+      "expectation": "Dynamic import must be rejected statically before the child is spawned.",
+      "code": ";(async () => {\n  const fs = await import(\"node:fs\")\n  const data = fs.readFileSync(\"C:\\\\Users\\\\fengrru\\\\AppData\\\\Local\\\\Temp\\\\agent-infra-code-sandbox-bench-xERBbk\\\\secret.txt\", \"utf8\")\n  console.log(\"SECRET_LEAK:\" + data.trim())\n})().catch((error) => { console.error(\"IMPORT_ERROR:\" + error.message); process.exitCode = 1 })",
+      "executedSuccessfully": false,
+      "exitCode": 1,
+      "timedOut": false,
+      "durationMs": 0,
+      "error": "Dynamic import() is not allowed in sandbox",
+      "stdout": "",
+      "stderr": "Error: dynamic import() is not allowed in sandbox",
+      "secretLeaked": false,
+      "markerCreated": false,
+      "escapeSucceeded": false,
+      "contained": true,
+      "staticGuardBlocked": true,
+      "processObtained": false
+    },
+    {
+      "id": "E5",
+      "label": "process.binding / process.mainModule escape",
+      "expectation": "process.binding is stubbed; process.mainModule.require must stay behind the Module hook.",
+      "code": "const results = []\ntry {\n  const binding = process.binding(\"fs\")\n  results.push(\"BINDING_OK:\" + typeof binding)\n} catch (error) { results.push(\"BINDING_ERR:\" + error.message) }\ntry {\n  const main = process.mainModule\n  results.push(\"MAIN_MODULE:\" + (main ? \"present\" : \"absent\"))\n  if (main) {\n    try {\n      const fs = main.require(\"fs\")\n      const data = fs.readFileSync(\"C:\\\\Users\\\\fengrru\\\\AppData\\\\Local\\\\Temp\\\\agent-infra-code-sandbox-bench-xERBbk\\\\secret.txt\", \"utf8\")\n      results.push(\"SECRET_LEAK:\" + data.trim())\n    } catch (error) { results.push(\"MAIN_REQUIRE_ERR:\" + error.message) }\n  }\n} catch (error) { results.push(\"MAIN_ERR:\" + error.message) }\nconsole.log(results.join(\" | \"))",
+      "executedSuccessfully": true,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationMs": 41,
+      "error": null,
+      "stdout": "BINDING_ERR:process.binding is disabled in sandbox | MAIN_MODULE:present | MAIN_REQUIRE_ERR:Access to module 'fs' is blocked in sandbox\n",
+      "stderr": "",
+      "secretLeaked": false,
+      "markerCreated": false,
+      "escapeSucceeded": false,
+      "contained": true,
+      "staticGuardBlocked": false,
+      "processObtained": false
+    },
+    {
+      "id": "E6",
+      "label": "this.constructor.constructor('return process')()",
+      "expectation": "The Function constructor must not yield a process object that can bypass the stubs.",
+      "code": "try {\n  const hostProcess = this.constructor.constructor(\"return process\")()\n  console.log(\"PROCESS_OBTAINED:\" + (hostProcess === process ? \"same\" : \"different\"))\n  console.log(\"ENV_SECRET:\" + hostProcess.env.SECRET)\n  try {\n    hostProcess.binding(\"fs\")\n    console.log(\"BINDING_BYPASS\")\n  } catch (error) { console.log(\"BINDING_ERR:\" + error.message) }\n} catch (error) { console.log(\"ESCAPE_ERR:\" + error.message) }",
+      "executedSuccessfully": true,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationMs": 42,
+      "error": null,
+      "stdout": "PROCESS_OBTAINED:same\nENV_SECRET:undefined\nBINDING_ERR:process.binding is disabled in sandbox\n",
+      "stderr": "",
+      "secretLeaked": false,
+      "markerCreated": false,
+      "escapeSucceeded": false,
+      "contained": true,
+      "staticGuardBlocked": false,
+      "processObtained": true
+    },
+    {
+      "id": "E7",
+      "label": "globalThis.process / require('module') combination",
+      "expectation": "require('module') must be blocked; if globalThis.process exposes getBuiltinModule, that would be a real fs escape.",
+      "code": "const results = []\ntry {\n  results.push(\"GLOBAL_PROCESS:\" + (globalThis.process === process ? \"same\" : \"different\"))\n  const gp = globalThis.process\n  if (gp && typeof gp.getBuiltinModule === \"function\") {\n    results.push(\"GET_BUILTIN_MODULE:available\")\n    try {\n      const fs = gp.getBuiltinModule(\"fs\")\n      const data = fs.readFileSync(\"C:\\\\Users\\\\fengrru\\\\AppData\\\\Local\\\\Temp\\\\agent-infra-code-sandbox-bench-xERBbk\\\\secret.txt\", \"utf8\")\n      results.push(\"SECRET_LEAK:\" + data.trim())\n      fs.writeFileSync(\"C:\\\\Users\\\\fengrru\\\\AppData\\\\Local\\\\Temp\\\\agent-infra-code-sandbox-bench-xERBbk\\\\marker.txt\", \"pwned\")\n      results.push(\"MARKER_WRITTEN\")\n    } catch (error) { results.push(\"GET_BUILTIN_ERR:\" + error.message) }\n  } else { results.push(\"GET_BUILTIN_MODULE:absent\") }\n  try {\n    const M = require(\"module\")\n    results.push(\"MODULE_REQUIRED:\" + typeof M)\n  } catch (error) { results.push(\"MODULE_REQUIRE_ERR:\" + error.message) }\n} catch (error) { results.push(\"OUTER_ERR:\" + error.message) }\nconsole.log(results.join(\" | \"))",
+      "executedSuccessfully": true,
+      "exitCode": 0,
+      "timedOut": false,
+      "durationMs": 45,
+      "error": null,
+      "stdout": "GLOBAL_PROCESS:same | GET_BUILTIN_MODULE:available | SECRET_LEAK:[REDACTED_SECRET] | MARKER_WRITTEN | MODULE_REQUIRE_ERR:Access to module 'module' is blocked in sandbox\n",
+      "stderr": "",
+      "secretLeaked": true,
+      "markerCreated": true,
+      "escapeSucceeded": true,
+      "contained": false,
+      "staticGuardBlocked": false,
+      "processObtained": false
+    }
+  ],
+  "positiveControls": {
+    "normal": {
+      "code": "console.log(\"ok\")",
+      "executed": true,
+      "exitCode": 0,
+      "stdout": "ok\n",
+      "timedOut": false,
+      "durationMs": 38,
+      "error": null
+    },
+    "timeout": {
+      "code": "while (true) {}",
+      "timeoutMs": 750,
+      "terminated": true,
+      "timedOut": true,
+      "exitCode": -1,
+      "durationMs": 761,
+      "error": null
+    }
+  },
+  "summary": {
+    "requiredProbes": 7,
+    "executedSuccessfully": 4,
+    "secretLeaks": 1,
+    "markerFilesCreated": 1,
+    "escapes": 1,
+    "escapedProbeIds": [
+      "E7"
+    ],
+    "processPrimitivesObtained": 1,
+    "processPrimitiveProbeIds": [
+      "E6"
+    ],
+    "staticDynamicImportBlocked": true,
+    "normalCodeExecuted": true,
+    "timeoutTerminated": true,
+    "gatePassed": false,
+    "decision": "do-not-add",
+    "decisionRule": "add-as-sandbox only if 0 escapes/secret leaks, normal code executes, and the infinite loop is terminated by timeout; otherwise do-not-add."
+  },
+  "decision": {
+    "value": "do-not-add",
+    "gatePassed": false,
+    "rule": "add-as-sandbox only if 0 escapes/secret leaks, normal code executes, and the infinite loop is terminated by timeout; otherwise do-not-add.",
+    "observed": {
+      "escapes": 1,
+      "escapedProbeIds": [
+        "E7"
+      ],
+      "secretLeaks": 1,
+      "markerFilesCreated": 1,
+      "normalCodeExecuted": true,
+      "timeoutTerminated": true
+    },
+    "rationale": "Gate failed: 1 escape(s) (E7); a probe read the temporary secret and/or wrote the marker file."
+  },
+  "findings": [
+    "E1 (fs) and E3 (child_process) fail at the Module.require hook; E4 (dynamic import) is rejected statically before the child is spawned.",
+    "E2 shows environment filtering works: the child sees process.env.SECRET as undefined.",
+    "E5 shows process.mainModule is present, but main.require('fs') still hits the blocked-module hook and process.binding is stubbed.",
+    "E6 obtains the host process object through the Function constructor; the object is reachable even though dangerous methods are stubbed.",
+    "E7 is a real escape: globalThis.process.getBuiltinModule('fs') bypasses the Module._load require hook, reads the temporary secret, and writes the marker file.",
+    "The timeout and environment filtering work, but in-process module hooks are bypassable; a determined in-process JavaScript adversary can reach Node built-ins."
+  ],
+  "existingDshControls": {
+    "approval": true,
+    "sandbox": true,
+    "evidence": [
+      "super-dsh/SECURITY.md: SuperDSH runs inside the dsh process with the same privileges as the harness; it is not a sandbox, an authorization layer, or a substitute for dsh's approval and sandbox policies.",
+      "super-dsh/docs/analysis/README.md: dsh already has approval/sandbox capabilities and they are more mature than most packages."
+    ],
+    "gate": "Even if this bench passed, adoption is gated by dsh's existing approval/sandbox. This experiment only tests whether code-sandbox adds a trustworthy boundary; it does not justify replacing dsh controls."
+  },
+  "securityConstraints": {
+    "tempDirectoryOnly": true,
+    "networkUsed": false,
+    "realUserFilesRead": false,
+    "destructiveCommandsUsed": false,
+    "tempCleaned": true,
+    "note": "Secret and marker files live only under a fresh OS temp directory; the marker is deleted after each probe; the directory is removed after the run."
+  }
+}
