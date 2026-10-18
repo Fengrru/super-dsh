@@ -8,6 +8,16 @@
 
 SuperDSH is a native dsh plugin bundle, not a fork. It ships as one ESM file with **zero runtime dependencies**, loaded through the ordinary Cordis plugin/profile mechanism. Every feature is independently switchable. Features that are on by default have deterministic tests and a real-dsh smoke; key capabilities also have quantitative experiments, and the default profile itself was chosen by an agent A/B. Features that failed their experiment are documented and left off.
 
+## Articles
+
+The launch article and deep dives are collected in [`docs/blog/`](docs/blog/README.md):
+
+- [给 AI 编程器加一层可靠性](docs/blog/01-launch.md) — why SuperDSH exists, the design, and the experiments that changed defaults.
+- [为什么我给 fuzzy edit 加了五道护栏](docs/blog/02-fuzzy-edit.md)
+- [一次 null result 如何让一个功能退出默认配置](docs/blog/03-repairs-null-result.md)
+- [Kill -9 之后：副作用、artifact 与多进程写入](docs/blog/04-crash-consistency.md)
+- [工具不是越多越好：profile A/B 与 33 秒的 repo map](docs/blog/05-profiles-performance.md)
+
 ## Why
 
 dsh is an excellent plugin-first harness, but its public composition leaves execution gaps:

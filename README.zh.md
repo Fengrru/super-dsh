@@ -8,6 +8,16 @@
 
 SuperDSH 不是 dsh 的 fork，而是原生 dsh 插件 bundle：单个 ESM 文件、**零运行时依赖**，通过 Cordis 插件/profile 机制加载。每个能力独立开关；默认开启的能力都有确定性测试和真实 dsh 冒烟；关键能力还有量化实验，默认 profile 也由 agent A/B 决定。未通过实验的能力会记录原因并保持关闭。
 
+## 文章
+
+主发布文和深度文合集在 [`docs/blog/`](docs/blog/README.md)：
+
+- [给 AI 编程器加一层可靠性](docs/blog/01-launch.md) — 为什么做 SuperDSH、设计取舍，以及改变默认值的实验。
+- [为什么我给 fuzzy edit 加了五道护栏](docs/blog/02-fuzzy-edit.md)
+- [一次 null result 如何让一个功能退出默认配置](docs/blog/03-repairs-null-result.md)
+- [Kill -9 之后：副作用、artifact 与多进程写入](docs/blog/04-crash-consistency.md)
+- [工具不是越多越好：profile A/B 与 33 秒的 repo map](docs/blog/05-profiles-performance.md)
+
 ## 为什么做
 
 dsh 的插件机制很强，但公共组合仍有执行空白：
