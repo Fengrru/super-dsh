@@ -70,5 +70,10 @@ try {
 
   console.log('install smoke passed: tarball installed and profile contains id: super-dsh')
 } finally {
-  rmSync(temp, { recursive: true, force: true })
+  try {
+    rmSync(temp, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
+  } catch {
+    // Windows may keep a lock on the temp install briefly. The smoke result
+    // is already determined; do not turn cleanup into a failure.
+  }
 }
