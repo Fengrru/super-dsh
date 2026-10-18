@@ -212,7 +212,7 @@ dsh --profile headless --dump-config | grep super-dsh
 | hallucination-detector | F1 0.615；15/15 true/false 判定相同；单条 claim 永不标记 | 不加 |
 | code-sandbox | 7 个探针中 1 个逃逸：`process.getBuiltinModule('fs')` 读到 secret 并写 marker | 不加 |
 
-完整方法与原始结果见 [`docs/experiments.md`](docs/experiments.md) 与 [`experiments/`](experiments/)。不变量映射见 [`docs/invariants.md`](docs/invariants.md)。88 项来源分析见 [`docs/analysis/`](docs/analysis/README.md)。
+完整方法与原始结果见 [`docs/experiments.md`](docs/experiments.md) 与 [`experiments/`](experiments/)。不变量映射见 [`docs/invariants.md`](docs/invariants.md)。88 项来源分析见 [`docs/analysis/`](docs/analysis/README.md)。精确覆盖范围与剩余缺口见 [`docs/status.md`](docs/status.md)。
 
 ## 设计原则
 

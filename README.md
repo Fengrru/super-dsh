@@ -212,7 +212,7 @@ Research prototypes (all **do-not-add** after experiments):
 | hallucination-detector | F1 0.615; 15/15 true/false pairs identical; single claims never flagged | No |
 | code-sandbox | 1/7 escape: `process.getBuiltinModule('fs')` read a secret and wrote a marker | No |
 
-Full methodology and raw results: [`docs/experiments.md`](docs/experiments.md), [`experiments/`](experiments/). Invariant mapping: [`docs/invariants.md`](docs/invariants.md). The 88-item source analysis: [`docs/analysis/`](docs/analysis/README.md).
+Full methodology and raw results: [`docs/experiments.md`](docs/experiments.md), [`experiments/`](experiments/). Invariant mapping: [`docs/invariants.md`](docs/invariants.md). The 88-item source analysis: [`docs/analysis/`](docs/analysis/README.md). Exact coverage and remaining gaps: [`docs/status.md`](docs/status.md).
 
 ## Design principles
 
