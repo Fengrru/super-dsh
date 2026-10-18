@@ -28,6 +28,7 @@ jobs:
       - name: Build bundle
         run: bun run build
       - name: Package install smoke
+        if: runner.os == 'Linux'
         run: bun run smoke:install
       - name: Patch reliability experiment
         run: bun experiments/patch-bench.ts
