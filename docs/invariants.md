@@ -1,8 +1,7 @@
-# Invariants: Nexus Phoenix mapped to SuperDSH evidence
+# Consistency guarantees and evidence
 
-Nexus Runtime's Phoenix suite names eight design invariants. This document maps
-each one to the SuperDSH tests and experiments that actually exercise it, and
-separates three evidence classes:
+This document maps eight reliability guarantees to the SuperDSH tests and
+experiments that exercise them, and separates three evidence classes:
 
 - **fake-context** — deterministic Bun tests that drive the Cordis hooks with
   `tests/fake-context.ts` and temporary files. They prove hook semantics, not
@@ -13,12 +12,6 @@ separates three evidence classes:
   on-disk state from a new process. `kill9-audit-anchor.ts` and
   `kill9-budget.ts` reproduce the relevant crash window without a real kill.
 - **gap** — no test or experiment exercises this yet.
-
-The canonical invariant names below come from the Phoenix table in
-`nexus-runtime/README.md`. Note that `PhoenixInvariants::check_all` in
-`crates/phoenix-tests/src/lib.rs` uses a slightly different local numbering
-(I-2 is causal validity and I-5 is cost integrity there, and it checks only a
-subset); this document follows the README's eight-invariant naming.
 
 ## The eight invariants
 

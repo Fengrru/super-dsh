@@ -4,19 +4,9 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![dsh](https://img.shields.io/badge/dsh-0.2.1--rc.2-blue.svg)](https://github.com/deepseek-ai/deepseek-harness)
 
-> 为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）提供的安全优先可靠性套件：容错编辑、带文件锁的多文件事务、副作用恢复计划、带签名的防篡改审计、内容寻址 artifact、分层项目记忆、错误修复记忆、代码仓库地图、版本化知识库、会话便签、确定性压缩/反思/handoff、replay plan、预算预留、日志归档保留，以及经过测试的 Nexus 风格协议库。
+> 为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）提供的安全优先可靠性套件：容错编辑、带文件锁的多文件事务、副作用恢复计划、带签名的防篡改审计、内容寻址 artifact、分层项目记忆、错误修复记忆、代码仓库地图、版本化知识库、会话便签、确定性压缩/反思/handoff、replay plan、预算预留、日志归档保留，以及经过测试的协议库。
 
 SuperDSH 不是 dsh 的 fork，而是原生 dsh 插件 bundle：单个 ESM 文件、**零运行时依赖**，通过 Cordis 插件/profile 机制加载。每个能力独立开关；默认开启的能力都有确定性测试和真实 dsh 冒烟；关键能力还有量化实验，默认 profile 也由 agent A/B 决定。未通过实验的能力会记录原因并保持关闭。
-
-## 文章
-
-主发布文和深度文合集在 [`docs/blog/`](docs/blog/README.md)：
-
-- [给 AI 编程器加一层可靠性](docs/blog/01-launch.md) — 为什么做 SuperDSH、设计取舍，以及改变默认值的实验。
-- [为什么我给 fuzzy edit 加了五道护栏](docs/blog/02-fuzzy-edit.md)
-- [一次 null result 如何让一个功能退出默认配置](docs/blog/03-repairs-null-result.md)
-- [Kill -9 之后：副作用、artifact 与多进程写入](docs/blog/04-crash-consistency.md)
-- [工具不是越多越好：profile A/B 与 33 秒的 repo map](docs/blog/05-profiles-performance.md)
 
 ## 为什么做
 
@@ -37,7 +27,7 @@ dsh 的插件机制很强，但公共组合仍有执行空白：
 | 没有防篡改审计 | 纯 JSONL 无法证明未被改动 | 哈希链 + HMAC 签名 + 证据查询 + 导出 |
 | 没有 token/成本统计 | 长会话可能静默超支 | 可选预算 + 预留/结算 |
 
-模糊匹配改编自 [`awesome-agent-infra`](https://github.com/Fengrru/awesome-agent-infra) 的 `fuzzy-patch`。副作用恢复计划、内容寻址 artifact、审计/签名、replay plan、capability token、因果时钟、worker 协议、文件锁、预算预留是 Nexus 设计思路的 TypeScript 实现。两者都不是运行时依赖。
+插件没有运行时依赖。第三方许可证归属记录在 [NOTICE](NOTICE)。
 
 ## 安装
 
@@ -140,7 +130,7 @@ config:
 
 **预算（可选）**：累计 `assistant/message` 与 `compaction/summary` usage；`budget_status` 返回 used/reserved/remaining/exhausted。`enforce: true` 超限拒绝请求；`reservePerRequest` 提供 reserve/settle/release，并在 request-error/turn-end 清理。
 
-### Nexus 设计库
+### 协议库
 
 以下是有测试的 TS 构建块，不是模型可见工具：
 
@@ -219,7 +209,7 @@ config:
 | 审计篡改（4 类） | 0% 检出 | **100% 检出** | 接受 |
 | 验证闸门（4 个任务） | 4/4 通过 | 4/4 通过 | 无增益，保持可选 |
 
-Nexus 设计验证（当前计数）：
+执行层验证（当前计数）：
 
 - `bun test`：**222 个测试 / 1,412 个断言**，26 个文件，包含对每个注册工具 schema 子集的校验。
 - Effects 10,000 次调用：**733ms 总计，0.073ms/次**（20,000 条账本记录，5.5MB），从约 33ms/次降下来。
@@ -250,27 +240,15 @@ Profile/性能/崩溃验证：
 - 安装烟测：`npm pack` → `dsh plugin add` → 隔离 `DSH_HOME` 下的 `--dump-config`，profile 包含 `id: super-dsh`（`scripts/install-smoke.ts`，已接入 CI）。
 - Shell 失败提示：dsh 的 shell 非零退出是 `isError: false`，repair memory 现在会把它当作可恢复失败；确定性测试覆盖注入、零退出和非 shell 对照。
 
-暂缓候选的实验结论（预注册决策规则）：
+可选能力实验结论（预注册决策规则）：
 
 | 候选 | 结果 | 决策 |
 |---|---|---|
 | Best-of-N 规划（max-mode） | baseline 0.986、judge 0.995、oracle 1.000、judge top-1 75%、**2.64× token**；明显天花板 | **不加** |
 | Agentic search | hit@5 **80% → 100%**、MRR **0.70 → 0.90**、warm 1.37× 耗时、冷索引 165ms | **已加为 `search_code`**（检索级证据；caller MRR 有注释噪声 caveat） |
-| Valid8 输出门禁 | 正确片段误报 0/10，错误片段检出 **1/10（10%）**；AST 退化 | **不加** |
 | Skill curation | 合成 hit@3 83.3%→100%、stale 槽位 25%→0%，但只有合成数据 | **延后**，等真实技能语料/Agent 任务 |
 
-研究原型（实验后全部 **不加**）：
-
-| 候选 | 证据 | 决策 |
-|---|---|---|
-| POMDP planner | 成功率 100% 但与 greedy 打平；步数更多（3.45 vs 2.98），163ms/plan，长尾 1.4s；belief 无观测修正 | 不加 |
-| reasoning-search | MCTS-general 0 次调用/空解；best_of_n 与同预算 standard 打平；finalScore 无效 | 不加 |
-| process-reward | holdout 步骤 AUC 0.500，训练后仍 0.500；没有推理接口 | 不加 |
-| agent-metacog | holdout ECE/Brier 变差；原始 confidence 更好；训练是随机噪声 | 不加 |
-| hallucination-detector | F1 0.615；15/15 true/false 判定相同；单条 claim 永不标记 | 不加 |
-| code-sandbox | 7 个探针中 1 个逃逸：`process.getBuiltinModule('fs')` 读到 secret 并写 marker | 不加 |
-
-完整方法与原始结果见 [`docs/experiments.md`](docs/experiments.md) 与 [`experiments/`](experiments/)。不变量映射见 [`docs/invariants.md`](docs/invariants.md)。88 项来源分析见 [`docs/analysis/`](docs/analysis/README.md)。精确覆盖范围与剩余缺口见 [`docs/status.md`](docs/status.md)。
+完整方法与原始结果见 [`docs/experiments.md`](docs/experiments.md) 与 [`experiments/`](experiments/)。不变量映射见 [`docs/invariants.md`](docs/invariants.md)。精确覆盖范围与剩余缺口见 [`docs/status.md`](docs/status.md)。
 
 ## 设计原则
 
@@ -297,13 +275,12 @@ Profile/性能/崩溃验证：
 - `budget` 只累计事件 usage；预留在内存，重启丢失（kill-9 实验已确认 900→0）；工具/子代理没有单独计价。
 - capability/causal/worker 是测试过的库，不是暴露的工具；没有包含远程 worker 运行时。
 - 默认 profile 是 core；coding/full 的额外工具只在显式配置后注册。5 任务 A/B 样本很小，不能证明 coding 永远无益。
-- 88 项分析是路线图，不代表全部已实现。0.1.0 是首个开源版本，交付上述能力；C/D 类保持延后或拒绝。
+- 当前版本为 0.1.1，交付上述能力；剩余缺口见 [docs/status.md](docs/status.md)。
 
 ## 致谢
 
 - [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)：插件架构与宿主。
-- [`Fengrru/awesome-agent-infra`](https://github.com/Fengrru/awesome-agent-infra)：`fuzzy-patch`（已 vendored 并加固），以及记忆/压缩/便签的部分思路。
-- [`Fengrru/nexus-runtime`](https://github.com/Fengrru/nexus-runtime)：副作用恢复、内容寻址、审计/签名、replay plan、capability token、因果时钟、worker 协议、文件锁与预算不变量。
+- 第三方许可证归属见 [NOTICE](NOTICE)。
 
 ## 许可证
 

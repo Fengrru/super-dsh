@@ -1,9 +1,8 @@
 /**
  * Cold archive and retention for audit ledgers.
  *
- * Based on the archiver idea from awesome-agent-infra (hot/cold split, gzip
- * cold storage), but with the failure modes fixed: manifest file names are
- * whitelisted and contained, archive entries never escape their directory,
+ * The store uses a hot/cold split with gzip cold storage. Manifest file names
+ * are whitelisted and contained, archive entries never escape their directory,
  * every archive is verified against the source SHA-256 before any source is
  * deleted, and one failed deletion is reported instead of being silently
  * swallowed.

@@ -1,5 +1,5 @@
 /**
- * Content-addressed artifact store, adapted from Nexus Runtime's vault.
+ * Content-addressed artifact store.
  * Bytes are addressed by their SHA-256 hash and verified again on every read;
  * the append-only JSONL index adds metadata but is never trusted for paths.
  */

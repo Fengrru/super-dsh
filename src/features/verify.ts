@@ -4,8 +4,7 @@
  *
  * This closes the most common failure mode in coding agents: reporting success
  * after an edit without running the project's tests. It also implements the
- * "verify the external world, not the agent's self-report" invariant borrowed
- * from dsh's own testing guidance and Nexus Runtime's side-effect discipline.
+ * "verify the external world, not the agent's self-report" invariant.
  */
 
 import { spawn } from 'node:child_process'

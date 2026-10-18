@@ -19,10 +19,3 @@ Third-party notices
    License: MIT
    SuperDSH is an independent plugin; no dsh source code is copied into this
    repository. The plugin targets dsh's documented Cordis extension seams.
-
-3. Nexus Runtime
-   Source: https://github.com/Fengrru/nexus-runtime
-   License: MIT OR Apache-2.0
-   SuperDSH borrows design invariants (event log as truth, hash-chained audit,
-   external verification) but no Nexus source code is copied into this
-   repository.

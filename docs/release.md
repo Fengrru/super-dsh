@@ -2,9 +2,9 @@
 
 ## Status
 
-- Version: `0.1.0`
-- Tag: `v0.1.0` (frozen)
-- GitHub release: <https://github.com/Fengrru/super-dsh/releases/tag/v0.1.0>
+- Version: `0.1.1`
+- Tag: `v0.1.1` (frozen)
+- GitHub release: <https://github.com/Fengrru/super-dsh/releases/tag/v0.1.1>
 - Distribution: **GitHub only; no npm registry publication**
 - Latest CI and Release workflow: see the badges in the README
 
@@ -14,7 +14,7 @@ Set on GitHub → repository → About:
 
 - **Description:** `Safety-first reliability suite for DeepSeek Harness: tolerant edits, effects recovery, signed audit, content-addressed artifacts, tiered memory, repo map, and crash recovery.`
 - **Topics:** `dsh`, `deepseek-harness`, `ai-agent`, `agent-reliability`, `typescript`, `plugin`, `memory`, `audit`, `crash-recovery`
-- **Website:** the GitHub release page or the project blog index.
+- **Website:** the GitHub release page or a project website.
 
 ## Distribution policy
 
@@ -65,7 +65,7 @@ decided **not to publish to npm**.
 - `presets/`
 - `scripts/install-smoke.ts`
 - READMEs, CHANGELOG, license/notice/security/contributing docs
-- `docs/` (including the blog collection)
+- `docs/` (project documentation)
 
 The package has zero runtime dependencies; only the development toolchain
 (TypeScript, Bun) is needed to build it.

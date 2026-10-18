@@ -1,6 +1,6 @@
 /**
- * Tamper-evident audit ledger, inspired by Nexus Runtime's core invariant:
- * the event log is the source of truth, and every record is chained.
+ * Tamper-evident audit ledger: the event log is the source of truth, and
+ * every record is chained.
  *
  * dsh already persists a canonical session log. This feature does not replace
  * it: it appends a compact hash-chained index beside it, so an operator can

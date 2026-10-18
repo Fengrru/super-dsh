@@ -161,9 +161,9 @@ The 0.2 features are validated with deterministic tests plus a real dsh headless
 
 **Known gaps.** Effects/artifacts/apply-patch/repo-map/knowledge/handoff have not been run through a multi-task agent A/B yet. The deterministic tests cover the invariants; agent-level benefit (fewer failed edits, fewer repeated explorations, better recall) remains to be measured in the next experiment round.
 
-## E6 — Nexus design validation
+## E6 — Execution-layer design validation
 
-The 0.3 work adopts Nexus's invariants rather than its runtime. Each design has a deterministic test and, where possible, a real-process experiment.
+The execution-layer designs have deterministic tests and, where possible, a real-process experiment.
 
 **Command:** `bun test` → **160 tests / 918 assertions**, 20 files.
 
@@ -185,11 +185,11 @@ The 0.3 work adopts Nexus's invariants rather than its runtime. Each design has 
 
 **Real dsh smoke:** `audit_export` returned 17 records with an intact chain; `effect_reconcile` reported zero unresolved; `replay_plan` produced one `read` action for a changed file; `apply_patch` edited `a.ts` through the lock path and a re-read confirmed the change. Earlier smoke covered artifacts, notes, repo map, knowledge, handoff, history compaction, and reflection.
 
-**Not claimed:** the effect/artifact/apply-patch/lock/budget designs are deterministic guarantees, not agent-level A/B wins. `docs/invariants.md` maps each Phoenix invariant to its evidence and still lists artifact crash, audit-anchor crash, budget crash, checkpoint identity, and determinism context as gaps.
+**Not claimed:** the effect/artifact/apply-patch/lock/budget designs are deterministic guarantees, not agent-level A/B wins. `docs/invariants.md` maps the reliability guarantees to their evidence and still lists artifact crash, audit-anchor crash, budget crash, checkpoint identity, and determinism context as gaps.
 
 ## E7 — Memory v2, error-repair memory, retention
 
-These adopt the useful parts of awesome-agent-infra's memory/repair/archive packages without their data bugs.
+These cover the memory, repair, and retention features.
 
 **Command:** `bun test` → **197 tests / 1,184 assertions**, 23 files.
 
@@ -232,11 +232,11 @@ The consolidation reduces injected bytes by 1,210 with no recall or stale-inject
 
 **Real-dsh smoke:** memory tier save + feedback + consolidate, and repair record + search were exercised in a live headless session. Retention is covered by tests and is intentionally not default-on.
 
-## E8 — Deferred-candidate experiments
+## E8 — Optional-feature experiments
 
 These candidates were not added by default in 0.2/0.3. Each experiment had a **pre-registered decision rule**; results below are from this machine.
 
-### E8.1 Best-of-N planning (`max-mode-sampler`)
+### E8.1 Best-of-N planning
 
 - 4 coding tasks, baseline: 2 single plans at temperature 0.3; treatment: 3 plans at 0.9 + judge at 0.1.
 - Deterministic score: 0.4 files coverage + 0.3 concepts + 0.15 verification + 0.15 path validity.
@@ -252,7 +252,7 @@ These candidates were not added by default in 0.2/0.3. Each experiment had a **p
 
 **Decision: do not add.** Baseline plans were already near ceiling; the oracle headroom was +0.0140, far below the +0.10 threshold, while treatment cost 2.64× tokens. The judge also missed the best candidate once (though that case was a path-normalization tie). Raw: `experiments/results/best-of-n-plan-bench.json`.
 
-### E8.2 Agentic search (`agentic-search`)
+### E8.2 Agentic search
 
 - 12-file fixture, 15 queries (5 definition, 5 caller, 5 text); baseline = self-implemented lexical file scan; treatment = intent router over `find_symbol` / `impact_of` / `repo_map` + text fallback.
 - Decision rule: hit@5 ≥ baseline + 0.15, higher MRR, latency <3×.
@@ -266,21 +266,7 @@ These candidates were not added by default in 0.2/0.3. Each experiment had a **p
 
 **Decision: add as `search_code`.** It passed the rule. Caveat: the baseline is a synthetic substring scan, not the model's actual grep/ripgrep tool choice; caller MRR dropped 0.8→0.7 because comments count as references. `repoMap.search: false` disables the extra tool. Raw: `experiments/results/agentic-search-bench.json`.
 
-### E8.3 Valid8 output gate
-
-- 20 snippets: 10 correct (including `any`, `console.log`, one acceptable empty catch) and 10 buggy (syntax, duplicate declaration, brackets, injection, off-by-one, assignment-in-condition, missing await).
-- Logic: syntax + security layers, default threshold 0.7.
-- Decision rule: false positives ≤10% **and** buggy detection ≥50%.
-
-| Metric | Result |
-|---|---:|
-| correct snippets flagged (FP) | 0/10 (0%) |
-| buggy snippets caught (TP) | **1/10 (10%)** |
-| syntax-only TP | 0/10 (0%) |
-
-**Decision: do not add.** The AST path degraded (TypeScript 7.0.2 lacks the expected `createSourceFile` surface), so only regex checks ran; even with AST, single-issue scoring often stays above 0.7. It does not catch logic errors. Raw: `experiments/results/valid8-bench.json`.
-
-### E8.4 Skill curation (`skillforge` / `skill-curator` / `dreamdistill`)
+### E8.3 Skill curation
 
 - 24 synthetic skills (16 active, 4 stale, 4 near-duplicates), 12 queries, lexical top-3.
 - Treatment: archive stale/duplicates and pin top 20% by uses.
@@ -295,69 +281,6 @@ These candidates were not added by default in 0.2/0.3. Each experiment had a **p
 
 **Decision: defer, not add.** The mechanical rule passed, but the gain came entirely from two deliberately crowded synthetic queries; there is no real dsh skill corpus or agent-task evidence. Revisit with 30–50 real tasks and actual skill usage. Raw: `experiments/results/skill-curation-bench.json`.
 
-## E9 — Research-prototype experiments
-
-Six remaining candidates were tested instead of rejected by reputation. Each had a pre-registered rule. **All six end as do-not-add**; POMDP is the one rule-design caveat.
-
-### E9.1 POMDP planner
-
-- 3×3 gridworld, 20% perpendicular slip, goal bottom-right; 100 runs/policy (20 starts × 5 repetitions), same starts.
-- Baselines: seeded random, greedy shortest-path replanned after every observed position.
-- POMDP: `POMDPPlanner.plan` + `QMDPSolver`; **no observations supplied**, so the belief is predicted but never corrected.
-
-| Policy | Success | Avg steps | Plan time |
-|---|---:|---:|---:|
-| POMDP | 100% | 3.45 | 163.5 ms avg (p99 420 ms, max 479 ms) |
-| Greedy | 100% | **2.98** | ~0.006 ms |
-| Random | 57% | 13.22 | ~0.006 ms |
-
-The written rule passed only through the `random + 0.20` branch; it did **not** beat greedy (`+0.00`), used more steps, and paid ~163 ms/plan with a 1.4 s tail in another run. **Final decision: do-not-add.** The OR rule was too permissive; a production planner should beat a competent greedy baseline, not just random. Raw: `experiments/results/pomdp-bench.json`.
-
-### E9.2 reasoning-search
-
-- Synthetic 10-option multiple choice, 20 tasks, shared candidate streams; same 20-call/20-candidate budget for all strategies.
-- Budget-matched standard sampling was the baseline, not a single 1-call sample.
-
-| Strategy | Solve rate | Generate calls | Issue |
-|---|---:|---:|---|
-| standard sampling (1 call) | 30% | 1.0 | finalScore always 0 |
-| budget-matched standard (20-call cap) | **100%** | 3.9 | — |
-| best_of_n | 100% | 3.9 | no gain over matched baseline |
-| MCTS (`general`) | 0% | 0.0 | root considered complete; empty solution |
-| MCTS (`math`) | 25% | 10.0 | finalScore constant; no correctness discrimination |
-| true guided beam | 30% | 1.0 | returns first complete candidate |
-
-**Decision: do-not-add.** No strategy beat the budget-matched baseline by +0.10; MCTS-general never generated a token, and finalScore is unusable. Raw: `experiments/results/reasoning-search-bench.json`.
-
-### E9.3 process-reward
-
-- 100 synthetic arithmetic trajectories, 5 steps each, 50 train / 50 holdout; hidden intermediate-value rule, no labels in text.
-- Untrained `scorePathHeuristic` holdout step AUC **0.5000**; after `PRMTrainer.train`, AUC **0.5000** (0/250 scores changed).
-- Weak-supervision labels collapsed to two values; the trainer has no inference path; oracle-label training still cannot predict holdout.
-- **Decision: do-not-add.** Not a usable PRM; raw: `experiments/results/process-reward-bench.json`.
-
-### E9.4 agent-metacog
-
-- 200 synthetic confidence/correctness samples, 100 train / 100 holdout, 8 seeds; external ECE/Brier against true correctness.
-- Holdout ECE **0.3345 → 0.3361** (mean change **-0.0016**); Brier **0.3626 → 0.3654** (-0.0028). Raw stated confidence alone had ECE **0.0826** / Brier **0.2048**, far better.
-- Knowledge-boundary F1 1.0 on clean synthetic domains, but forgetting F1 0.6667 (old-unknown false positives).
-- Training applies zero-mean random weight noise, not gradients; loss increased in 8/8 seeds.
-- **Decision: do-not-add.** Raw: `experiments/results/agent-metacog-bench.json`.
-
-### E9.5 hallucination-detector
-
-- 30 claims: 15 true and 15 false but plausible/internal-consistent, plus 5 contradictions.
-- Default `detect()` over the combined text: TP 12, FP 12, FN 3, TN 3, **F1 0.6154**.
-- 15/15 true/false pairs received identical verdicts; single claims are never flagged (single-member cluster coherence 1). The score is TF-IDF/Jaccard consistency, not factuality; `referenceFacts`/`knowledgeBase` are still lexical.
-- **Decision: do-not-add.** Raw: `experiments/results/hallucination-detector-bench.json`.
-
-### E9.6 code-sandbox
-
-- 7 escape probes against `SecureExecutor` with a temporary secret file and env marker.
-- `require('fs')`, `child_process`, dynamic `import('node:fs')` were blocked; timeout killed an infinite loop; normal code ran.
-- **E7 escaped**: `process.getBuiltinModule('fs')` read the secret and created the marker file, bypassing the require hook. E6 also obtained the host `process`.
-- **Decision: do-not-add.** A single escape fails the security gate; dsh's own approval/sandbox remains the boundary. Raw: `experiments/results/code-sandbox-security-bench.json`.
-
 ## E10 — Tool schema overhead and profiles
 
 Every model request pays for the schemas of all registered tools. This experiment measures three profiles; no model call is involved.
@@ -370,7 +293,7 @@ Every model request pays for the schemas of all registered tools. This experimen
 | coding | core + repo map/search, notes, knowledge, handoff/replay, compact/reflection | 37 | 19,934 | **4,984** |
 | full | coding + verify, budget, retention | 41 | 22,438 | **5,610** |
 
-SuperDSH 0.1.0 ships these as `core` / `coding` / `full`, with explicit feature flags overriding the profile. `full` includes verify, budget, and retention, but those three register only when their config is present, so an empty `full` profile stays at the 37-tool coding surface. Repair memory is opt-in after E14 and is not part of any profile; `repairs: true` adds its three tools.
+SuperDSH 0.1.1 ships these as `core` / `coding` / `full`, with explicit feature flags overriding the profile. `full` includes verify, budget, and retention, but those three register only when their config is present, so an empty `full` profile stays at the 37-tool coding surface. Repair memory is opt-in after E14 and is not part of any profile; `repairs: true` adds its three tools.
 
 **Initial decision (before E12):** do not keep growing the default tool count. Build the profiles, fix the repo-map cold start, then run an agent A/B to choose the default. E12 resolved the choice: **core is the default**. E14 later removed repair memory from core, which is why the current counts are 21/37/41 rather than 24/40/44.
 
@@ -439,8 +362,7 @@ Per-task input tokens: config-callers 11,775 vs 13,464; server-caller 857 vs 872
 
 ## E13 — Rejected candidates
 
-
-Several attractive ideas from `awesome-agent-infra` and `nexus-runtime` did **not** survive review. They are documented in [`decisions.md`](decisions.md): the Nexus kernel bridge, a code-graph repo map, hallucination/confidence heuristics, goal-verifier's fallback, replay/dynamic-workflow recovery, and the LLM request dedup cache. The common reasons were: the implementation was a mock or had correctness bugs, the capability duplicated a stronger dsh primitive, or there was no way to measure a benefit in this environment.
+Candidate ideas that do not fill a real gap, cannot be measured, or fail their safety guardrails are kept out of the default bundle. The decision log records the constraints; this repository focuses on the capabilities it actually ships.
 
 ## E14 — Repair memory agent A/B
 

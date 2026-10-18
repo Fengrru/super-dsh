@@ -14,7 +14,7 @@
  * ```
  *
  * Or install the built bundle as a dsh plugin. Every feature is independently
- * switchable; see README.md and docs/analysis/ for the evidence behind each.
+ * switchable; see README.md and docs/experiments.md for the evidence behind each.
  */
 
 import type { PluginContext, SuperDshConfig } from './plugin-types.ts'
@@ -42,7 +42,7 @@ export const name = 'super-dsh'
 /** Services touched by the features; the host provides all of them in the base bundle. */
 export const inject = ['tools', 'fs', 'systemPrompt', 'workingDirectory']
 
-// Nexus-inspired building blocks for integrations that need them. These are
+// Protocol building blocks for integrations that need them. These are
 // not registered as model-facing tools by default.
 export {
   capabilityPermits,

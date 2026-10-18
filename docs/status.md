@@ -1,18 +1,18 @@
 # Status: coverage, experiments, and remaining gaps
 
-Last updated with 0.1.0.
+Last updated with 0.1.1.
 
-## Is every source component experimented?
+## What is covered
 
-**No.** All **88** source components were read and classified in [`docs/analysis/`](analysis/README.md), but a runtime experiment only exists for the items that could change a shipping decision or needed behavioral proof. Many C/D items are mocks, duplicates of stronger dsh features, or unsafe; they were rejected from source evidence, not benchmarked.
+Runtime experiments exist for capabilities whose behavior or default could change a shipping decision. Deterministic tests cover the rest of the shipped surface.
 
 Current inventory:
 
 - **41 model-facing tools** at the `full` profile; the default `core` profile registers **21** (coding: 37). Repair memory's three tools are opt-in and outside every profile.
 - **222 tests / 1,412 assertions** across 26 test files; **95.50% line / 93.08% function coverage**. Weak spots remain `vendor/fuzzy-patch.ts` (59.6% lines), `verify.ts` (69.9%), and `repo-map.ts` (86.2%).
-- **24 experiment scripts** and **27 result JSON files** under `experiments/`.
+- **17 experiment scripts** and **20 result JSON files** under `experiments/`.
 - **6 quantitative agent/retrieval experiments**: patch drift, cross-session memory, audit tamper, verification gate, profile A/B, repair memory A/B.
-- **Deterministic/prototype experiments**: effects perf + real kill-9, artifact crash, audit anchor gap, budget restart loss, memory v2 consolidation, repair memory, agentic search, repo-map performance, tool-schema overhead, cross-process store writes, package install smoke, best-of-N, Valid8, skill curation, POMDP, reasoning-search, process-reward, agent-metacog, hallucination-detector, code-sandbox.
+- **Deterministic/prototype experiments**: effects performance + real kill-9, artifact crash, audit anchor gap, budget restart loss, memory v2 consolidation, repair memory, agentic search, repo-map performance, tool-schema overhead, cross-process store writes, package install smoke, best-of-N planning, skill curation.
 
 ## Shipped tools (41 at full)
 
@@ -45,9 +45,9 @@ The table lists the union. `core` = editing + memory + effects/audit + artifacts
 - Package `npm pack` → `dsh plugin add` smoke in CI.
 - Typecheck, coverage script, CI (Ubuntu + Windows), lockfile, and a schema-subset guard for registered tools.
 
-## What was rejected after experiments
+## What was not added
 
-Best-of-N planning, Valid8 gate, POMDP, reasoning-search, process-reward, agent-metacog, hallucination-detector, code-sandbox. Repair memory is not rejected: E14 found no benefit on a 16-task ceiling corpus, so it moved from default core to opt-in. See `docs/experiments.md` E8/E9/E13/E14 and `docs/decisions.md`.
+Best-of-N planning was measured and rejected; skill curation is deferred pending real-world evidence. Repair memory is not rejected: E14 found no benefit on a 16-task ceiling corpus, so it moved from default core to opt-in. See `docs/experiments.md` and `docs/decisions.md`.
 
 ## Performance and default profile
 
@@ -88,17 +88,16 @@ These are **not** rejected; they were either not implemented or only partially c
 | Durable budget | Not implemented; restart loss confirmed | Either persist usage/reservations or explicitly keep budget as per-process reporting only. |
 | Semantic/embedding memory retrieval | Not implemented. Memory v2 is lexical. | Add an embedding provider interface/experiment; compare recall@k and token cost vs lexical. |
 | Canonical `MEMORY.md` project memory | Partial: JSONL memory has export/import, but MEMORY.md is not the source of truth. | Decide whether MEMORY.md should be canonical; add round-trip/locking tests. |
-| `checkpoint-writer` 11-field structured handoff | Not implemented. `handoff` + `replay_plan` cover the deterministic path. | Add a structured checkpoint schema only if a real handoff consumer needs it. |
-| `evidence-log` content-addressed event log | Partial: audit hash chain + `audit_evidence` + `audit_export`, not the package's evidence-log. | Compare against external WORM/ledger needs; decide whether a separate evidence index is worth it. |
+| Structured checkpoint handoff | Not implemented. `handoff` + `replay_plan` cover the deterministic path. | Add a structured checkpoint schema only if a real handoff consumer needs it. |
+| Content-addressed evidence log | Partial: audit hash chain + `audit_evidence` + `audit_export`. | Compare against external WORM/ledger needs; decide whether a separate evidence index is worth it. |
 | Python worker / external worker runtime | Protocol library only; no worker process. | Only if remote workers are needed; add capability/deadline/cancel and sandboxing. |
 | Full session replay / checkpoint identity / determinism context | Not implemented. | Define a replay corpus and materialized-state comparison; currently only effects/audit replay. |
-| Skill curation / dreamdistill | Deferred after synthetic-only experiment. | Need real skill corpus + 30–50 agent tasks. |
-| Guardrail / goal-verifier / confidence-gate | Source-level concern, no dedicated experiment. | Optional experiments if someone wants to use them; do not add by default. |
-| D/C components (event bus, worker, state machine, branch, engine-db, replay, tracing, MCP client, dynamic-workflow, Nexus runtime/SDK/schedulers, etc.) | Not runtime-tested. | Not planned; source review shows mock/duplicate/unsafe behavior. |
+| Skill curation | Deferred after synthetic-only experiment. | Need real skill corpus + 30–50 agent tasks. |
+| Out-of-scope runtime features (event bus, remote workers, schedulers, full replay) | Not implemented. | Revisit only with a real consumer; not part of the reliability layer. |
 
 ## Are all "can add" features added?
 
-- **Among the candidates that were actually tested:** yes. `search_code`, `artifact_reindex`, and profiles were added; repair memory was measured and moved to opt-in; Best-of-N, Valid8, POMDP, reasoning-search, process-reward, agent-metacog, hallucination-detector, and code-sandbox were rejected; skill curation is deferred.
+- **Among the candidates that were actually tested:** yes. `search_code`, `artifact_reindex`, and profiles were added; repair memory was measured and moved to opt-in; Best-of-N was rejected; skill curation is deferred.
 - **Among all potentially add-worthy items:** no. Agent-level A/B for memory v2 and search_code, durable budget, semantic retrieval, canonical MEMORY.md, structured checkpoint handoff, content-addressed evidence log, external worker runtime, and full replay remain unresolved.
 - **Evidence quality:** six features have agent-level quantitative experiments (fuzzy patch, memory, audit, verification gate, profile choice, repair memory). The rest are deterministic tests, synthetic benchmarks, or real-dsh smoke. That is sufficient for guarantees (e.g., tamper detection, rollback, crash detection), not for claiming task-success improvement. `search_code` and memory v2 still need agent-level A/B before being called "proven stronger"; repair memory's A/B supports *not* defaulting it, but its ceiling corpus does not prove it can never help.
 

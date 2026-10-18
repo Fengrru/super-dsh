@@ -3,9 +3,9 @@
  *
  * This is a codec plus a deterministic state machine; it does not spawn
  * processes, open sockets, or integrate with dsh. A host (dsh or another
- * runner) owns transport and process lifecycle. Wire messages follow the
- * Nexus execute/checkpoint/result/cancel vocabulary and use snake_case fields
- * so a Python or Node worker can implement them without a schema translation.
+ * runner) owns transport and process lifecycle. Wire messages use the
+ * execute/checkpoint/result/cancel vocabulary and snake_case fields so a
+ * Python or Node worker can implement them without a schema translation.
  *
  * Frames are one JSON object per line. Decoding rejects empty lines, invalid
  * JSON, frames over 1 MiB, unknown methods, and messages missing required

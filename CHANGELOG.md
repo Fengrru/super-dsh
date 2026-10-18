@@ -1,11 +1,18 @@
 # Changelog
 
+## 0.1.1 — 2026-10-18
+
+Repository cleanup. The repository-local analysis, pre-release development log,
+and blog collection were removed from this repository so the project stands on
+its own. Documentation now focuses on SuperDSH's shipped behavior, evidence,
+and limitations. The blog lives in a separate sibling folder outside this
+repository. No runtime behavior changed.
+
 ## 0.1.0 — 2026-10-18
 
 First open-source release. SuperDSH is a safety-first reliability suite for
 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness), shipped as
-one zero-runtime-dependency ESM plugin bundle. Pre-release development notes
-(0.2.0–0.6.0) are archived in [`docs/dev-changelog.md`](docs/dev-changelog.md).
+one zero-runtime-dependency ESM plugin bundle.
 
 ### Editing and transactions
 
@@ -68,14 +75,12 @@ one zero-runtime-dependency ESM plugin bundle. Pre-release development notes
 
 ### Evidence
 
-The repository contains 16 experiment write-ups (E1–E16), 24 scripts, and 27
-raw JSON result files. Cross-session memory was expanded from two to ten pairs:
-baseline **0/10**, treatment **10/10**, with session-2 output tokens
-**222–678** vs **44–107**. Negative results are kept: Best-of-N planning, Valid8,
-POMDP, reasoning-search, process-reward, agent-metacog,
-hallucination-detector, and code-sandbox were not added; repair memory was
-demoted to opt-in. See [`docs/experiments.md`](docs/experiments.md) and
-[`docs/status.md`](docs/status.md).
+The repository contains 15 experiment write-ups (E1–E8 and E10–E16), 17
+scripts, and 20 raw JSON result files. Cross-session memory was expanded from
+two to ten pairs: baseline **0/10**, treatment **10/10**, with session-2 output
+tokens **222–678** vs **44–107**. Best-of-N planning was rejected; skill
+curation is deferred; repair memory was demoted to opt-in. See
+[`docs/experiments.md`](docs/experiments.md) and [`docs/status.md`](docs/status.md).
 
 ### Validation
 

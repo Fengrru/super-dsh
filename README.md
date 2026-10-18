@@ -4,19 +4,9 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![dsh](https://img.shields.io/badge/dsh-0.2.1--rc.2-blue.svg)](https://github.com/deepseek-ai/deepseek-harness)
 
-> A safety-first reliability suite for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`): tolerant edits, transactional patches with file locks, recovery plans for side effects, signed tamper-evident audit, content-addressed artifacts, tiered project memory, error-repair memory, a repo map, versioned knowledge, scratchpads, deterministic compaction/reflection/handoff, replay plans, budget reservation, log retention, and tested Nexus-inspired protocol libraries.
+> A safety-first reliability suite for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`): tolerant edits, transactional patches with file locks, recovery plans for side effects, signed tamper-evident audit, content-addressed artifacts, tiered project memory, error-repair memory, a repo map, versioned knowledge, scratchpads, deterministic compaction/reflection/handoff, replay plans, budget reservation, log retention, and tested protocol libraries.
 
 SuperDSH is a native dsh plugin bundle, not a fork. It ships as one ESM file with **zero runtime dependencies**, loaded through the ordinary Cordis plugin/profile mechanism. Every feature is independently switchable. Features that are on by default have deterministic tests and a real-dsh smoke; key capabilities also have quantitative experiments, and the default profile itself was chosen by an agent A/B. Features that failed their experiment are documented and left off.
-
-## Articles
-
-The launch article and deep dives are collected in [`docs/blog/`](docs/blog/README.md):
-
-- [给 AI 编程器加一层可靠性](docs/blog/01-launch.md) — why SuperDSH exists, the design, and the experiments that changed defaults.
-- [为什么我给 fuzzy edit 加了五道护栏](docs/blog/02-fuzzy-edit.md)
-- [一次 null result 如何让一个功能退出默认配置](docs/blog/03-repairs-null-result.md)
-- [Kill -9 之后：副作用、artifact 与多进程写入](docs/blog/04-crash-consistency.md)
-- [工具不是越多越好：profile A/B 与 33 秒的 repo map](docs/blog/05-profiles-performance.md)
 
 ## Why
 
@@ -37,7 +27,7 @@ dsh is an excellent plugin-first harness, but its public composition leaves exec
 | No tamper-evident audit | A plain JSONL log cannot prove it was not altered | Hash chain, HMAC signatures, evidence lookup, export |
 | No token/cost accounting | Long sessions can overrun silently | Opt-in budget with reserve/settle |
 
-The fuzzy matcher is adapted from [`awesome-agent-infra`](https://github.com/Fengrru/awesome-agent-infra)'s `fuzzy-patch` package. The effects recovery plan, content-addressed artifacts, audit/signatures, replay plan, capability tokens, causal clock, worker protocol, file locks, and budget reservation are Nexus-inspired designs implemented in TypeScript. Neither project is a runtime dependency.
+The plugin has no runtime dependencies. Third-party license notices are recorded in [NOTICE](NOTICE).
 
 ## Install
 
@@ -141,7 +131,7 @@ config:
 
 **Budget (opt-in)** — accumulates `assistant/message` and `compaction/summary` usage; `budget_status` reports used/reserved/remaining/exhausted. `enforce: true` refuses over-budget requests; `reservePerRequest` adds reserve/settle/release with request-error and turn-end cleanup.
 
-### Nexus design library
+### Protocol libraries
 
 Tested TS building blocks, not model-facing tools:
 
@@ -220,7 +210,7 @@ Quantitative experiments on this machine (Windows 10, Node 24, DeepSeek `deepsee
 | Audit tamper scenarios (4 kinds) | 0% detected | **100% detected** | Accept |
 | Verification gate (4 seeded tasks) | 4/4 pass | 4/4 pass | No gain; keep opt-in |
 
-Nexus-design validation (current counts):
+Execution-layer validation (current counts):
 
 - `bun test`: **222 tests / 1,412 assertions** across 26 files, including schema-subset validation for every registered tool.
 - Effects 10,000 calls: **733 ms total, 0.073 ms/call** (20,000 ledger records, 5.5 MB), down from ~33 ms/call.
@@ -251,27 +241,15 @@ Repair/default/concurrency/memory validation:
 - Package install smoke: `npm pack` → `dsh plugin add` → `--dump-config` in an isolated `DSH_HOME`; the profile contains `id: super-dsh` (`scripts/install-smoke.ts`, also in CI).
 - Shell-failure hints: repair memory now treats a dsh shell result with `exitCode != 0` as a recoverable failure even though dsh reports it as `isError: false`; a deterministic test covers the injection and the zero-exit/non-shell controls.
 
-Deferred-candidate experiments (pre-registered decision rules):
+Optional-feature experiments (pre-registered decision rules):
 
 | Candidate | Result | Decision |
 |---|---|---|
 | Best-of-N planning (max-mode) | baseline 0.986, judge 0.995, oracle 1.000, judge top-1 75%, **2.64× tokens**; ceiling effect | **Do not add** |
 | Agentic search | hit@5 **80% → 100%**, MRR **0.70 → 0.90**, warm 1.37× latency, cold index 165 ms | **Added as `search_code`** (retrieval-level evidence; caller MRR has a comment-noise caveat) |
-| Valid8 output gate | correct false positives 0/10, buggy detected **1/10 (10%)**; AST degraded | **Do not add** |
 | Skill curation | synthetic hit@3 83.3% → 100%, stale slots 25% → 0%, but only synthetic data | **Defer** until real skill corpus/agent tasks |
 
-Research prototypes (all **do-not-add** after experiments):
-
-| Candidate | Evidence | Decision |
-|---|---|---|
-| POMDP planner | Ties greedy at 100% success, more steps (3.45 vs 2.98), 163 ms/plan, tails to 1.4 s; no observation correction | No |
-| reasoning-search | MCTS-general makes 0 calls / empty solution; best_of_n ties budget-matched standard; invalid finalScore | No |
-| process-reward | Holdout step AUC 0.500, unchanged after training; no inference path | No |
-| agent-metacog | Holdout ECE/Brier get worse; raw confidence is far better; random-noise training | No |
-| hallucination-detector | F1 0.615; 15/15 true/false pairs identical; single claims never flagged | No |
-| code-sandbox | 1/7 escape: `process.getBuiltinModule('fs')` read a secret and wrote a marker | No |
-
-Full methodology and raw results: [`docs/experiments.md`](docs/experiments.md), [`experiments/`](experiments/). Invariant mapping: [`docs/invariants.md`](docs/invariants.md). The 88-item source analysis: [`docs/analysis/`](docs/analysis/README.md). Exact coverage and remaining gaps: [`docs/status.md`](docs/status.md).
+Full methodology and raw results: [`docs/experiments.md`](docs/experiments.md), [`experiments/`](experiments/). Invariant mapping: [`docs/invariants.md`](docs/invariants.md). Exact coverage and remaining gaps: [`docs/status.md`](docs/status.md).
 
 ## Design principles
 
@@ -298,13 +276,12 @@ Full methodology and raw results: [`docs/experiments.md`](docs/experiments.md), 
 - `budget` accumulates event usage; reservations are in-memory and do not survive a restart (confirmed by `experiments/kill9-budget.ts`: 900 → 0), and tools/subagents are not individually priced.
 - The capability/causal/worker modules are tested libraries, not exposed tools; no remote worker runtime is included.
 - The default profile is `core`; the additional coding/full tools register only when explicitly configured. The 5-task A/B is small and does not prove coding tools are never useful.
-- The 88-item analysis is a roadmap, not a claim that every item is implemented. Version 0.1.0 is the first open-source release and ships the features above; C/D items remain deferred or rejected.
+- Version 0.1.1 is the current release and ships the features above. Remaining gaps are tracked in [docs/status.md](docs/status.md).
 
 ## Credits
 
 - [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) — plugin architecture and the host this project extends.
-- [`Fengrru/awesome-agent-infra`](https://github.com/Fengrru/awesome-agent-infra) — `fuzzy-patch`, vendored and hardened here; memory/compaction/scratchpad ideas.
-- [`Fengrru/nexus-runtime`](https://github.com/Fengrru/nexus-runtime) — effects recovery, content-addressed artifacts, audit/signatures, replay plans, capability tokens, causal clocks, worker protocol, file-lock and budget invariants.
+- Third-party license notices are listed in [NOTICE](NOTICE).
 
 ## License
 

@@ -1,6 +1,5 @@
 /**
- * Side-effect intent/commit ledger, adapted from Nexus Runtime's effects
- * module. Every tool call is recorded before it runs and resolved after it
+ * Side-effect intent/commit ledger. Every tool call is recorded before it runs and resolved after it
  * finishes, so an interrupted irreversible action can be detected instead of
  * silently repeated.
  *

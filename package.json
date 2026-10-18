@@ -1,6 +1,6 @@
 {
   "name": "dsh-super",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "SuperDSH — a safety-first reliability suite for DeepSeek Harness (dsh): tolerant edits, effects recovery, signed audit, artifacts, tiered memory, error-repair memory, repo map, profiles, locks, knowledge, replay plans, handoff, compaction, reflection, retention, and budget",
   "type": "module",
@@ -35,13 +35,11 @@
   "scripts": {
     "build": "bun build src/index.ts --target=node --format=esm --outfile=dist/index.js",
     "prepare": "bun run build",
-    "prepublishOnly": "bun run build",
     "test": "bun test",
     "test:coverage": "bun test --coverage",
     "typecheck": "tsc --noEmit",
     "smoke:install": "bun scripts/install-smoke.ts",
     "experiment:patch": "bun experiments/patch-bench.ts",
-    "experiment:units": "bun experiments/unit-checks.ts",
     "experiment:agent": "bun experiments/agent-bench.ts",
     "experiment:profiles": "bun experiments/profile-ab-bench.ts",
     "experiment:repo-perf": "bun experiments/repo-map-perf.ts",
