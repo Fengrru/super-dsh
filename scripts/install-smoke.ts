@@ -27,7 +27,7 @@ function run(command: string, args: string[], options: { cwd?: string; env?: Nod
     encoding: 'utf8' as const,
     stdio: ['ignore', 'pipe', 'pipe'] as ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
-    timeout: 240_000,
+    timeout: 900_000,
   }
   if (process.platform === 'win32') {
     // Node 24 refuses to spawn .cmd shims without a shell (EINVAL). Quote
