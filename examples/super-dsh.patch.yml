@@ -5,9 +5,22 @@
       name: '<ABSOLUTE_PATH>/dist/index.js'
       config:
         fuzzyEdit: true
+        applyPatch:
+          maxFiles: 10
         memory: true
+        notes: true
+        repoMap: true
+        knowledge: true
+        effects: true
+        artifacts: true
         audit: true
-        # The verification gate is opt-in; uncomment to enforce a command.
+        handoff: true
+        historyCompact: true
+        reflection: true
+        # These are opt-in:
+        # budget:
+        #   maxTokens: 200000
+        #   enforce: false
         # verify:
         #   command: 'bun test'
         #   timeoutMs: 120000

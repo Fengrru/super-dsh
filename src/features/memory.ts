@@ -28,6 +28,8 @@ interface MemoryEntry {
   createdAt: number
   lastUsed: number
   uses: number
+  expiresAt?: number
+  state?: 'active' | 'archived'
 }
 
 interface MemoryHit extends MemoryEntry {
@@ -66,6 +68,8 @@ class MemoryStore {
           createdAt: Number(parsed.createdAt ?? Date.now()),
           lastUsed: Number(parsed.lastUsed ?? Date.now()),
           uses: Number(parsed.uses ?? 0),
+          ...(typeof parsed.expiresAt === 'number' ? { expiresAt: parsed.expiresAt } : {}),
+          ...(parsed.state === 'archived' ? { state: 'archived' as const } : {}),
         })
       } catch {
         // A torn tail line is ignored; the rest of the store stays usable.
@@ -76,15 +80,19 @@ class MemoryStore {
     }
   }
 
-  save(text: string, tags: string[], importance: number): MemoryEntry {
+  save(text: string, tags: string[], importance: number, ttlDays?: number): MemoryEntry {
+    const now = Date.now()
     const entry: MemoryEntry = {
       id: randomUUID(),
       text: text.trim(),
       tags: tags.slice(0, 12),
       importance: clamp(importance, 0, 1),
-      createdAt: Date.now(),
-      lastUsed: Date.now(),
+      createdAt: now,
+      lastUsed: now,
       uses: 0,
+      ...(typeof ttlDays === 'number' && Number.isFinite(ttlDays) && ttlDays > 0
+        ? { expiresAt: now + Math.round(ttlDays * 86_400_000) }
+        : {}),
     }
     mkdirSync(join(this.file, '..'), { recursive: true })
     appendFileSync(this.file, `${JSON.stringify(entry)}\n`, 'utf8')
@@ -105,20 +113,23 @@ class MemoryStore {
 
   search(query: string, limit: number): MemoryHit[] {
     const queryTokens = [...new Set(tokenize(query))]
-    if (this.entries.length === 0) return []
+    const now = Date.now()
+    const active = this.entries.filter(entry =>
+      (entry.state ?? 'active') === 'active'
+      && (entry.expiresAt === undefined || entry.expiresAt > now))
+    if (active.length === 0) return []
 
     const df = new Map<string, number>()
-    const entryTokens = this.entries.map((entry) => {
+    const entryTokens = active.map((entry) => {
       const tokens = [...new Set(tokenize(`${entry.text} ${entry.tags.join(' ')}`))]
       for (const token of tokens) df.set(token, (df.get(token) ?? 0) + 1)
       return new Set(tokens)
     })
 
-    const total = this.entries.length
-    const now = Date.now()
+    const total = active.length
     const scored: MemoryHit[] = []
-    for (let index = 0; index < this.entries.length; index++) {
-      const entry = this.entries[index]
+    for (let index = 0; index < active.length; index++) {
+      const entry = active[index]
       const tokens = entryTokens[index]
       let relevance = 0
       for (const token of queryTokens) {
@@ -145,6 +156,43 @@ class MemoryStore {
       hit.lastUsed = now
     }
     return hits
+  }
+
+  exportMarkdown(): string {
+    const active = this.entries.filter(entry => (entry.state ?? 'active') === 'active')
+    const lines = ['# Project Memory', '']
+    for (const entry of active) {
+      const heading = entry.tags.length > 0 ? entry.tags.join(', ') : 'general'
+      lines.push(`## ${heading}`)
+      lines.push(`- ${entry.text}`)
+      lines.push('')
+    }
+    return `${lines.join('\n').trimEnd()}\n`
+  }
+
+  exportJsonl(): string {
+    return this.entries
+      .filter(entry => (entry.state ?? 'active') === 'active')
+      .map(entry => JSON.stringify(entry))
+      .join('\n') + (this.entries.length > 0 ? '\n' : '')
+  }
+
+  importMarkdown(markdown: string, defaultTags: string[] = []): number {
+    let tag = defaultTags[0] ?? 'general'
+    let imported = 0
+    for (const rawLine of markdown.split(/\r?\n/)) {
+      const line = rawLine.trim()
+      if (line.startsWith('## ')) {
+        tag = line.slice(3).trim() || 'general'
+        continue
+      }
+      if (!line.startsWith('- ')) continue
+      const text = line.slice(2).trim()
+      if (text.length < 4) continue
+      this.save(text, [tag], 0.7)
+      imported++
+    }
+    return imported
   }
 
   size(): number {
@@ -176,8 +224,9 @@ export function applyMemory(
     name: 'super-dsh:memory',
     order: 120,
     text: 'Project memory persists across sessions. When the user asks you to remember something for the future, '
-      + 'call `memory_save` with a self-contained sentence and tags. Relevant saved memories are injected automatically '
-      + 'at the start of a turn; use `memory_search` to look for more, and `memory_forget` to delete a wrong entry.',
+      + 'call `memory_save` with a self-contained sentence and tags (optional `ttl_days` for temporary facts). '
+      + 'Relevant saved memories are injected automatically at the start of a turn; use `memory_search` to look for more, '
+      + '`memory_export`/`memory_import` for MEMORY.md-style review, and `memory_forget` to delete a wrong entry.',
   })
 
   const saveTool: ToolDefinitionLike = {
@@ -196,6 +245,10 @@ export function applyMemory(
         importance: {
           type: 'number',
           description: '0..1; raise for rules the agent must never forget. Defaults to 0.6.',
+        },
+        ttl_days: {
+          type: 'number',
+          description: 'Optional lifetime in days. Expired entries are hidden from retrieval.',
         },
       },
       required: ['text'],
@@ -224,8 +277,9 @@ export function applyMemory(
         ? rawArgs.tags.filter((tag): tag is string => typeof tag === 'string')
         : []
       const importance = typeof rawArgs.importance === 'number' ? rawArgs.importance : 0.6
+      const ttlDays = typeof rawArgs.ttl_days === 'number' ? rawArgs.ttl_days : undefined
       const store = storeFor(await sessionCwd(ctx, exec.agent, exec.signal))
-      const entry = store.save(text, tags, importance)
+      const entry = store.save(text, tags, importance, ttlDays)
       return { id: entry.id, stored: true, count: store.size() }
     },
   }
@@ -323,7 +377,78 @@ export function applyMemory(
     },
   }
 
-  for (const tool of [saveTool, searchTool, forgetTool]) {
+  const exportTool: ToolDefinitionLike = {
+    name: 'memory_export',
+    description: 'Export project memory as Markdown (MEMORY.md style) or JSONL for review, editing, or migration.',
+    parameters: {
+      type: 'object',
+      properties: {
+        format: { type: 'string', enum: ['md', 'jsonl'], description: 'Defaults to md.' },
+      },
+      additionalProperties: false,
+    },
+    output: {
+      schema: {
+        type: 'object',
+        properties: {
+          format: { type: 'string' },
+          count: { type: 'integer' },
+          content: { type: 'string' },
+        },
+        required: ['format', 'count', 'content'],
+        additionalProperties: false,
+      },
+      render: (_args, value) => [{
+        type: 'text',
+        text: `Exported ${String(value.count)} memories as ${String(value.format)}:\n\n${String(value.content).slice(0, 8000)}`,
+      }],
+    },
+    async execute(rawArgs: Record<string, unknown>, exec: ToolExecutionLike) {
+      const format = rawArgs.format === 'jsonl' ? 'jsonl' : 'md'
+      const store = storeFor(await sessionCwd(ctx, exec.agent, exec.signal))
+      const content = format === 'jsonl'
+        ? store.exportJsonl()
+        : store.exportMarkdown()
+      return { format, count: store.size(), content }
+    },
+  }
+
+  const importTool: ToolDefinitionLike = {
+    name: 'memory_import',
+    description: 'Import Markdown MEMORY.md-style entries into project memory. Lines under `## tags` become memories.',
+    parameters: {
+      type: 'object',
+      properties: {
+        content: { type: 'string', description: 'Markdown to import (`## tag` headings and `- fact` lines).' },
+      },
+      required: ['content'],
+      additionalProperties: false,
+    },
+    output: {
+      schema: {
+        type: 'object',
+        properties: {
+          imported: { type: 'integer' },
+          count: { type: 'integer' },
+        },
+        required: ['imported', 'count'],
+        additionalProperties: false,
+      },
+      render: (_args, value) => [{
+        type: 'text',
+        text: `Imported ${String(value.imported)} memories (${String(value.count)} total).`,
+      }],
+    },
+    async execute(rawArgs: Record<string, unknown>, exec: ToolExecutionLike) {
+      const content = typeof rawArgs.content === 'string' ? rawArgs.content : ''
+      if (content.trim().length === 0) throw new Error('content must be non-empty Markdown')
+      const store = storeFor(await sessionCwd(ctx, exec.agent, exec.signal))
+      const imported = store.importMarkdown(content)
+      return { imported, count: store.size() }
+    },
+  }
+
+  for (const tool of [saveTool, searchTool, forgetTool, exportTool, importTool]) {
     try {
       ctx.tools.register(tool)
     } catch (error: unknown) {

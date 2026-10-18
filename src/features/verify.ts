@@ -47,7 +47,7 @@ export function applyVerify(ctx: PluginContext, config: SuperDshConfig): void {
 
   ctx.systemPrompt.section({
     name: 'super-dsh:verify',
-    order: 140,
+    order: 144,
     text: `This project has a verification gate. When you try to finish a turn after changing files, `
       + '`' + command + '` runs automatically; failures come back to you as the next instruction. '
       + 'You may also call `verify` yourself before claiming success.',

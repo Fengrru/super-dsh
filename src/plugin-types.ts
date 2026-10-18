@@ -13,6 +13,7 @@ export interface UserMessageLike {
 }
 
 export interface AgentLike {
+  id?: string
   session?: unknown
   followup(message: UserMessageLike): void
   inject?(message: UserMessageLike): void
@@ -65,6 +66,13 @@ export interface PluginContext {
   fs: {
     resolve(path: string, options?: { cwd?: string; signal?: AbortSignal }): Promise<unknown>
     readText(target: unknown, signal?: AbortSignal): Promise<string>
+    writeText(
+      target: unknown,
+      content: string,
+      expected?: { kind?: string; version?: unknown } | undefined,
+      signal?: AbortSignal,
+      sandboxPolicy?: unknown,
+    ): Promise<{ operation?: string; version?: unknown }>
     editText(
       target: unknown,
       edit: { oldString: string; newString: string; replaceAll: boolean },
@@ -115,5 +123,60 @@ export interface SuperDshConfig {
         timeoutMs?: number
         maxAttempts?: number
         cwd?: string
+      }
+  /** Side-effect intent/commit ledger. Default: enabled. */
+  effects?:
+    | boolean
+    | {
+        dir?: string
+        denyUnresolvedIrreversible?: boolean
+        irreversibleTools?: string[]
+      }
+  /** Content-addressed artifact store. Default: enabled. */
+  artifacts?:
+    | boolean
+    | {
+        dir?: string
+      }
+  /** Session scratchpad. Default: enabled. */
+  notes?:
+    | boolean
+    | {
+        dir?: string
+        maxEntriesPerSession?: number
+      }
+  /** Lightweight repository symbol map. Default: enabled. */
+  repoMap?:
+    | boolean
+    | {
+        root?: string
+        maxFiles?: number
+        maxFileBytes?: number
+      }
+  /** Multi-file transactional edit tool. Default: enabled. */
+  applyPatch?:
+    | boolean
+    | {
+        maxFiles?: number
+      }
+  /** Versioned knowledge base. Default: enabled. */
+  knowledge?:
+    | boolean
+    | {
+        dir?: string
+        injectTopK?: number
+      }
+  /** Deterministic session handoff report. Default: enabled. */
+  handoff?: boolean
+  /** Deterministic history compaction fallback. Default: enabled. */
+  historyCompact?: boolean
+  /** Deterministic session reflection report. Default: enabled. */
+  reflection?: boolean
+  /** Session token/cost budget reporting and optional enforcement. Default: disabled. */
+  budget?:
+    | boolean
+    | {
+        maxTokens?: number
+        enforce?: boolean
       }
 }

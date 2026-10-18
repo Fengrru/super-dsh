@@ -1,7 +1,7 @@
 {
   "name": "dsh-super",
-  "version": "0.1.0",
-  "description": "SuperDSH — reliable edits, cross-session project memory, a verification gate, and a tamper-evident audit ledger for DeepSeek Harness (dsh)",
+  "version": "0.2.0",
+  "description": "SuperDSH — a safety-first reliability suite for DeepSeek Harness (dsh): tolerant edits, effects ledger, artifacts, memory, repo map, transactions, knowledge, audit, handoff, and budget",
   "type": "module",
   "main": "dist/index.js",
   "exports": {
@@ -13,6 +13,7 @@
     "cordis.patch.yml",
     "README.md",
     "README.zh.md",
+    "CHANGELOG.md",
     "LICENSE",
     "NOTICE",
     "docs"

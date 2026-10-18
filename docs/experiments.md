@@ -131,7 +131,38 @@ Append throughput: 120–215 records/s across runs (200 records in 0.9–1.7 s) 
 
 **Limitations.** The chain is unkeyed. An attacker with write access who recomputes every hash and the anchor can produce a consistent forged ledger. It detects accidental or naive tampering, not a full rewrite. Use an external WORM sink or signatures for adversarial models. The ledger stores data hashes and compact summaries, not payloads, so sensitive content stays only in dsh's own log.
 
-## E5 — Rejected candidates
+## E5 — 0.2 suite checks
+
+The 0.2 features are validated with deterministic tests plus a real dsh headless smoke. They do not yet have large agent-level A/B runs, so the claims below are guarantees tested in isolation, not benchmark wins.
+
+**Command:** `bun test` → **82 tests / 427 assertions**, 12 files.
+
+| Area | Checked behavior | Evidence |
+|---|---|---|
+| Effects | pending→committed, failed result, restart marks pending `unknown`, duplicate irreversible denied, pure tools allowed, configured irreversible tools, `effect_status` counts | `tests/effects.test.ts` |
+| Artifacts | text/binary round-trip, idempotent put, tamper→verify false, tamper→get error, restart read, invalid hash, list dedupe | `tests/artifacts.test.ts` |
+| Apply patch | two-file success, preflight failure writes nothing, second write failure restores the first file, duplicate path and maxFiles rejected, drifted old_string accepted | `tests/apply-patch.test.ts` |
+| Notes | append/read, tag filter, malformed-line isolation, 8000-char cap, hostile session id stays inside the directory, atomic compact, entry cap | `tests/notes.test.ts` |
+| Repo map | same-named symbols in two files both survive, import-aware impact, mtime+size rebuild, ignored build directories, result limits | `tests/repo-map.test.ts` |
+| Knowledge | version chain with parentId, content revert creates a new version, trust/expiry filtering, full history, archived hidden from search, injection once per turn | `tests/knowledge.test.ts` |
+| Handoff | mixed events, injected-context filter, apply_patch edits-array file extraction, snapshot/array reads, missing service/session errors, disable switch | `tests/handoff.test.ts` |
+| History compact / reflection | turn grouping, injected-context filter, budget truncation, ratio stats, repeated calls, error aggregation, unverified edits, unfinished turns | `tests/history-compact.test.ts`, `tests/reflection.test.ts` |
+| Budget | usage accumulation, total precedence, seq dedupe, exhausted status, enforce reject/allow, boundary at limit | `tests/budget.test.ts` |
+| Memory | TTL hides expired entries, Markdown export/import into a fresh store | `tests/memory-extra.test.ts` |
+| Audit | evidence lookup by data hash, missing evidence | `tests/plugin.test.ts` |
+
+**Real dsh smoke (headless, `deepseek-flash`, dsh `0.2.1-rc.2`):**
+
+- `artifact_put` stored 14 bytes; `note_append` saved 1 note; `effect_status` reported 2 committed, 0 pending, 0 unknown, 0 failed.
+- `apply_patch` changed `a.ts` port 3000→8080 and added a comment to `b.ts` as one transaction; re-read confirmed both.
+- `repo_map` with query `start` returned `a.ts:6 start (function)` from a two-file workspace.
+- `knowledge_add` created `test-command` v1 (draft).
+- `handoff` produced a 43-event deterministic report with tool counts, errors, files, commands, and a resume checklist; `history_compact` and `reflect` returned deterministic reports in a live session; no model call for any of them.
+
+**Known gaps.** Effects/artifacts/apply-patch/repo-map/knowledge/handoff have not been run through a multi-task agent A/B yet. The deterministic tests cover the invariants; agent-level benefit (fewer failed edits, fewer repeated explorations, better recall) remains to be measured in the next experiment round.
+
+## E6 — Rejected candidates
+
 
 Several attractive ideas from `awesome-agent-infra` and `nexus-runtime` did **not** survive review. They are documented in [`decisions.md`](decisions.md): the Nexus kernel bridge, a code-graph repo map, hallucination/confidence heuristics, goal-verifier's fallback, replay/dynamic-workflow recovery, and the LLM request dedup cache. The common reasons were: the implementation was a mock or had correctness bugs, the capability duplicated a stronger dsh primitive, or there was no way to measure a benefit in this environment.
 

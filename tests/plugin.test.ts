@@ -6,90 +6,27 @@
  */
 
 import { describe, expect, test } from 'bun:test'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { applyFuzzyEdit } from '../src/features/fuzzy-edit.ts'
 import { applyMemory } from '../src/features/memory.ts'
 import { applyAudit } from '../src/features/audit.ts'
 import { applyVerify } from '../src/features/verify.ts'
-import type { PluginContext, ToolDefinitionLike } from '../src/plugin-types.ts'
-
-interface FakeContext {
-  ctx: PluginContext
-  tools: Map<string, ToolDefinitionLike>
-  sections: Array<{ name: string; text: unknown }>
-  handlers: Map<string, Array<(...args: any[]) => any>>
-  emit(event: string, ...args: unknown[]): Promise<unknown[]>
-}
-
-function fakeContext(fsOverride?: Partial<PluginContext['fs']>): FakeContext {
-  const tools = new Map<string, ToolDefinitionLike>()
-  const sections: Array<{ name: string; text: unknown }> = []
-  const handlers = new Map<string, Array<(...args: any[]) => any>>()
-  const ctx = {
-    tools: {
-      register(definition: ToolDefinitionLike) {
-        tools.set(definition.name, definition)
-        return () => tools.delete(definition.name)
-      },
-    },
-    systemPrompt: {
-      section(section: { name: string; text: unknown }) {
-        sections.push(section)
-        return () => {}
-      },
-    },
-    fs: {
-      resolve: async (path: string) => ({ displayPath: path, targetKey: path }),
-      readText: async () => '',
-      editText: async () => ({ before: '', after: '', version: 1 }),
-      ...fsOverride,
-    },
-    on(event: string, listener: (...args: any[]) => any) {
-      const list = handlers.get(event) ?? []
-      list.push(listener)
-      handlers.set(event, list)
-      return () => {}
-    },
-    logger: { warn() {}, info() {} },
-  } as unknown as PluginContext
-
-  return {
-    ctx,
-    tools,
-    sections,
-    handlers,
-    async emit(event, ...args) {
-      const results: unknown[] = []
-      for (const handler of handlers.get(event) ?? []) results.push(await handler(...args))
-      return results
-    },
-  }
-}
-
-function exec(overrides: Record<string, unknown> = {}) {
-  return {
-    callId: 'call-1',
-    name: 'test',
-    arguments: {},
-    signal: new AbortController().signal,
-    ...overrides,
-  }
-}
+import { exec, fakeContext } from './fake-context.ts'
 
 describe('fuzzy_edit', () => {
   test('applies a whitespace-drifted edit through ctx.fs with the exact matched text', async () => {
     let content = 'const config = {\n  port:   3000,\n  host: "localhost",\n}\n'
     let appliedOld = ''
-    const fake = fakeContext({
+    const fake = fakeContext({ fs: {
       readText: async () => content,
       editText: async (_target, edit) => {
         appliedOld = edit.oldString
         content = content.replace(edit.oldString, edit.newString)
         return { before: content, after: content, version: 2 }
       },
-    })
+    } })
     fake.ctx.waterfall = async () => ({ version: 1 })
     applyFuzzyEdit(fake.ctx, {})
     const tool = fake.tools.get('fuzzy_edit')
@@ -108,7 +45,7 @@ describe('fuzzy_edit', () => {
 
   test('refuses an ambiguous region', async () => {
     const content = 'if (ready) {\n  return 1\n}\n\nif (ready) {\n  return 1\n}\n'
-    const fake = fakeContext({ readText: async () => content })
+    const fake = fakeContext({ fs: { readText: async () => content } })
     fake.ctx.waterfall = async () => ({ version: 1 })
     applyFuzzyEdit(fake.ctx, {})
     const tool = fake.tools.get('fuzzy_edit')!
@@ -198,6 +135,25 @@ describe('audit ledger', () => {
     writeFileSync(file, `${original.slice(0, -1).join('\n')}\n`, 'utf8')
     const truncated = await verify.execute({ session_id: 'session-test-1' }, exec())
     expect(truncated.ok).toBe(false)
+  })
+
+  test('finds an event data hash as evidence', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'super-dsh-audit-evidence-'))
+    const fake = fakeContext()
+    applyAudit(fake.ctx, { audit: { dir } })
+    await fake.emit('session/event', { id: 'session-evidence-1' }, {
+      seq: 0,
+      time: 1_700_000_000_000,
+      type: 'tool/call',
+      data: { name: 'read', callId: 'c1' },
+    })
+    const file = readdirSync(dir).find(name => name.endsWith('.jsonl'))!
+    const record = JSON.parse(readFileSync(join(dir, file), 'utf8').trim())
+    const evidence = await fake.tools.get('audit_evidence')!.execute({ data_hash: record.dataHash }, exec())
+    expect(evidence.found).toBe(true)
+    expect(evidence.type).toBe('tool/call')
+    const missing = await fake.tools.get('audit_evidence')!.execute({ data_hash: '0'.repeat(64) }, exec())
+    expect(missing.found).toBe(false)
   })
 })
 

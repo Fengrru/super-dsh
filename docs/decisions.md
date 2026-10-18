@@ -15,14 +15,23 @@ A "no" to any of these means it stays out of the default bundle. This file recor
 | Candidate | Evidence | Status |
 |---|---|---|
 | Safety-guarded fuzzy editing (`fuzzy-patch` from awesome-agent-infra) | 33.8% → 90.0% correct on 80 drift cases; 0 wrong edits; 100% control refusals (`experiments/results/patch-bench.json`) | Default on |
-| Project memory (file-backed, lexical retrieval, auto-injection) | Cross-session recall passes with the workspace wiped; baseline fails (`experiments/results/agent-bench.json`) | Default on |
-| Hash-chained audit ledger (Nexus-inspired) | Detects edit/delete/truncate/reorder; plain JSONL detects none (`experiments/results/audit-bench.json`) | Default on |
+| Project memory (file-backed, lexical retrieval, auto-injection, TTL, MEMORY.md import/export) | Cross-session recall passes with the workspace wiped; baseline fails (`experiments/results/agent-bench.json`); TTL/import tests | Default on |
+| Hash-chained audit ledger + evidence lookup (Nexus-inspired) | Detects edit/delete/truncate/reorder; plain JSONL detects none (`experiments/results/audit-bench.json`); evidence lookup tests | Default on |
+| Effects intent/commit ledger (Nexus effects, TS rewrite) | Pending→committed/failed, restart→unknown, duplicate irreversible denial, pure-tool classification (`tests/effects.test.ts`) | Default on; deny is opt-in |
+| Content-addressed artifacts (Nexus vault, TS rewrite) | Text/binary round-trip, tamper→verify false, restart read, invalid hash (`tests/artifacts.test.ts`) | Default on |
+| Multi-file `apply_patch` | Preflight failure writes nothing; mid-write failure restores originals; duplicate path/maxFiles rejected (`tests/apply-patch.test.ts`) | Default on; rollback best-effort |
+| Session notes | Path-safe session ids, malformed-line isolation, atomic compact, entry cap (`tests/notes.test.ts`) | Default on |
+| Repo map | Same-named symbols in different files both survive; mtime rebuild; ignored build dirs (`tests/repo-map.test.ts`) | Default on; regex heuristic |
+| Versioned knowledge | Version chain/parentId, revert creates a new version, trust/expiry filtering, archived tombstones (`tests/knowledge.test.ts`) | Default on; injection opt-in |
+| Deterministic handoff | Mixed events, injected-context filtering, apply_patch file extraction, missing-service errors (`tests/handoff.test.ts`); 43-event real-dsh smoke | Default on |
 
 ## Conditional
 
 | Candidate | Evidence | Status |
 |---|---|---|
 | Verification gate | Both arms passed 4/4 seeded tasks; the model already ran tests unprompted. Treatment added ~1 step on two tasks and ~24% more output tokens, with no success gain (`experiments/results/agent-bench-verify.json`) | **Not default.** Available opt-in as a definition-of-done guarantee for models/workflows that do not self-verify. |
+| Budget accounting/enforcement | Usage accumulation, total precedence, seq dedupe, enforce reject/allow (`tests/budget.test.ts`); no agent A/B yet | **Not default.** Enable with `budget`. |
+| `denyUnresolvedIrreversible` | Duplicate irreversible call denied after a crash; pure tools unaffected (`tests/effects.test.ts`) | **Not default.** Accounting is on; denial is opt-in. |
 
 ## Rejected or deferred
 
@@ -38,9 +47,11 @@ A "no" to any of these means it stays out of the default bundle. This file recor
 - dsh already has stronger, shipped persistence: append-only JSONL with continuous sequence numbers, single-writer flush barriers, torn-tail recovery, interrupted-turn repair, and checkpoint policies.
 - The integration paths (Nexus as dsh persistence backend, or dsh as a Nexus worker) require translating two incompatible event models, double-writing, and maintaining both. The user value is mostly duplicated.
 
-**Decision:** do not run Nexus. Adopt its **invariants** instead: event log as truth, hash-chained audit, external verification over self-report, and bounded side-effect semantics. The audit ledger and verification gate are the concrete TS implementations.
+**Decision:** do not run Nexus. Adopt its **invariants** instead: event log as truth, hash-chained audit, external verification over self-report, bounded side-effect semantics, and content-addressed artifacts. The audit ledger, verification gate, effects ledger, and artifact store are the concrete TS implementations.
 
 ### Code-graph repo map (`codegraph`)
+
+**Update in 0.2:** shipped a **lightweight regex repo-map rewrite** (`repo_map`, `find_symbol`, `impact_of`) instead of vendoring `codegraph`. The rewrite keeps per-file symbol ids, mtime/size invalidation, and ignored build directories; the original package's defects below remain the reason it was not copied.
 
 **Idea:** register a `repo_map` / symbol-graph tool based on awesome-agent-infra's `codegraph`.
 
@@ -53,6 +64,12 @@ A "no" to any of these means it stays out of the default bundle. This file recor
 - There is no evidence yet that it beats dsh's existing `grep`/`glob` + LSP navigation on measurable tasks.
 
 **Decision:** defer until symbol ids and cache invalidation are fixed and a file/symbol hit-rate benchmark shows a gain over grep/LSP. Do not ship a known-corrupt graph.
+
+### awesome `txn-fs` (multi-file transactions)
+
+**Update in 0.2:** shipped `apply_patch` as a **rewrite**, not the upstream transaction manager. It preflights every edit, writes only after all replacements are computed, and restores originals in reverse order on a write failure.
+
+**Why not vendor `txn-fs`:** its `RealGitTransactionManager.rollback()` writes the staged/proposed content instead of the baseline, so a merge-conflict rollback can corrupt files; empty files cannot be written, deletion is unsupported, and writes are not atomic. The shipped implementation keeps the useful contract (all-or-nothing preflight, rollback, conflict refusal) without the data-loss bug.
 
 ### `goal-verifier`
 

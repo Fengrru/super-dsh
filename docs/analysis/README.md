@@ -18,6 +18,29 @@
 
 （A/B 的边界按“当前代码是否需要先改核心逻辑”划分；C 是“不能直接用，但设计/算法值得重写”；D 是“重复 dsh、mock、安全剧场或无可测收益”。）
 
+## 0.2 已落地的项目
+
+以下分析项已经在 0.2.0 中实现，并通过确定性测试/真实 dsh 冒烟（不代表全部 B 项都已完成）：
+
+| 已落地 | 来源 | 说明 |
+|---|---|---|
+| `fuzzy_edit` | awesome `fuzzy-patch` | 已有 80 例、90% 正确的实验 |
+| `apply_patch` | awesome `txn-fs` 思路 | 全量预检 + 失败逆序回滚；未复制有 bug 的实现 |
+| 项目记忆 + TTL + MEMORY.md | awesome `agent-memory`/`project-memory` 思路 | JSONL 存储，新增 TTL/导入导出 |
+| 会话便签 | awesome `notes-manager` | 修复路径穿越/坏行/无效压缩 |
+| repo map | awesome `codegraph` 思路 | 轻量 regex 索引重写，修复同名符号/缓存问题 |
+| 版本化知识库 | awesome `knowledge-vault` 思路 | JSONL 版本链、trust、TTL、tombstone |
+| effects 账本 | nexus `effects` | intent/commit、重启对账、可选拒绝 |
+| artifact store | nexus `vault` | SHA-256 内容寻址、原子写、重验 |
+| 审计证据 | nexus event/audit | 现有哈希链 + `audit_evidence` |
+| handoff | nexus `checkpoint`/awesome `checkpoint-writer` 思路 | 确定性报告，不调用模型 |
+| history compact | awesome `history-compact` | 受预算约束的确定性压缩，含 ratio |
+| reflection | awesome `learning-nudge` 思路 | 确定性重复调用/错误/未验证修改报告 |
+| budget | nexus `budget` | 状态统计 + 可选 enforce |
+| 验证闸门 | dsh/nexus 不变量 | 已实验，无增益，保持 opt-in |
+
+仍未实现的主要是 C/D 类：Nexus 运行时/worker/SDK、codegraph 原实现、embedding/memory v2、valid8、reasoning-search、POMDP、process-reward、dynamic-workflow、branch 等。它们要么需要重写核心，要么属于已拒绝的安全/正确性问题。
+
 ## 怎么看“能不能做”
 
 我们把“能做”拆成四种，而不是一句“可以”：

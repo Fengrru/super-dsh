@@ -150,10 +150,70 @@ export function applyAudit(ctx: PluginContext, config: SuperDshConfig): void {
     },
   }
 
+  const evidenceTool: ToolDefinitionLike = {
+    name: 'audit_evidence',
+    description: 'Look up a content hash in the audit ledger. Use the data hash reported by an audit record to prove that an event payload existed at a given sequence.',
+    parameters: {
+      type: 'object',
+      properties: {
+        data_hash: { type: 'string', description: 'SHA-256 hex digest of the event data.' },
+        session_id: { type: 'string', description: 'Optional session id to restrict the search.' },
+      },
+      required: ['data_hash'],
+      additionalProperties: false,
+    },
+    output: {
+      schema: {
+        type: 'object',
+        properties: {
+          found: { type: 'boolean' },
+          session: { type: 'string' },
+          seq: { type: 'integer' },
+          type: { type: 'string' },
+          time: { type: 'integer' },
+        },
+        required: ['found'],
+        additionalProperties: false,
+      },
+      render: (_args, value) => [{
+        type: 'text',
+        text: value.found === true
+          ? `Evidence found in ${String(value.session)} at seq ${String(value.seq)} (${String(value.type)}).`
+          : 'No matching evidence in the audit ledger.',
+      }],
+    },
+    async execute(rawArgs: Record<string, unknown>) {
+      const hash = typeof rawArgs.data_hash === 'string' ? rawArgs.data_hash.trim().toLowerCase() : ''
+      if (!/^[a-f0-9]{64}$/.test(hash)) throw new Error('data_hash must be a 64-character SHA-256 hex digest')
+      const requested = typeof rawArgs.session_id === 'string' ? rawArgs.session_id : undefined
+      const files = listLedgers(dir).filter(file => requested === undefined || file.session === safeName(requested))
+      for (const file of files) {
+        for (const line of readFileSync(file.path, 'utf8').split(/\r?\n/)) {
+          if (line.trim().length === 0) continue
+          try {
+            const record = JSON.parse(line) as LedgerRecord
+            if (record.dataHash !== hash) continue
+            return {
+              found: true,
+              session: file.session,
+              seq: record.seq,
+              type: record.type,
+              time: record.time,
+            }
+          } catch {
+            // A torn line cannot contain a verified evidence record.
+          }
+        }
+      }
+      return { found: false }
+    },
+  }
+
   try {
+    ctx.tools.register(evidenceTool)
     ctx.tools.register(verifyTool)
   } catch (error: unknown) {
-    warn(ctx.logger, 'could not register audit_verify', error)
+    warn(ctx.logger, 'could not register audit tools', error)
   }
 }
 
