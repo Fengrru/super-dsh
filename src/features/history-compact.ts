@@ -118,9 +118,7 @@ export function applyHistoryCompact(
         },
         max_chars: {
           type: 'integer',
-          minimum: MIN_COMPACT_MAX_CHARS,
-          maximum: MAX_COMPACT_MAX_CHARS,
-          description: `Character budget for the summary. Default: ${DEFAULT_COMPACT_MAX_CHARS}.`,
+          description: `Character budget for the summary (${MIN_COMPACT_MAX_CHARS}..${MAX_COMPACT_MAX_CHARS}). Default: ${DEFAULT_COMPACT_MAX_CHARS}.`,
         },
       },
       additionalProperties: false,

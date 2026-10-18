@@ -1,6 +1,6 @@
 # SuperDSH
 
-> A safety-first reliability suite for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`): tolerant edits, transactional patches, an effects ledger, content-addressed artifacts, project memory, a repo map, versioned knowledge, scratchpads, deterministic compaction/reflection/handoff, a verification gate, audit evidence, and budget accounting.
+> A safety-first reliability suite for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`): tolerant edits, transactional patches with file locks, recovery plans for side effects, signed tamper-evident audit, content-addressed artifacts, project memory, a repo map, versioned knowledge, scratchpads, deterministic compaction/reflection/handoff, replay plans, budget reservation, and tested Nexus-inspired protocol libraries.
 
 SuperDSH is a native dsh plugin bundle, not a fork. It ships as one ESM file with **zero runtime dependencies**, loaded through the ordinary Cordis plugin/profile mechanism. Every feature is independently switchable. Features that are on by default have deterministic tests and a real-dsh smoke; the four core capabilities also have quantitative experiments. Features that failed their experiment are documented and left off.
 
@@ -11,19 +11,19 @@ dsh is an excellent plugin-first harness, but its public composition leaves exec
 | Gap | Consequence | SuperDSH feature |
 |---|---|---|
 | `edit` requires an exact, unique literal match | Remembered whitespace/CRLF/indentation drift fails the edit | `fuzzy_edit` with safety guards |
-| One edit per call, no multi-file transaction | A partial refactor can leave the workspace inconsistent | `apply_patch` with all-or-nothing preflight and rollback |
-| No side-effect ledger | A crash between intent and result leaves an unknown external action | `effects` intent/commit ledger and restart reconciliation |
+| No multi-file transaction | A partial refactor can leave the workspace inconsistent | `apply_patch` with preflight, rollback, and file locks |
+| No side-effect ledger | A crash between intent and result leaves an unknown external action | `effects` intent/commit, `effect_reconcile`, `effect_resolve` |
 | No content-addressed artifacts | Reports/screenshots/patches are not verifiable later | `artifacts` SHA-256 store + `artifact_verify` |
 | No first-party long-term memory | New sessions forget conventions and preferences | Project memory, TTL, MEMORY.md import/export |
 | No repo-level symbol map | Agents grep blindly and miss callers | `repo_map`, `find_symbol`, `impact_of` |
 | No scratchpad | Long tasks lose discoveries and decisions | Session notes + compaction |
-| No versioned knowledge base | Facts are overwritten without history or trust state | `knowledge_*` with version chains and trust |
-| No resumable handoff | Switching/compacting sessions loses the thread | Deterministic `handoff` report |
+| No versioned knowledge base | Facts are overwritten without history or trust state | `knowledge_*` version chains and trust |
+| No resumable handoff | Switching/compacting sessions loses the thread | Deterministic `handoff` + machine-readable `replay_plan` |
 | No definition-of-done gate | An agent can claim success without running tests | Opt-in verification gate |
-| No tamper-evident audit | A plain JSONL log cannot prove it was not altered | Hash-chained audit + evidence lookup |
-| No token/cost accounting | Long sessions can overrun silently | Opt-in `budget` status/enforcement |
+| No tamper-evident audit | A plain JSONL log cannot prove it was not altered | Hash chain, HMAC signatures, evidence lookup, export |
+| No token/cost accounting | Long sessions can overrun silently | Opt-in budget with reserve/settle |
 
-The fuzzy matcher is adapted from [`awesome-agent-infra`](https://github.com/Fengrru/awesome-agent-infra)'s `fuzzy-patch` package. The effects ledger, artifact vault, audit, and verification ideas are inspired by [`nexus-runtime`](https://github.com/Fengrru/nexus-runtime)'s invariants. Neither project is a runtime dependency.
+The fuzzy matcher is adapted from [`awesome-agent-infra`](https://github.com/Fengrru/awesome-agent-infra)'s `fuzzy-patch` package. The effects recovery plan, content-addressed artifacts, audit/signatures, replay plan, capability tokens, causal clock, worker protocol, file locks, and budget reservation are Nexus-inspired designs implemented in TypeScript. Neither project is a runtime dependency.
 
 ## Install
 
@@ -32,10 +32,10 @@ git clone https://github.com/Fengrru/super-dsh.git   # once published
 cd super-dsh
 bun install        # no runtime dependencies; build/test toolchain only
 bun run build      # emits dist/index.js
-bun test           # 82 deterministic checks
+bun test           # 160 deterministic checks
 ```
 
-Local overlay (fastest for development):
+Local overlay:
 
 ```yaml
 # super-dsh.patch.yml
@@ -64,35 +64,46 @@ dsh --profile headless --dump-config | grep super-dsh
 
 **`fuzzy_edit`** — a fallback beside dsh's `edit`. It locates the intended region with eight tolerant strategies, then applies the change through `ctx.fs.editText` with the exact matched substring, preserving atomicity, read-before-edit, sandbox policy, and unique-match. Safety guards: unique bytes, matching start/end anchors, ≥98% token-multiset similarity, at least half of the requested non-empty lines, and a size cap. A missed edit is recoverable; a wrong edit is not.
 
-**`apply_patch`** — up to 10 files in one call. It reads and resolves every edit first, refuses duplicate paths, computes all replacements with fuzzy guards, and only then writes. If any write fails, it restores the original contents in reverse order. The result reports strategy and matched characters per file.
+**`apply_patch`** — up to 10 files in one call. It acquires cross-process advisory file locks, reads and resolves every edit first, refuses duplicate paths, computes all replacements with fuzzy guards, and only then writes. If any write fails, it restores the original contents in reverse order. The result reports strategy and matched characters per file.
 
 ### Context and knowledge
 
-**Project memory** — append-only JSONL per workspace under `$DSH_HOME/super-dsh/memory/`. Tools: `memory_save` (with optional `ttl_days`), `memory_search`, `memory_forget`, `memory_export`/`memory_import` (MEMORY.md style). Relevant, non-expired entries are injected once per turn; retrieval is lexical with tags, importance, recency, usage, and basic CJK handling.
+**Project memory** — append-only JSONL per workspace under `$DSH_HOME/super-dsh/memory/`. Tools: `memory_save` (TTL), `memory_search`, `memory_forget`, `memory_export`/`memory_import` (MEMORY.md style). Relevant, non-expired entries are injected once per turn; retrieval is lexical with tags, importance, recency, usage, and basic CJK handling.
 
-**Session notes** — `note_append`, `note_read`, `note_compact` for a per-session scratchpad. Session ids are sanitized into filenames; malformed lines are isolated; compaction rewrites atomically.
+**Session notes** — `note_append`, `note_read`, `note_compact`. Session ids are sanitized into filenames; malformed lines are isolated; compaction rewrites atomically.
 
-**Repo map** — `repo_map`, `find_symbol`, `impact_of`. A zero-dependency regex index for TS/JS, Python, Rust, Go, and Java with imports, name-reference edges, PageRank ranking, file mtime/size invalidation, and per-file-path symbol ids (same-named symbols never overwrite each other). It is a heuristic: confirm with `read` before editing.
+**Repo map** — `repo_map`, `find_symbol`, `impact_of`. Zero-dependency regex index for TS/JS, Python, Rust, Go, Java with imports, reference edges, PageRank, mtime/size invalidation, and per-file symbol ids (same-named symbols never overwrite each other). Heuristic: confirm with `read` before editing.
 
-**Knowledge base** — `knowledge_add`, `knowledge_search`, `knowledge_history`, `knowledge_verify`, `knowledge_forget`. Append-only version chains per key, trust states (`draft`/`verified`/`disputed`), TTL, and archived tombstones. Search returns the latest non-expired, non-disputed version per key; optional pre-step injection is trusted-only.
+**Knowledge base** — `knowledge_add`, `knowledge_search`, `knowledge_history`, `knowledge_verify`, `knowledge_forget`. Append-only version chains per key, trust states, TTL, archived tombstones. Search returns the latest non-expired, non-disputed version per key; optional pre-step injection is trusted-only.
 
-**Handoff** — `handoff` reads the persisted session via `sessionQuery` and produces a deterministic Markdown report: real user requests (injected runtime context is filtered), final answer, tool counts, errors, touched files (including `apply_patch.edits`), commands, unfinished turns, and a resume checklist. No model call.
+**Handoff** — `handoff` reads the persisted session via `sessionQuery` and produces deterministic Markdown: real user requests (injected context filtered), final answer, tool counts, errors, touched files (including `apply_patch.edits`), commands, unfinished turns, and a resume checklist. No model call.
 
-**History compaction** — `history_compact` produces a budgeted Markdown summary from the persisted session: goal, one line per turn (request, assistant text, tools, changed files, errors), current state, and three next steps. It preserves the goal and current state under pressure, drops older progress first, and reports the original/compact character counts and ratio. No model call.
+**Replay plan** — `replay_plan` produces the machine-readable counterpart: `read` for changed files, `rerun` for failed tools/commands, `verify` for observed test/lint/build/check commands, and `inspect` for unfinished/interrupted turns. This is the resume plan, not prose.
 
-**Reflection** — `reflect` reviews a session deterministically: repeated identical calls, aggregated tool errors, touched files, unfinished turns, and whether a verification command was observed. It emits fixed rule-based suggestions (e.g., "files changed without verification"). No model call.
+**History compaction** — `history_compact` produces a budgeted deterministic summary: goal, one line per turn, current state, and next steps. It preserves goal/current state under pressure, drops older progress first, and reports original/compact character counts and ratio. No model call.
+
+**Reflection** — `reflect` reviews repeated identical calls, aggregated tool errors, touched files, unfinished turns, and whether verification was observed; it emits fixed rule-based suggestions. No model call.
 
 ### Execution safety and observability
 
-**Effects ledger** — every tool call gets hashed arguments and an intent record; results become `committed`/`failed`. A new process marks leftover pending intents as `unknown`; `effect_status` reports unresolved work. `denyUnresolvedIrreversible` (opt-in) blocks a repeated irreversible call with the same key. Pure tools are classified separately; shell commands matching dangerous patterns are irreversible.
+**Effects ledger** — every tool call gets hashed arguments and an intent record; results become `committed`/`failed`. A new process marks leftover pending intents `unknown`; `effect_status` reports unresolved work; `effect_reconcile` returns an explicit `replay` / `compensate` / `query` plan; `effect_resolve` records the human/external outcome. The ledger is loaded into memory once per session (10k calls in 810 ms, 0.081 ms/call). `denyUnresolvedIrreversible` (opt-in) blocks a repeated irreversible call after a crash, including `unknown` predecessors.
 
-**Artifacts** — `artifact_put`, `artifact_get`, `artifact_verify`, `artifact_list`. SHA-256 content addressing, atomic temp+rename writes, an append-only index, hash re-verification on every read, and text/base64 round-trip. A tampered or missing blob fails verification instead of being trusted.
+**Artifacts** — `artifact_put`, `artifact_get`, `artifact_verify`, `artifact_list`. SHA-256 content addressing, atomic temp+rename writes, append-only index, hash re-verification on every read, text/base64 round-trip. Tampered/missing blobs fail verification.
 
-**Audit** — every session event is mirrored into a hash-chained ledger with a head anchor. `audit_verify` checks record hashes, chain links, sequence monotonicity, and the anchor; `audit_evidence` looks up an event data hash. Unkeyed: it detects edits, deletions, truncation, and reordering, not a full rewrite by an attacker with write access.
+**Audit** — every session event is mirrored into a hash-chained ledger with a head anchor. `audit_verify` checks hashes, chain links, sequence monotonicity, anchor, and optional HMAC signatures; `audit_evidence` looks up an event data hash; `audit_export` returns head/verification and optionally up to 5000 records. HMAC-SHA256 signatures (`signingKeyEnv`/`signingKey`) make re-hashed record tampering detectable. Unkeyed by default: detects edits, deletions, truncation, and reordering, not a full rewrite by an attacker with write access.
 
-**Verification gate (opt-in)** — after file mutations, `agent/turn-stopping` runs the configured command; failures return to the agent with an output tail, bounded by `maxAttempts`. Off by default because the E3 experiment showed no gain with `deepseek-flash` (it already ran tests unprompted).
+**Verification gate (opt-in)** — after file mutations, `agent/turn-stopping` runs the configured command; failures return to the agent with an output tail, bounded by `maxAttempts`. Off by default because E3 showed no gain with `deepseek-flash` (it already ran tests unprompted).
 
-**Budget (opt-in)** — accumulates `assistant/message` and `compaction/summary` usage per session; `budget_status` reports used/remaining/exhausted. With `enforce: true`, `agent/request` refuses a request once the limit is reached.
+**Budget (opt-in)** — accumulates `assistant/message` and `compaction/summary` usage; `budget_status` reports used/reserved/remaining/exhausted. `enforce: true` refuses over-budget requests; `reservePerRequest` adds reserve/settle/release with request-error and turn-end cleanup.
+
+### Nexus design library
+
+Tested TS building blocks, not model-facing tools:
+
+- **Capability tokens** — HMAC-SHA256 scopes/session/task/expiry, realpath-aware `fs:read:<path>` / `fs:write:<path>` boundaries (no `startsWith` bypass).
+- **Causal clock** — vector-clock tick/merge/compare/serialize for future multi-subagent fan-in.
+- **Worker protocol** — JSON-RPC 2.0 NDJSON codec for `execute`/`checkpoint`/`result`/`cancel`, plus a deadline-aware task state machine.
+- **File locks** — cross-process advisory locks with stale-owner takeover and TTL; used by `apply_patch`.
 
 ## Configuration
 
@@ -104,6 +115,9 @@ dsh --profile headless --dump-config | grep super-dsh
         fuzzyEdit: true
         applyPatch:
           maxFiles: 10
+          useLocks: true
+          lockTimeoutMs: 5000
+          lockTtlMs: 120000
         memory:
           dir: 'C:/custom/memory'
           maxEntries: 500
@@ -119,13 +133,16 @@ dsh --profile headless --dump-config | grep super-dsh
         effects:
           denyUnresolvedIrreversible: false
         artifacts: true
-        audit: true
+        audit:
+          signingKeyEnv: 'SUPER_DSH_AUDIT_KEY'   # optional HMAC
         handoff: true
         historyCompact: true
         reflection: true
+        replayPlan: true
         budget:
           maxTokens: 200000
           enforce: false
+          reservePerRequest: 0
         verify:
           command: 'node --test'
           timeoutMs: 60000
@@ -147,40 +164,44 @@ Quantitative experiments on this machine (Windows 10, Node 24, DeepSeek `deepsee
 | Audit tamper scenarios (4 kinds) | 0% detected | **100% detected** | Accept |
 | Verification gate (4 seeded tasks) | 4/4 pass | 4/4 pass | No gain; keep opt-in |
 
-Deterministic suite checks and real-dsh smoke for the 0.2 features:
+0.3 Nexus-design validation:
 
-- `bun test`: **82 tests / 427 assertions** across effects, artifacts, apply_patch rollback, notes path safety, repo-map same-name symbols and mtime invalidation, knowledge version/trust/expiry, handoff, history compaction/reflection, budget, memory TTL/import-export, audit evidence, fuzzy edits, and the verification gate.
-- Real dsh headless smoke: `artifact_put` + `note_append` succeeded, `effect_status` showed 2 committed / 0 unresolved; `apply_patch` edited 2 files atomically; `repo_map` found `start` in `a.ts`; `knowledge_add` created v1; `handoff` summarized 43 events with no model call; `history_compact` and `reflect` returned deterministic reports from a live session.
-- Effects crash/duplicate denial, artifact tamper detection, and apply_patch rollback are covered deterministically; they do not yet have agent-level A/B numbers, so they are described as deterministic guarantees, not benchmark wins.
+- `bun test`: **160 tests / 918 assertions** across 20 files, including schema-subset validation for every registered tool.
+- Effects 10,000 calls: **810 ms total, 0.081 ms/call** (20,000 ledger records, 5.5 MB), down from ~33 ms/call.
+- Real kill-9 (`experiments/kill9-effects.ts`): a separate Bun process records an irreversible intent, is killed with `taskkill /F /T` or `SIGKILL`, a new process reconciles it to `unknown`, and the repeated irreversible call is denied — **duplicateDenied=true, duplicateExecutions=0**; the committed control still allows a repeat.
+- Audit: HMAC signatures, stripped/rehashed tamper detection, export with head/verify, and a byte-pinned golden fixture.
+- Replay plan, file locks, budget reserve/settle, capability tokens, causal clock, and worker protocol have deterministic tests; real-dsh smoke exercised `audit_export`, `effect_reconcile`, `replay_plan`, `apply_patch`, repo map, notes, artifacts, knowledge, handoff, history compaction, and reflection.
+- Effects crash/artifact tamper/apply_patch rollback are deterministic guarantees; they do not yet have agent-level A/B numbers, so they are not presented as benchmark wins.
 
-Full methodology and raw results: [`docs/experiments.md`](docs/experiments.md), [`experiments/`](experiments/). The item-by-item assessment of all 88 source components: [`docs/analysis/`](docs/analysis/README.md).
+Full methodology and raw results: [`docs/experiments.md`](docs/experiments.md), [`experiments/`](experiments/). Invariant mapping: [`docs/invariants.md`](docs/invariants.md). The 88-item source analysis: [`docs/analysis/`](docs/analysis/README.md).
 
 ## Design principles
 
-- **Safety over recall.** Fuzzy edits refuse ambiguous regions. `apply_patch` preflights everything before writing. Memory only injects lexical matches. Artifacts re-verify hashes. Effects deny only when explicitly configured.
+- **Safety over recall.** Fuzzy edits refuse ambiguous regions. `apply_patch` preflights before writing and locks target files. Memory only injects lexical matches. Artifacts re-verify hashes. Effects deny only when explicitly configured.
 - **External state.** Memory, notes, knowledge, effects, artifacts, and audit live under `$DSH_HOME`, never in the user's repository.
 - **Failure containment.** Every feature loads in its own `try/catch`; one broken feature cannot take down the harness.
 - **Zero runtime dependencies.** The published bundle imports only Node built-ins.
-- **Deterministic first.** Handoff, compaction-safe notes, repo map, effects, and artifacts avoid model calls; model calls are reserved for features that need them.
+- **Deterministic first.** Handoff, replay plans, compaction, reflection, repo map, effects, artifacts, locks, and budget do not call a model.
 
 ## Known limitations
 
 - dsh's public APIs are **pre-stable** (validated against `0.2.1-rc.2`).
 - `fuzzy_edit` handles one region per call; `replace_all` is intentionally not exposed.
-- `apply_patch` rollback is best-effort: if a restore write itself fails, the error lists the files that could not be restored. There is no filesystem-level transaction or cross-process lock.
+- `apply_patch` rollback is best-effort: if a restore write itself fails, the error lists files that could not be restored. Locks are advisory: host `write`/`edit`, external editors, and processes with a different lock dir can bypass them. TTL/symlink/case/normalization caveats apply.
 - The repo map is regex-based, not type-aware; comments/strings can produce false positives, compressed one-line code is under-indexed, and mtime+size is the cache key.
-- Effects and knowledge are append-only JSONL without cross-process locks; notes the same. Do not run two processes writing the same session/workspace concurrently.
-- The audit chain is unkeyed; use an external WORM sink or signatures for an adversarial threat model.
-- Handoff filters known injected-context markers heuristically; unknown future injected formats may appear as user requests.
+- Effects, knowledge, notes, and memory are append-only JSONL without cross-process locks; do not run two processes writing the same session/workspace concurrently.
+- Audit is unkeyed by default; HMAC signing protects record hashes but key management is the operator's responsibility. A full rewrite with the key can still forge a consistent ledger.
+- Handoff/replay-plan filtering of injected context is heuristic; unknown future formats may appear as user requests.
 - The verification gate runs one configured command and fails open after `maxAttempts`.
-- `budget` accumulates event usage; it does not price tools or subagents, and enforcement is opt-in.
-- The 88-item analysis is a roadmap, not a claim that every item is implemented. Version 0.2.0 ships the features above; C/D items remain deferred or rejected.
+- `budget` accumulates event usage; reservations are in-memory and do not survive a restart, and tools/subagents are not individually priced.
+- The capability/causal/worker modules are tested libraries, not exposed tools; no remote worker runtime is included.
+- The 88-item analysis is a roadmap, not a claim that every item is implemented. Version 0.3.0 ships the features above; C/D items remain deferred or rejected.
 
 ## Credits
 
 - [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) — plugin architecture and the host this project extends.
-- [`Fengrru/awesome-agent-infra`](https://github.com/Fengrru/awesome-agent-infra) — `fuzzy-patch`, vendored and hardened here; several memory/compaction/scratchpad ideas.
-- [`Fengrru/nexus-runtime`](https://github.com/Fengrru/nexus-runtime) — effects ledger, content-addressed artifacts, audit, and verification invariants.
+- [`Fengrru/awesome-agent-infra`](https://github.com/Fengrru/awesome-agent-infra) — `fuzzy-patch`, vendored and hardened here; memory/compaction/scratchpad ideas.
+- [`Fengrru/nexus-runtime`](https://github.com/Fengrru/nexus-runtime) — effects recovery, content-addressed artifacts, audit/signatures, replay plans, capability tokens, causal clocks, worker protocol, file-lock and budget invariants.
 
 ## License
 

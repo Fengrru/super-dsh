@@ -1,7 +1,7 @@
 {
   "name": "dsh-super",
-  "version": "0.2.0",
-  "description": "SuperDSH — a safety-first reliability suite for DeepSeek Harness (dsh): tolerant edits, effects ledger, artifacts, memory, repo map, transactions, knowledge, audit, handoff, and budget",
+  "version": "0.3.0",
+  "description": "SuperDSH — a safety-first reliability suite for DeepSeek Harness (dsh): tolerant edits, effects recovery, signed audit, artifacts, memory, repo map, locks, knowledge, replay plans, handoff, compaction, reflection, and budget",
   "type": "module",
   "main": "dist/index.js",
   "exports": {

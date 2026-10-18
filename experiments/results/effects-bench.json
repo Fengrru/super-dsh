@@ -1,0 +1,14 @@
+{
+  "experiment": "effects-bench",
+  "generatedAt": "2026-10-18T01:53:54.640Z",
+  "hypothesis": "Loading each session ledger once and folding it in memory makes N recorded tool calls O(N) instead of O(N^2); 10,000 calls should finish well under 10 seconds.",
+  "calls": 10000,
+  "records": 20000,
+  "ledgerBytes": 5507780,
+  "totalMs": 809.73,
+  "perCallMs": 0.081,
+  "thresholdMs": 10000,
+  "committed": 10000,
+  "unresolved": 0,
+  "passed": true
+}

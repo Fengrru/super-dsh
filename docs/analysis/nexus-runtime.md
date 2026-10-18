@@ -6,6 +6,8 @@
 >
 > 集成方式：① TS 重实现/移植；② Rust sidecar（仓库目前没有，需要新写）；③ 直接复用 worker 脚本；④ 仅借鉴设计。
 
+> **0.3 落地状态：** effects 恢复计划/状态机、真实 kill-9 对账、审计 HMAC 签名/导出/golden fixture、replay plan、capability token（realpath scope）、causal clock、worker NDJSON 协议/状态机、文件锁、预算 reserve/settle 已用 TypeScript 实现并通过测试；Nexus 运行时本身仍未接入。详见 `docs/invariants.md` 与 `docs/experiments.md` 的 E6。
+
 ## 1. 核心语义（11）
 
 | 组件 | 真实度 / 能力 | dsh 落点 / 怎么做 | 前置修复与风险 | 实验 | 结论 |

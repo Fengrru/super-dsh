@@ -7,6 +7,7 @@
  * verify that neither the ledger nor its ordering was altered after the fact.
  */
 
+import { createHmac, timingSafeEqual } from 'node:crypto'
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { PluginContext, SuperDshConfig, ToolDefinitionLike } from '../plugin-types.ts'
@@ -29,20 +30,26 @@ interface LedgerRecord {
   type: string
   dataHash: string
   summary?: Record<string, unknown>
+  /** HMAC-SHA256(key, hash), present only when audit signing is configured. */
+  sig?: string
 }
 
 const GENESIS = '0'.repeat(64)
+/** Upper bound for records embedded by audit_export. */
+const MAX_EXPORT_RECORDS = 5000
 
 export function applyAudit(ctx: PluginContext, config: SuperDshConfig): void {
   const options = typeof config.audit === 'object' ? config.audit : {}
   const dir = options.dir ?? join(dshHome(), 'super-dsh', 'audit')
+  const signingKey = resolveSigningKey(options)
   const heads = new Map<string, LedgerHead>()
 
   ctx.systemPrompt.section({
     name: 'super-dsh:audit',
     order: 130,
     text: 'Every session event is mirrored into a tamper-evident audit ledger. '
-      + 'Use `audit_verify` to check a session ledger when the user asks whether the execution record is intact.',
+      + 'Use `audit_verify` to check a session ledger when the user asks whether the execution record is intact, '
+      + 'and `audit_export` to export a ledger with its head anchor.',
   })
 
   ctx.on('session/event', (session: { id?: unknown }, event: {
@@ -65,6 +72,7 @@ export function applyAudit(ctx: PluginContext, config: SuperDshConfig): void {
         hash: GENESIS,
         updatedAt: Date.now(),
       }
+      const summary = summarize(event.data)
       const core = {
         v: 1 as const,
         seq,
@@ -72,9 +80,14 @@ export function applyAudit(ctx: PluginContext, config: SuperDshConfig): void {
         time,
         type,
         dataHash,
-        ...(summarize(event.data) === undefined ? {} : { summary: summarize(event.data) }),
+        ...(summary === undefined ? {} : { summary }),
       }
-      const record: LedgerRecord = { ...core, hash: sha256(canonicalJson(core)) }
+      const hash = sha256(canonicalJson(core))
+      const record: LedgerRecord = {
+        ...core,
+        hash,
+        ...(signingKey === undefined ? {} : { sig: signHash(signingKey, hash) }),
+      }
       mkdirSync(dir, { recursive: true })
       appendFileSync(file, `${JSON.stringify(record)}\n`, 'utf8')
       const nextHead: LedgerHead = {
@@ -94,7 +107,7 @@ export function applyAudit(ctx: PluginContext, config: SuperDshConfig): void {
   const verifyTool: ToolDefinitionLike = {
     name: 'audit_verify',
     description: 'Verify the tamper-evident audit ledger of one session, or of every session when no id is given. '
-      + 'Checks the hash chain, sequence continuity, and the head anchor.',
+      + 'Checks the hash chain, sequence continuity, the head anchor, and record signatures when a signing key is configured.',
     parameters: {
       type: 'object',
       properties: {
@@ -145,7 +158,7 @@ export function applyAudit(ctx: PluginContext, config: SuperDshConfig): void {
       if (requested !== undefined && targets.length === 0) {
         throw new Error(`No audit ledger found for session "${requested}".`)
       }
-      const ledgers = targets.map(target => verifyLedger(target.path))
+      const ledgers = targets.map(target => verifyLedger(target.path, signingKey))
       return { ok: ledgers.every(ledger => ledger.ok), ledgers }
     },
   }
@@ -209,9 +222,91 @@ export function applyAudit(ctx: PluginContext, config: SuperDshConfig): void {
     },
   }
 
+  const exportTool: ToolDefinitionLike = {
+    name: 'audit_export',
+    description: 'Export the tamper-evident audit ledger of one session together with its head anchor and verification result. '
+      + 'Optionally embed up to 5000 ledger records; larger ledgers are truncated and marked.',
+    parameters: {
+      type: 'object',
+      properties: {
+        session_id: { type: 'string', description: 'Session id to export. Omit to export the most recently updated ledger.' },
+        include_records: { type: 'boolean', description: 'Embed ledger records (maximum 5000). Default: false.' },
+      },
+      additionalProperties: false,
+    },
+    output: {
+      schema: {
+        type: 'object',
+        properties: {
+          session: { type: 'string' },
+          head: {
+            type: 'object',
+            properties: {
+              records: { type: 'integer' },
+              seq: { type: 'integer' },
+              hash: { type: 'string' },
+            },
+            required: ['records', 'seq', 'hash'],
+            additionalProperties: false,
+          },
+          verify: {
+            type: 'object',
+            properties: {
+              ok: { type: 'boolean' },
+              reason: { type: 'string' },
+            },
+            required: ['ok'],
+            additionalProperties: false,
+          },
+          records: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                v: { type: 'integer' },
+                seq: { type: 'integer' },
+                prev: { type: 'string' },
+                hash: { type: 'string' },
+                time: { type: 'integer' },
+                type: { type: 'string' },
+                dataHash: { type: 'string' },
+                summary: { type: 'object', additionalProperties: true },
+                sig: { type: 'string' },
+              },
+              required: ['v', 'seq', 'prev', 'hash', 'time', 'type', 'dataHash'],
+              additionalProperties: false,
+            },
+          },
+          truncated: { type: 'boolean' },
+        },
+        required: ['session', 'head', 'verify'],
+        additionalProperties: false,
+      },
+      render: (_args, value) => {
+        const head = value.head as { records: number; seq: number; hash: string }
+        const verify = value.verify as { ok: boolean; reason?: string }
+        const lines = [
+          `Session ${String(value.session)}: ${head.records} records (head seq ${head.seq}, hash ${head.hash.slice(0, 12)})`,
+          verify.ok ? 'Verify: OK, chain and head anchor intact' : `Verify: FAIL, ${verify.reason ?? 'integrity check failed'}`,
+        ]
+        if (Array.isArray(value.records)) {
+          lines.push(`Records: ${value.records.length}${value.truncated === true ? ` (truncated to ${MAX_EXPORT_RECORDS})` : ''}`)
+        }
+        return [{ type: 'text', text: lines.join('\n') }]
+      },
+    },
+    async execute(rawArgs: Record<string, unknown>) {
+      const requested = typeof rawArgs.session_id === 'string' ? rawArgs.session_id : undefined
+      const includeRecords = rawArgs.include_records === true
+      const target = selectLedger(dir, requested)
+      return exportLedger(target.path, target.session, includeRecords, signingKey)
+    },
+  }
+
   try {
     ctx.tools.register(evidenceTool)
     ctx.tools.register(verifyTool)
+    ctx.tools.register(exportTool)
   } catch (error: unknown) {
     warn(ctx.logger, 'could not register audit tools', error)
   }
@@ -225,7 +320,7 @@ function listLedgers(dir: string): Array<{ path: string; session: string }> {
     .map(name => ({ path: join(dir, name), session: name.slice(0, -'.jsonl'.length) }))
 }
 
-function verifyLedger(file: string): {
+function verifyLedger(file: string, signingKey?: string): {
   session: string
   records: number
   ok: boolean
@@ -246,14 +341,21 @@ function verifyLedger(file: string): {
   for (let index = 0; index < lines.length; index++) {
     let record: LedgerRecord
     try {
-      record = JSON.parse(lines[index]) as LedgerRecord
+      const parsed = JSON.parse(lines[index]) as unknown
+      if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return { session, records: lines.length, ok: false, reason: 'unparseable record', broken_at: index }
+      }
+      record = parsed as LedgerRecord
     } catch {
       return { session, records: lines.length, ok: false, reason: 'unparseable record', broken_at: index }
     }
-    const { hash, ...core } = record
+    const { hash, sig, ...core } = record
     const expected = sha256(canonicalJson(core))
     if (hash !== expected) {
       return { session, records: lines.length, ok: false, reason: 'record hash mismatch', broken_at: index }
+    }
+    if (signingKey !== undefined && !signatureMatches(signingKey, hash, sig)) {
+      return { session, records: lines.length, ok: false, reason: 'record signature mismatch', broken_at: index }
     }
     if (record.prev !== prev) {
       return { session, records: lines.length, ok: false, reason: 'chain link mismatch', broken_at: index }
@@ -300,6 +402,102 @@ function writeHead(file: string, head: LedgerHead): void {
   const tmp = `${file}.head.tmp`
   writeFileSync(tmp, JSON.stringify(head), 'utf8')
   renameSync(tmp, `${file}.head`)
+}
+
+/** Resolve the optional HMAC key once, preferring the environment over inline config. */
+function resolveSigningKey(options: { signingKeyEnv?: string; signingKey?: string }): string | undefined {
+  if (typeof options.signingKeyEnv === 'string' && options.signingKeyEnv.length > 0) {
+    const value = process.env[options.signingKeyEnv]
+    if (typeof value === 'string' && value.length > 0) return value
+  }
+  if (typeof options.signingKey === 'string' && options.signingKey.length > 0) return options.signingKey
+  return undefined
+}
+
+/** HMAC-SHA256(key, record hash), hex encoded. The key itself is never persisted. */
+function signHash(key: string, hash: string): string {
+  return createHmac('sha256', key).update(hash, 'utf8').digest('hex')
+}
+
+function signatureMatches(key: string, hash: string, sig: unknown): boolean {
+  if (typeof sig !== 'string' || !/^[a-f0-9]{64}$/.test(sig)) return false
+  const expected = Buffer.from(signHash(key, hash), 'hex')
+  const actual = Buffer.from(sig, 'hex')
+  return actual.length === expected.length && timingSafeEqual(actual, expected)
+}
+
+function selectLedger(dir: string, requested: string | undefined): { path: string; session: string } {
+  const files = listLedgers(dir)
+  if (requested !== undefined) {
+    const target = files.find(file => file.session === requested || file.path.endsWith(`${safeName(requested)}.jsonl`))
+    if (target === undefined) throw new Error(`No audit ledger found for session "${requested}".`)
+    return target
+  }
+  if (files.length === 0) throw new Error('No audit ledgers found.')
+  let target = files[0]
+  let targetTime = readHead(target.path)?.updatedAt ?? 0
+  for (const file of files.slice(1)) {
+    const time = readHead(file.path)?.updatedAt ?? 0
+    if (time > targetTime) {
+      target = file
+      targetTime = time
+    }
+  }
+  return target
+}
+
+function exportLedger(
+  file: string,
+  session: string,
+  includeRecords: boolean,
+  signingKey: string | undefined,
+): Record<string, unknown> {
+  const head = readHead(file) ?? deriveHead(readLedgerRecords(file))
+  const verified = verifyLedger(file, signingKey)
+  const result: Record<string, unknown> = {
+    session,
+    head: { records: head.records, seq: head.seq, hash: head.hash },
+    verify: verified.ok ? { ok: true } : { ok: false, reason: verified.reason ?? 'integrity check failed' },
+  }
+  if (includeRecords) {
+    const records = readLedgerRecords(file)
+    result.records = records.slice(0, MAX_EXPORT_RECORDS)
+    result.truncated = records.length > MAX_EXPORT_RECORDS
+  }
+  return result
+}
+
+function readLedgerRecords(file: string): LedgerRecord[] {
+  let raw: string
+  try {
+    raw = readFileSync(file, 'utf8')
+  } catch {
+    return []
+  }
+  const records: LedgerRecord[] = []
+  for (const line of raw.split(/\r?\n/)) {
+    if (line.trim().length === 0) continue
+    try {
+      const parsed = JSON.parse(line) as unknown
+      if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        records.push(parsed as LedgerRecord)
+      }
+    } catch {
+      // Skip torn lines; verify reports them separately.
+    }
+  }
+  return records
+}
+
+function deriveHead(records: LedgerRecord[]): LedgerHead {
+  const last = records[records.length - 1]
+  return {
+    v: 1,
+    records: records.length,
+    seq: typeof last?.seq === 'number' ? last.seq : -1,
+    hash: typeof last?.hash === 'string' ? last.hash : GENESIS,
+    updatedAt: 0,
+  }
 }
 
 function summarize(data: unknown): Record<string, unknown> | undefined {

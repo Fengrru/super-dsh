@@ -31,6 +31,7 @@ import { applyKnowledge } from './features/knowledge.ts'
 import { applyHandoff } from './features/handoff.ts'
 import { applyHistoryCompact } from './features/history-compact.ts'
 import { applyReflection } from './features/reflection.ts'
+import { applyReplayPlan } from './replay-plan.ts'
 import { applyBudget } from './features/budget.ts'
 import { warn } from './shared.ts'
 
@@ -38,6 +39,42 @@ export const name = 'super-dsh'
 
 /** Services touched by the features; the host provides all of them in the base bundle. */
 export const inject = ['tools', 'fs', 'systemPrompt', 'workingDirectory']
+
+// Nexus-inspired building blocks for integrations that need them. These are
+// not registered as model-facing tools by default.
+export {
+  capabilityPermits,
+  DEFAULT_CAPABILITY_TTL_MS,
+  issueCapability,
+  verifyCapability,
+} from './capability.ts'
+export type {
+  CapabilityFailureReason,
+  CapabilityPayload,
+  CapabilityRequest,
+  CapabilityVerification,
+  IssueCapabilityOptions,
+} from './capability.ts'
+export { CausalClock } from './causal-clock.ts'
+export type { CausalComparison } from './causal-clock.ts'
+export {
+  decodeWorkerLine,
+  encodeWorkerMessage,
+  MAX_WORKER_LINE_BYTES,
+  validateWorkerMessage,
+  WorkerTaskState,
+} from './worker-protocol.ts'
+export type {
+  WorkerCancel,
+  WorkerCheckpoint,
+  WorkerDecodeResult,
+  WorkerExecute,
+  WorkerMessage,
+  WorkerResult,
+  WorkerTaskStatus,
+} from './worker-protocol.ts'
+export { buildReplayPlan } from './replay-plan.ts'
+export type { ReplayAction, ReplayActionKind, ReplayPlan, ReplayPlanStats } from './replay-plan.ts'
 
 export function apply(ctx: PluginContext, rawConfig: SuperDshConfig = {}): void {
   const config: SuperDshConfig = rawConfig ?? {}
@@ -54,6 +91,7 @@ export function apply(ctx: PluginContext, rawConfig: SuperDshConfig = {}): void 
   guard(ctx, 'handoff', () => applyHandoff(ctx, config))
   guard(ctx, 'history-compact', () => applyHistoryCompact(ctx, config))
   guard(ctx, 'reflection', () => applyReflection(ctx, config))
+  guard(ctx, 'replay-plan', () => applyReplayPlan(ctx, config))
   guard(ctx, 'budget', () => applyBudget(ctx, config))
   if (config.verify !== undefined && config.verify !== false) {
     guard(ctx, 'verify', () => applyVerify(ctx, config))

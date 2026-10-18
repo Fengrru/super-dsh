@@ -390,7 +390,7 @@ describe('history_compact', () => {
     expect(tool.parameters).toMatchObject({
       type: 'object',
       properties: {
-        max_chars: { type: 'integer', minimum: 500, maximum: 20000 },
+        max_chars: { type: 'integer' },
       },
     })
     expect(tool.output.schema).toMatchObject({

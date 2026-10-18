@@ -7,20 +7,27 @@
         fuzzyEdit: true
         applyPatch:
           maxFiles: 10
+          useLocks: true
+          lockTimeoutMs: 5000
         memory: true
         notes: true
         repoMap: true
         knowledge: true
-        effects: true
+        effects:
+          denyUnresolvedIrreversible: false
         artifacts: true
         audit: true
         handoff: true
         historyCompact: true
         reflection: true
-        # These are opt-in:
+        replayPlan: true
+        # Opt-in:
+        # audit:
+        #   signingKeyEnv: 'SUPER_DSH_AUDIT_KEY'
         # budget:
         #   maxTokens: 200000
         #   enforce: false
+        #   reservePerRequest: 0
         # verify:
         #   command: 'bun test'
         #   timeoutMs: 120000

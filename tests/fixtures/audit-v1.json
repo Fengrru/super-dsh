@@ -1,0 +1,19 @@
+{
+  "event": {
+    "seq": 7,
+    "time": 1700000000123,
+    "type": "tool/call",
+    "data": {
+      "turn": 7,
+      "nested": {
+        "z": 1,
+        "a": [true, null, "x"]
+      },
+      "enabled": false
+    }
+  },
+  "expected": {
+    "dataHash": "6486e1f715bf8b955367e278538b734f12931eb7b1a7aadc601f5eb04b5a7295",
+    "recordHash": "1e5a2e7bbb81a1bf0c5932d0edcabaf302f53c84778a81f52a590d86e8a6acc3"
+  }
+}

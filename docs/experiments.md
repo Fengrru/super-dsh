@@ -161,7 +161,33 @@ The 0.2 features are validated with deterministic tests plus a real dsh headless
 
 **Known gaps.** Effects/artifacts/apply-patch/repo-map/knowledge/handoff have not been run through a multi-task agent A/B yet. The deterministic tests cover the invariants; agent-level benefit (fewer failed edits, fewer repeated explorations, better recall) remains to be measured in the next experiment round.
 
-## E6 — Rejected candidates
+## E6 — Nexus design validation
+
+The 0.3 work adopts Nexus's invariants rather than its runtime. Each design has a deterministic test and, where possible, a real-process experiment.
+
+**Command:** `bun test` → **160 tests / 918 assertions**, 20 files.
+
+| Design | SuperDSH implementation | Evidence |
+|---|---|---|
+| Effects: intent/commit + classification | `src/features/effects.ts` | `tests/effects.test.ts` |
+| Effects: explicit recovery plan | `effect_reconcile` (`replay`/`compensate`/`query`) + `effect_resolve` | `tests/effects.test.ts` |
+| Effects: no O(n²) | In-memory ledger index, append-only file | 10,000 calls in **809.73 ms (0.081 ms/call)**, `experiments/effects-bench.ts` |
+| Real crash recovery | Separate Bun processes, `taskkill /F /T` / `SIGKILL`, new-process reconciliation | `experiments/kill9-effects.ts`: `unknown=1`, `duplicateDenied=true`, `duplicateExecutions=0`; committed control allows a repeat |
+| Canonical serialization + golden fixture | Canonical JSON + SHA-256 pinned by a fixture | `tests/audit-extra.test.ts`, `tests/fixtures/audit-v1.json` |
+| Audit signatures + export | HMAC-SHA256 record signatures, `audit_export` with head/verify/records | `tests/audit-extra.test.ts` |
+| Checkpoint/ReplayAction → replay plan | `replay_plan` machine-readable actions | `tests/replay-plan.test.ts` |
+| Capability token + path scope | HMAC token, realpath boundary (`/src2` cannot match `/src`) | `tests/capability.test.ts` |
+| Causal vector | `CausalClock` tick/merge/compare/serialize | `tests/causal-clock.test.ts` |
+| Worker protocol | JSON-RPC NDJSON codec + deadline-aware task FSM | `tests/worker-protocol.test.ts` |
+| Resource locks | Advisory cross-process file locks, stale takeover, TTL; integrated into `apply_patch` | `tests/file-locks.test.ts`, `tests/apply-patch.test.ts` |
+| Budget preflight/settle | `BudgetLedger` reserve/settle/release; optional `reservePerRequest` | `tests/budget-ledger.test.ts`, `tests/budget.test.ts` |
+| Schema subset guard | Tool schemas checked against dsh's supported keyword set | `tests/schema.test.ts` (caught a real `maxItems` registration failure) |
+
+**Real dsh smoke:** `audit_export` returned 17 records with an intact chain; `effect_reconcile` reported zero unresolved; `replay_plan` produced one `read` action for a changed file; `apply_patch` edited `a.ts` through the lock path and a re-read confirmed the change. Earlier smoke covered artifacts, notes, repo map, knowledge, handoff, history compaction, and reflection.
+
+**Not claimed:** the effect/artifact/apply-patch/lock/budget designs are deterministic guarantees, not agent-level A/B wins. `docs/invariants.md` maps each Phoenix invariant to its evidence and still lists artifact crash, audit-anchor crash, budget crash, checkpoint identity, and determinism context as gaps.
+
+## E7 — Rejected candidates
 
 
 Several attractive ideas from `awesome-agent-infra` and `nexus-runtime` did **not** survive review. They are documented in [`decisions.md`](decisions.md): the Nexus kernel bridge, a code-graph repo map, hallucination/confidence heuristics, goal-verifier's fallback, replay/dynamic-workflow recovery, and the LLM request dedup cache. The common reasons were: the implementation was a mock or had correctness bugs, the capability duplicated a stronger dsh primitive, or there was no way to measure a benefit in this environment.

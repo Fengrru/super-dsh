@@ -52,6 +52,7 @@ describe('budget', () => {
       session_id: 'session-a',
       used_tokens: 350,
       max_tokens: 200_000,
+      reserved: 0,
       remaining: 199_650,
       exhausted: false,
       enforced: false,
@@ -102,6 +103,7 @@ describe('budget', () => {
       session_id: 'session-enforced',
       used_tokens: 120,
       max_tokens: 100,
+      reserved: 0,
       remaining: 0,
       exhausted: true,
       enforced: true,
@@ -165,5 +167,180 @@ describe('budget', () => {
       { agent: { session: { id: 'session-exact' } }, turn: 2, step: 1, signal: new AbortController().signal },
       async () => 'never',
     )).rejects.toThrow(/budget exhausted/)
+  })
+
+  test('reserves before requests, blocks over-cap requests, and settles actual usage', async () => {
+    const fake = fakeContext()
+    applyBudget(fake.ctx, { budget: { maxTokens: 100, enforce: true, reservePerRequest: 40 } })
+    const agent = { session: { id: 'session-reserve' } }
+    const session = agent.session
+    const status = () => fake.tools.get('budget_status')!
+      .execute({ session_id: 'session-reserve' }, exec())
+
+    // No turn/step on this event: charged directly, not settled.
+    await fake.emit('session/event', session, usageEvent(1, { totalTokens: 10 }))
+
+    const next = async () => 'admitted'
+    expect(await fake.emit('agent/request', { agent, turn: 1, step: 0 }, next)).toEqual(['admitted'])
+    expect(await fake.emit('agent/request', { agent, turn: 1, step: 1 }, next)).toEqual(['admitted'])
+
+    let current = await status()
+    expect(current).toMatchObject({
+      used_tokens: 10,
+      reserved: 80,
+      // remaining keeps its original meaning: max - used.
+      remaining: 90,
+      exhausted: false,
+    })
+
+    // 10 used + 80 reserved + 40 reserve > 100.
+    let blockedCalls = 0
+    await expect(fake.emit('agent/request', { agent, turn: 1, step: 2 }, async () => {
+      blockedCalls++
+      return 'never'
+    })).rejects.toThrow(/budget exhausted/)
+    expect(blockedCalls).toBe(0)
+
+    // A repeated waterfall for a held step keeps the single reservation.
+    expect(await fake.emit('agent/request', { agent, turn: 1, step: 0 }, next)).toEqual(['admitted'])
+    current = await status()
+    expect(current.reserved).toBe(80)
+
+    // Settle step 0 with 10 actual tokens.
+    await fake.emit('session/event', session, {
+      seq: 2,
+      time: 1_700_000_000_002,
+      type: 'assistant/message',
+      data: { usage: { totalTokens: 10 }, turn: 1, step: 0 },
+    })
+    current = await status()
+    expect(current).toMatchObject({ used_tokens: 20, reserved: 40, remaining: 80 })
+    expect(current.exhausted).toBe(false)
+
+    // Re-delivering the same seq must not settle a second time.
+    await fake.emit('session/event', session, {
+      seq: 2,
+      time: 1_700_000_000_002,
+      type: 'assistant/message',
+      data: { usage: { totalTokens: 10 }, turn: 1, step: 0 },
+    })
+    current = await status()
+    expect(current).toMatchObject({ used_tokens: 20, reserved: 40 })
+
+    // 20 used + 40 reserved + 40 reserve == 100: exactly at the cap is allowed.
+    expect(await fake.emit('agent/request', { agent, turn: 1, step: 2 }, next)).toEqual(['admitted'])
+    current = await status()
+    expect(current).toMatchObject({ used_tokens: 20, reserved: 80 })
+
+    await fake.emit('session/event', session, {
+      seq: 3,
+      time: 1_700_000_000_003,
+      type: 'assistant/message',
+      data: { usage: { totalTokens: 15 }, turn: 1, step: 1 },
+    })
+    await fake.emit('session/event', session, {
+      seq: 4,
+      time: 1_700_000_000_004,
+      type: 'assistant/message',
+      data: { usage: { totalTokens: 50 }, turn: 1, step: 2 },
+    })
+    current = await status()
+    expect(current).toMatchObject({
+      used_tokens: 85,
+      reserved: 0,
+      remaining: 15,
+      exhausted: false,
+      enforced: true,
+    })
+  })
+
+  test('releases reservations on request errors and thrown waterfalls', async () => {
+    const fake = fakeContext()
+    applyBudget(fake.ctx, { budget: { maxTokens: 50, enforce: true, reservePerRequest: 30 } })
+    const agent = { session: { id: 'session-errors' } }
+    const status = () => fake.tools.get('budget_status')!
+      .execute({ session_id: 'session-errors' }, exec())
+
+    await fake.emit('agent/request', { agent, turn: 4, step: 0 }, async () => 'admitted')
+    expect((await status()).reserved).toBe(30)
+
+    await fake.emit('agent/request-error', {
+      agent,
+      turn: 4,
+      step: 0,
+      error: { message: 'provider overloaded' },
+    })
+    let current = await status()
+    expect(current).toMatchObject({ used_tokens: 0, reserved: 0 })
+
+    await expect(fake.emit(
+      'agent/request',
+      { agent, turn: 4, step: 1 },
+      async () => {
+        throw new Error('provider down')
+      },
+    )).rejects.toThrow(/provider down/)
+    current = await status()
+    expect(current).toMatchObject({ used_tokens: 0, reserved: 0 })
+
+    // Both holds are gone, so two more requests fit under the cap again.
+    expect(await fake.emit('agent/request', { agent, turn: 4, step: 2 }, async () => 'admitted'))
+      .toEqual(['admitted'])
+    current = await status()
+    expect(current.reserved).toBe(30)
+  })
+
+  test('turn/end releases every unsettled reservation of that turn', async () => {
+    const fake = fakeContext()
+    applyBudget(fake.ctx, { budget: { maxTokens: 1_000, enforce: true, reservePerRequest: 100 } })
+    const agent = { session: { id: 'session-turn' } }
+    const status = () => fake.tools.get('budget_status')!
+      .execute({ session_id: 'session-turn' }, exec())
+    const next = async () => 'admitted'
+
+    await fake.emit('agent/request', { agent, turn: 1, step: 0 }, next)
+    await fake.emit('agent/request', { agent, turn: 1, step: 1 }, next)
+    await fake.emit('agent/request', { agent, turn: 2, step: 0 }, next)
+    expect((await status()).reserved).toBe(300)
+
+    await fake.emit('turn/end', { agent, turn: 1 })
+    let current = await status()
+    expect(current.reserved).toBe(100)
+
+    await fake.emit('turn/end', { agent, turn: 2 })
+    current = await status()
+    expect(current.reserved).toBe(0)
+
+    // A turn/end without a turn clears every hold of the session.
+    await fake.emit('agent/request', { agent, turn: 3, step: 0 }, next)
+    expect((await status()).reserved).toBe(100)
+    await fake.emit('turn/end', { agent })
+    expect((await status()).reserved).toBe(0)
+  })
+
+  test('reservePerRequest 0 preserves the previous enforcement behavior', async () => {
+    const fake = fakeContext()
+    applyBudget(fake.ctx, { budget: { maxTokens: 100, enforce: true } })
+    const agent = { session: { id: 'session-zero' } }
+
+    await fake.emit('session/event', agent.session, usageEvent(1, { totalTokens: 100 }))
+    const current = await fake.tools.get('budget_status')!
+      .execute({ session_id: 'session-zero' }, exec())
+    expect(current).toMatchObject({
+      used_tokens: 100,
+      reserved: 0,
+      remaining: 0,
+      exhausted: true,
+      enforced: true,
+    })
+
+    await expect(fake.emit(
+      'agent/request',
+      { agent, turn: 1, step: 0 },
+      async () => 'never',
+    )).rejects.toThrow(/budget exhausted/)
+    // Reservation lifecycle handlers are not installed when nothing is reserved.
+    expect(fake.handlers.has('agent/request-error')).toBe(false)
+    expect(fake.handlers.has('turn/end')).toBe(false)
   })
 })

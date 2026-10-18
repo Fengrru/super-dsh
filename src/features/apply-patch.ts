@@ -17,6 +17,7 @@
  * restoring writes), so the error reports how many files were restored.
  */
 
+import { resolve } from 'node:path'
 import type {
   PluginContext,
   SuperDshConfig,
@@ -24,6 +25,7 @@ import type {
   ToolExecutionLike,
 } from '../plugin-types.ts'
 import { fuzzyApply } from '../fuzzy-apply.ts'
+import { acquireFileLocks, type FileLockHandle } from '../file-locks.ts'
 import { sessionCwd, warn } from '../shared.ts'
 
 interface PatchEdit {
@@ -45,6 +47,12 @@ interface PreparedEdit {
 export function applyPatch(ctx: PluginContext, config: SuperDshConfig): void {
   const options = typeof config.applyPatch === 'object' ? config.applyPatch : {}
   const maxFiles = normalizeMaxFiles(options.maxFiles)
+  const useLocks = options.useLocks !== false
+  const lockDir = typeof options.lockDir === 'string' && options.lockDir.length > 0
+    ? options.lockDir
+    : undefined
+  const lockTimeoutMs = normalizeLockTimeout(options.lockTimeoutMs)
+  const lockTtlMs = normalizeLockTtl(options.lockTtlMs)
 
   ctx.systemPrompt.section({
     name: 'super-dsh:apply-patch',
@@ -66,8 +74,6 @@ export function applyPatch(ctx: PluginContext, config: SuperDshConfig): void {
       properties: {
         edits: {
           type: 'array',
-          minItems: 1,
-          maxItems: maxFiles,
           items: {
             type: 'object',
             properties: {
@@ -138,87 +144,115 @@ export function applyPatch(ctx: PluginContext, config: SuperDshConfig): void {
 
       const cwd = await sessionCwd(ctx, exec.agent, exec.signal)
 
-      // Preflight: read everything and locate every match before the first
-      // write. Independent failures are collected so the model can fix the
-      // whole batch in one round trip.
-      const prepared: PreparedEdit[] = []
-      const failures: string[] = []
-      for (const edit of edits) {
-        exec.signal.throwIfAborted()
+      // Lock every target before the first read. A competing host either wins
+      // the whole batch or this call fails while nothing has been read or
+      // written, so two apply_patch runs cannot build on the same pre-image.
+      let fileLock: FileLockHandle | undefined
+      if (useLocks) {
         try {
-          const target = await ctx.fs.resolve(edit.file_path, { cwd, signal: exec.signal })
-          const original = await ctx.fs.readText(target, exec.signal)
-          const match = fuzzyApply(original, edit.old_string, edit.new_string)
-          if (!match.ok || match.matchedText === undefined) {
-            failures.push(`${edit.file_path}: ${match.reason ?? 'could not safely locate old_string'}`)
-            continue
-          }
-          prepared.push({
-            filePath: edit.file_path,
-            displayPath: displayPathOf(target, edit.file_path),
-            target,
-            original,
-            content: match.content,
-            strategy: match.strategy,
-            matchedChars: match.matchedText.length,
-          })
+          fileLock = await acquireFileLocks(
+            edits.map(edit => resolve(cwd, edit.file_path)),
+            {
+              dir: lockDir,
+              timeoutMs: lockTimeoutMs,
+              ttlMs: lockTtlMs,
+            },
+          )
         } catch (error: unknown) {
-          if (exec.signal.aborted) throw error
-          failures.push(`${edit.file_path}: ${errorMessage(error)}`)
+          throw new Error('apply_patch could not acquire file locks; no files were changed: '
+            + errorMessage(error))
         }
       }
 
-      if (failures.length > 0) {
-        throw new Error(`apply_patch refused: ${failures.length} of ${edits.length} edit(s) failed; `
-          + `no files were changed:\n${failures.map(failure => `- ${failure}`).join('\n')}`)
-      }
-
-      const sandboxPolicy = resolveSandboxPolicy(ctx, exec)
-      const written: PreparedEdit[] = []
-      let current: PreparedEdit | undefined
       try {
-        for (const edit of prepared) {
-          current = edit
+        // Preflight: read everything and locate every match before the first
+        // write. Independent failures are collected so the model can fix the
+        // whole batch in one round trip.
+        const prepared: PreparedEdit[] = []
+        const failures: string[] = []
+        for (const edit of edits) {
           exec.signal.throwIfAborted()
-          await ctx.fs.writeText(edit.target, edit.content, undefined, exec.signal, sandboxPolicy)
-          written.push(edit)
-        }
-      } catch (error: unknown) {
-        const failedPath = current?.filePath ?? 'unknown file'
-        // Rollback uses a live signal even if the batch was aborted: cleanup is
-        // the one write that should not be cancelled by the caller's abort.
-        const rollbackSignal = exec.signal.aborted ? undefined : exec.signal
-        let restored = 0
-        const rollbackFailures: string[] = []
-        for (let index = written.length - 1; index >= 0; index--) {
-          const done = written[index]
           try {
-            await ctx.fs.writeText(done.target, done.original, undefined, rollbackSignal, sandboxPolicy)
-            restored++
-          } catch (restoreError: unknown) {
-            rollbackFailures.push(`${done.filePath}: ${errorMessage(restoreError)}`)
+            const target = await ctx.fs.resolve(edit.file_path, { cwd, signal: exec.signal })
+            const original = await ctx.fs.readText(target, exec.signal)
+            const match = fuzzyApply(original, edit.old_string, edit.new_string)
+            if (!match.ok || match.matchedText === undefined) {
+              failures.push(`${edit.file_path}: ${match.reason ?? 'could not safely locate old_string'}`)
+              continue
+            }
+            prepared.push({
+              filePath: edit.file_path,
+              displayPath: displayPathOf(target, edit.file_path),
+              target,
+              original,
+              content: match.content,
+              strategy: match.strategy,
+              matchedChars: match.matchedText.length,
+            })
+          } catch (error: unknown) {
+            if (exec.signal.aborted) throw error
+            failures.push(`${edit.file_path}: ${errorMessage(error)}`)
           }
         }
 
-        const parts = [`apply_patch failed while writing ${failedPath}: ${errorMessage(error)}`]
-        parts.push(restored === 0
-          ? 'no previously written files needed restoration'
-          : `restored ${restored} previously written file(s) to their original content`)
-        if (rollbackFailures.length > 0) {
-          parts.push(`rollback failed for:\n${rollbackFailures.map(failure => `- ${failure}`).join('\n')}`)
+        if (failures.length > 0) {
+          throw new Error(`apply_patch refused: ${failures.length} of ${edits.length} edit(s) failed; `
+            + `no files were changed:\n${failures.map(failure => `- ${failure}`).join('\n')}`)
         }
-        const combined = new Error(parts.join('; ')) as Error & { restored?: number }
-        combined.restored = restored
-        throw combined
-      }
 
-      return {
-        applied: true,
-        files: prepared.map(edit => ({
-          path: edit.displayPath,
-          strategy: edit.strategy,
-          matched_chars: edit.matchedChars,
-        })),
+        const sandboxPolicy = resolveSandboxPolicy(ctx, exec)
+        const written: PreparedEdit[] = []
+        let current: PreparedEdit | undefined
+        try {
+          for (const edit of prepared) {
+            current = edit
+            exec.signal.throwIfAborted()
+            await ctx.fs.writeText(edit.target, edit.content, undefined, exec.signal, sandboxPolicy)
+            written.push(edit)
+          }
+        } catch (error: unknown) {
+          const failedPath = current?.filePath ?? 'unknown file'
+          // Rollback uses a live signal even if the batch was aborted: cleanup is
+          // the one write that should not be cancelled by the caller's abort.
+          const rollbackSignal = exec.signal.aborted ? undefined : exec.signal
+          let restored = 0
+          const rollbackFailures: string[] = []
+          for (let index = written.length - 1; index >= 0; index--) {
+            const done = written[index]
+            try {
+              await ctx.fs.writeText(done.target, done.original, undefined, rollbackSignal, sandboxPolicy)
+              restored++
+            } catch (restoreError: unknown) {
+              rollbackFailures.push(`${done.filePath}: ${errorMessage(restoreError)}`)
+            }
+          }
+
+          const parts = [`apply_patch failed while writing ${failedPath}: ${errorMessage(error)}`]
+          parts.push(restored === 0
+            ? 'no previously written files needed restoration'
+            : `restored ${restored} previously written file(s) to their original content`)
+          if (rollbackFailures.length > 0) {
+            parts.push(`rollback failed for:\n${rollbackFailures.map(failure => `- ${failure}`).join('\n')}`)
+          }
+          const combined = new Error(parts.join('; ')) as Error & { restored?: number }
+          combined.restored = restored
+          throw combined
+        }
+
+        return {
+          applied: true,
+          files: prepared.map(edit => ({
+            path: edit.displayPath,
+            strategy: edit.strategy,
+            matched_chars: edit.matchedChars,
+          })),
+        }
+      } finally {
+        try {
+          fileLock?.release()
+        } catch {
+          // Release is best-effort and must never mask the patch outcome.
+        }
       }
     },
   }
@@ -233,6 +267,18 @@ export function applyPatch(ctx: PluginContext, config: SuperDshConfig): void {
 function normalizeMaxFiles(value: number | undefined): number {
   if (value === undefined || !Number.isFinite(value)) return 10
   return Math.max(1, Math.floor(value))
+}
+
+function normalizeLockTimeout(value: number | undefined): number {
+  return value !== undefined && Number.isFinite(value) && value >= 0
+    ? Math.floor(value)
+    : 5_000
+}
+
+function normalizeLockTtl(value: number | undefined): number {
+  return value !== undefined && Number.isFinite(value) && value > 0
+    ? Math.floor(value)
+    : 120_000
 }
 
 function parseEdits(raw: unknown): PatchEdit[] {

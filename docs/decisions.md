@@ -16,14 +16,16 @@ A "no" to any of these means it stays out of the default bundle. This file recor
 |---|---|---|
 | Safety-guarded fuzzy editing (`fuzzy-patch` from awesome-agent-infra) | 33.8% → 90.0% correct on 80 drift cases; 0 wrong edits; 100% control refusals (`experiments/results/patch-bench.json`) | Default on |
 | Project memory (file-backed, lexical retrieval, auto-injection, TTL, MEMORY.md import/export) | Cross-session recall passes with the workspace wiped; baseline fails (`experiments/results/agent-bench.json`); TTL/import tests | Default on |
-| Hash-chained audit ledger + evidence lookup (Nexus-inspired) | Detects edit/delete/truncate/reorder; plain JSONL detects none (`experiments/results/audit-bench.json`); evidence lookup tests | Default on |
-| Effects intent/commit ledger (Nexus effects, TS rewrite) | Pending→committed/failed, restart→unknown, duplicate irreversible denial, pure-tool classification (`tests/effects.test.ts`) | Default on; deny is opt-in |
+| Hash-chained audit ledger + evidence/export/signatures (Nexus-inspired) | Detects edit/delete/truncate/reorder; plain JSONL detects none (`experiments/results/audit-bench.json`); HMAC signatures, golden fixture, export tests | Default on; signing opt-in |
+| Effects intent/commit + recovery plan (Nexus effects/recovery, TS rewrite) | Pending→committed/failed, restart→unknown, duplicate irreversible denial, `effect_reconcile`/`effect_resolve` (`tests/effects.test.ts`); real kill-9: duplicateDenied=true, duplicateExecutions=0 (`experiments/results/kill9-effects.json`); 10k calls 0.081 ms/call | Default on; deny is opt-in |
 | Content-addressed artifacts (Nexus vault, TS rewrite) | Text/binary round-trip, tamper→verify false, restart read, invalid hash (`tests/artifacts.test.ts`) | Default on |
-| Multi-file `apply_patch` | Preflight failure writes nothing; mid-write failure restores originals; duplicate path/maxFiles rejected (`tests/apply-patch.test.ts`) | Default on; rollback best-effort |
+| Multi-file `apply_patch` + advisory file locks | Preflight failure writes nothing; mid-write failure restores originals; duplicate path/maxFiles rejected; lock contention fails before any write (`tests/apply-patch.test.ts`, `tests/file-locks.test.ts`) | Default on; rollback/locks best-effort |
 | Session notes | Path-safe session ids, malformed-line isolation, atomic compact, entry cap (`tests/notes.test.ts`) | Default on |
 | Repo map | Same-named symbols in different files both survive; mtime rebuild; ignored build dirs (`tests/repo-map.test.ts`) | Default on; regex heuristic |
 | Versioned knowledge | Version chain/parentId, revert creates a new version, trust/expiry filtering, archived tombstones (`tests/knowledge.test.ts`) | Default on; injection opt-in |
-| Deterministic handoff | Mixed events, injected-context filtering, apply_patch file extraction, missing-service errors (`tests/handoff.test.ts`); 43-event real-dsh smoke | Default on |
+| Deterministic handoff + replay plan | Mixed events, injected-context filtering, apply_patch file extraction, missing-service errors (`tests/handoff.test.ts`); machine-readable actions (`tests/replay-plan.test.ts`); real-dsh smoke | Default on |
+| Budget reserve/settle | `BudgetLedger` reserve/settle/release, duplicate keys, cap refusal (`tests/budget-ledger.test.ts`); optional `reservePerRequest` (`tests/budget.test.ts`) | Enforcement opt-in |
+| Capability token / causal clock / worker protocol | HMAC token + realpath scope, vector clock, NDJSON codec/FSM (`tests/capability.test.ts`, `tests/causal-clock.test.ts`, `tests/worker-protocol.test.ts`) | Tested libraries; not model tools |
 
 ## Conditional
 
@@ -31,7 +33,7 @@ A "no" to any of these means it stays out of the default bundle. This file recor
 |---|---|---|
 | Verification gate | Both arms passed 4/4 seeded tasks; the model already ran tests unprompted. Treatment added ~1 step on two tasks and ~24% more output tokens, with no success gain (`experiments/results/agent-bench-verify.json`) | **Not default.** Available opt-in as a definition-of-done guarantee for models/workflows that do not self-verify. |
 | Budget accounting/enforcement | Usage accumulation, total precedence, seq dedupe, enforce reject/allow (`tests/budget.test.ts`); no agent A/B yet | **Not default.** Enable with `budget`. |
-| `denyUnresolvedIrreversible` | Duplicate irreversible call denied after a crash; pure tools unaffected (`tests/effects.test.ts`) | **Not default.** Accounting is on; denial is opt-in. |
+| `denyUnresolvedIrreversible` | Duplicate irreversible call denied after a real kill-9 restart (`duplicateDenied: true`, `duplicateExecutions: 0`); pure tools unaffected (`experiments/results/kill9-effects.json`, `tests/effects.test.ts`) | **Not default.** Accounting is on; denial is opt-in. |
 
 ## Rejected or deferred
 

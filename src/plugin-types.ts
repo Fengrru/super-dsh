@@ -111,6 +111,10 @@ export interface SuperDshConfig {
     | boolean
     | {
         dir?: string
+        /** Environment variable holding an HMAC key; enables record signatures. */
+        signingKeyEnv?: string
+        /** Inline HMAC key for development only; prefer signingKeyEnv. */
+        signingKey?: string
       }
   /**
    * Verification gate: run a command when the agent tries to finish a turn in
@@ -131,6 +135,11 @@ export interface SuperDshConfig {
         dir?: string
         denyUnresolvedIrreversible?: boolean
         irreversibleTools?: string[]
+        /** Per-tool recovery policy overrides. */
+        effectPolicies?: Record<string, {
+          class?: 'pure' | 'idempotent' | 'reversible' | 'irreversible'
+          compensation?: string
+        }>
       }
   /** Content-addressed artifact store. Default: enabled. */
   artifacts?:
@@ -158,6 +167,10 @@ export interface SuperDshConfig {
     | boolean
     | {
         maxFiles?: number
+        useLocks?: boolean
+        lockDir?: string
+        lockTimeoutMs?: number
+        lockTtlMs?: number
       }
   /** Versioned knowledge base. Default: enabled. */
   knowledge?:
@@ -172,11 +185,15 @@ export interface SuperDshConfig {
   historyCompact?: boolean
   /** Deterministic session reflection report. Default: enabled. */
   reflection?: boolean
+  /** Machine-readable replay plan from a persisted session. Default: enabled. */
+  replayPlan?: boolean
   /** Session token/cost budget reporting and optional enforcement. Default: disabled. */
   budget?:
     | boolean
     | {
         maxTokens?: number
         enforce?: boolean
+        /** Tokens reserved before a model request; settled against actual usage. Default: 0. */
+        reservePerRequest?: number
       }
 }

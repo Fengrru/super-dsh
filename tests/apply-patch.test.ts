@@ -4,7 +4,11 @@
  */
 
 import { describe, expect, test } from 'bun:test'
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
 import { applyPatch } from '../src/features/apply-patch.ts'
+import { acquireFileLocks } from '../src/file-locks.ts'
 import { exec, fakeContext } from './fake-context.ts'
 
 interface FakeTree {
@@ -13,13 +17,17 @@ interface FakeTree {
   reads: string[]
 }
 
-function fileSystem(initial: Record<string, string>): { fake: ReturnType<typeof fakeContext>; tree: FakeTree } {
+function fileSystem(
+  initial: Record<string, string>,
+  options: { workingDirectory?: string } = {},
+): { fake: ReturnType<typeof fakeContext>; tree: FakeTree } {
   const tree: FakeTree = {
     files: new Map(Object.entries(initial)),
     writes: [],
     reads: [],
   }
   const fake = fakeContext({
+    workingDirectory: options.workingDirectory,
     fs: {
       resolve: async (path: string) => ({ displayPath: path, targetKey: path }),
       readText: async (target: unknown) => {
@@ -46,7 +54,7 @@ describe('apply_patch', () => {
       'a.ts': 'const a = 1\n',
       'b.ts': 'const b = 2\n',
     })
-    applyPatch(fake.ctx, {})
+    applyPatch(fake.ctx, { applyPatch: { useLocks: false } })
     const tool = fake.tools.get('apply_patch')
     expect(tool).toBeDefined()
 
@@ -72,7 +80,7 @@ describe('apply_patch', () => {
       'b.ts': 'const b = 2\n',
       'c.ts': 'const c = 3\n',
     })
-    applyPatch(fake.ctx, {})
+    applyPatch(fake.ctx, { applyPatch: { useLocks: false } })
     const tool = fake.tools.get('apply_patch')!
 
     let failure: unknown
@@ -111,7 +119,7 @@ describe('apply_patch', () => {
       if (path === 'b.ts') throw new Error('disk full')
       return normalWrite(target, content)
     }
-    applyPatch(fake.ctx, {})
+    applyPatch(fake.ctx, { applyPatch: { useLocks: false } })
     const tool = fake.tools.get('apply_patch')!
 
     let failure: unknown
@@ -138,7 +146,7 @@ describe('apply_patch', () => {
 
   test('rejects a duplicate file_path', async () => {
     const { fake, tree } = fileSystem({ 'a.ts': 'const a = 1\n' })
-    applyPatch(fake.ctx, {})
+    applyPatch(fake.ctx, { applyPatch: { useLocks: false } })
     const tool = fake.tools.get('apply_patch')!
 
     await expect(tool.execute({
@@ -157,7 +165,7 @@ describe('apply_patch', () => {
       'b.ts': 'const b = 2\n',
       'c.ts': 'const c = 3\n',
     })
-    applyPatch(fake.ctx, { applyPatch: { maxFiles: 2 } })
+    applyPatch(fake.ctx, { applyPatch: { maxFiles: 2, useLocks: false } })
     const tool = fake.tools.get('apply_patch')!
 
     await expect(tool.execute({ edits: [] }, exec())).rejects.toThrow(/at least one edit/)
@@ -175,7 +183,7 @@ describe('apply_patch', () => {
     const { fake, tree } = fileSystem({
       'config.ts': 'const config = {\n  port:   3000,\n  host: "localhost",\n}\n',
     })
-    applyPatch(fake.ctx, {})
+    applyPatch(fake.ctx, { applyPatch: { useLocks: false } })
     const tool = fake.tools.get('apply_patch')!
 
     const result = await tool.execute({
@@ -192,5 +200,59 @@ describe('apply_patch', () => {
     expect(files[0].matched_chars).toBeGreaterThan(0)
     expect(tree.files.get('config.ts')).toContain('port: 8080')
     expect(tree.files.get('config.ts')).toContain('host: "0.0.0.0"')
+  })
+
+  test('fails with zero reads or writes when a competing lock holds a target', async () => {
+    const lockDir = mkdtempSync(join(tmpdir(), 'super-dsh-apply-patch-locks-'))
+    const cwd = mkdtempSync(join(tmpdir(), 'super-dsh-apply-patch-cwd-'))
+    const { fake, tree } = fileSystem({
+      'a.ts': 'const a = 1\n',
+      'b.ts': 'const b = 2\n',
+    }, { workingDirectory: cwd })
+    applyPatch(fake.ctx, { applyPatch: { lockDir, lockTimeoutMs: 100 } })
+    const tool = fake.tools.get('apply_patch')!
+    const agent = { id: 'agent-lock-test' }
+    const edits = [
+      { file_path: 'a.ts', old_string: 'const a = 1', new_string: 'const a = 10' },
+      { file_path: 'b.ts', old_string: 'const b = 2', new_string: 'const b = 20' },
+    ]
+
+    const holder = await acquireFileLocks([resolve(cwd, 'a.ts')], {
+      dir: lockDir,
+      owner: 'competing-host',
+      timeoutMs: 500,
+    })
+    try {
+      let failure: unknown
+      try {
+        await tool.execute({ edits }, exec({ agent }))
+      } catch (error: unknown) {
+        failure = error
+      }
+      expect(failure).toBeDefined()
+      const message = String((failure as Error).message)
+      expect(message).toContain('could not acquire file locks')
+      expect(message).toContain('file lock timeout')
+      expect(message).toContain('competing-host')
+      expect(tree.writes).toHaveLength(0)
+      expect(tree.reads).toHaveLength(0)
+      expect(tree.files.get('a.ts')).toBe('const a = 1\n')
+      expect(tree.files.get('b.ts')).toBe('const b = 2\n')
+    } finally {
+      holder.release()
+    }
+
+    // Once the competitor releases, the same patch succeeds and apply_patch
+    // releases its own locks afterwards.
+    const result = await tool.execute({ edits }, exec({ agent }))
+    expect(result.applied).toBe(true)
+    expect(tree.files.get('a.ts')).toBe('const a = 10\n')
+    expect(tree.files.get('b.ts')).toBe('const b = 20\n')
+
+    const reacquired = await acquireFileLocks(
+      [resolve(cwd, 'a.ts'), resolve(cwd, 'b.ts')],
+      { dir: lockDir, timeoutMs: 500 },
+    )
+    reacquired.release()
   })
 })

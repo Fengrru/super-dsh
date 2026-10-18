@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.0
+
+Nexus-runtime design adoption, implemented and tested in TypeScript:
+
+- **Effects v2** — in-memory ledger index (10k calls in 810 ms, 0.081 ms/call), explicit `effect_reconcile` plan (`replay` / `compensate` / `query`), `effect_resolve`, pure effect state machine, per-tool recovery policies/compensation.
+- **Real kill-9 experiment** — separate Bun processes, taskkill/SIGKILL, restart reconciliation, post-crash irreversible retry denial (`duplicateDenied: true`, `duplicateExecutions: 0`); committed control still allows a repeat.
+- **Audit v2** — optional HMAC-SHA256 record signatures, `audit_export` with head/verify/records, golden fixture pinning canonical data and record hashes.
+- **Replay plan** — `replay_plan` machine-readable actions: re-read changed files, rerun failed commands, verify commands, inspect unfinished turns.
+- **File locks** — cross-process advisory locks for `apply_patch`, stale-owner takeover, TTL, deterministic path ordering.
+- **Budget v2** — `BudgetLedger` reserve/settle/release and optional `reservePerRequest` enforcement with request-error/turn-end cleanup.
+- **Nexus design library** — HMAC capability tokens with realpath path scopes, causal vector clock, JSON-RPC NDJSON worker protocol/state machine.
+- **Schema guard** — a test that rejects tool schemas outside dsh's supported JSON-Schema subset (caught a real `maxItems` registration failure).
+- **Docs** — `docs/invariants.md` maps the eight Phoenix invariants to fake-context, real kill-9, and remaining gaps.
+
+160 tests / 918 assertions across 20 files.
+
 ## 0.2.0
 
 Added a reliability suite on top of the 0.1 core:

@@ -1,0 +1,47 @@
+{
+  "experiment": "kill9-effects",
+  "generatedAt": "2026-10-18T01:53:30.477Z",
+  "ok": true,
+  "crash": {
+    "unknown": 1,
+    "duplicateDenied": true,
+    "duplicateExecutions": 0
+  },
+  "committed": {
+    "status": "committed",
+    "unresolved": 0,
+    "duplicateAllowed": true
+  },
+  "invariants": [
+    {
+      "id": "intent-durable-before-execution",
+      "status": "verified",
+      "evidence": "the killed child left one pending irreversible record; the parent read it from disk after SIGKILL/taskkill"
+    },
+    {
+      "id": "crash-reconciles-pending-to-unknown",
+      "status": "verified",
+      "evidence": "agent/created in a new process produced unknown=1 with no committed record"
+    },
+    {
+      "id": "duplicate-unresolved-irreversible-denied",
+      "status": "verified",
+      "evidence": "the same bash/git-push arguments returned {\"kind\":\"deny\",\"reason\":\"super-dsh effects: an earlier irreversible call to \\\"bash\\\" with the same arguments (call crash-call-1) is still unresolved (unknown). Refusing to repeat an unresolved irreversible side effect; inspect it with effect_status first.\"}"
+    },
+    {
+      "id": "committed-control-clean",
+      "status": "verified",
+      "evidence": "phase D read committed=1, pending=0, unknown=0, unresolved=0"
+    },
+    {
+      "id": "committed-duplicate-allowed",
+      "status": "verified",
+      "evidence": "a committed predecessor returned {\"kind\":\"enter\"}"
+    },
+    {
+      "id": "no-real-side-effect",
+      "status": "verified",
+      "evidence": "git push was recorded through effects hooks only; no command subprocess was spawned"
+    }
+  ]
+}
