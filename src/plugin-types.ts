@@ -105,6 +105,9 @@ export interface SuperDshConfig {
         maxEntries?: number
         injectTopK?: number
         injectMaxChars?: number
+        coreMaxChars?: number
+        maxPerTier?: number
+        dedupeThreshold?: number
       }
   /** Tamper-evident audit ledger and the audit_verify tool. Default: true. */
   audit?:
@@ -181,6 +184,22 @@ export interface SuperDshConfig {
       }
   /** Deterministic session handoff report. Default: enabled. */
   handoff?: boolean
+  /** Cross-session error-repair memory. Default: enabled. */
+  repairs?:
+    | boolean
+    | {
+        dir?: string
+        maxEntries?: number
+      }
+  /** Log archive/retention tooling. Default: disabled (destructive if deleteSource). */
+  retention?:
+    | boolean
+    | {
+        dir?: string
+        maxAgeDays?: number
+        maxTotalBytes?: number
+        deleteSource?: boolean
+      }
   /** Deterministic history compaction fallback. Default: enabled. */
   historyCompact?: boolean
   /** Deterministic session reflection report. Default: enabled. */

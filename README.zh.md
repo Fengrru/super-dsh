@@ -1,6 +1,6 @@
 # SuperDSH
 
-> 为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）提供的安全优先可靠性套件：容错编辑、带文件锁的多文件事务、副作用恢复计划、带签名的防篡改审计、内容寻址 artifact、项目记忆、代码仓库地图、版本化知识库、会话便签、确定性压缩/反思/handoff、replay plan、预算预留，以及经过测试的 Nexus 风格协议库。
+> 为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）提供的安全优先可靠性套件：容错编辑、带文件锁的多文件事务、副作用恢复计划、带签名的防篡改审计、内容寻址 artifact、分层项目记忆、错误修复记忆、代码仓库地图、版本化知识库、会话便签、确定性压缩/反思/handoff、replay plan、预算预留、日志归档保留，以及经过测试的 Nexus 风格协议库。
 
 SuperDSH 不是 dsh 的 fork，而是原生 dsh 插件 bundle：单个 ESM 文件、**零运行时依赖**，通过 Cordis 插件/profile 机制加载。每个能力独立开关；默认开启的能力都有确定性测试和真实 dsh 冒烟；四个核心能力还有量化实验。未通过实验的能力会记录原因并保持关闭。
 
@@ -32,7 +32,7 @@ git clone https://github.com/Fengrru/super-dsh.git   # 发布后
 cd super-dsh
 bun install        # 无运行时依赖，仅构建/测试需要
 bun run build      # 生成 dist/index.js
-bun test           # 160 个确定性检查
+bun test           # 197 个确定性检查
 ```
 
 本地 overlay：
@@ -68,7 +68,11 @@ dsh --profile headless --dump-config | grep super-dsh
 
 ### 上下文与知识
 
-**项目记忆**：每工作区一个追加式 JSONL，位于 `$DSH_HOME/super-dsh/memory/`。工具：`memory_save`（TTL）、`memory_search`、`memory_forget`、`memory_export`/`memory_import`（MEMORY.md 风格）。每回合自动注入相关且未过期条目；检索是词法级，含标签、重要性、时新性、使用次数和基础中文处理。
+**项目记忆**：每工作区一个追加式 JSONL，位于 `$DSH_HOME/super-dsh/memory/`。工具：`memory_save`（TTL、tier、confidence、derived_from、supersedes）、`memory_search`、`memory_forget`、`memory_feedback`、`memory_invalidate`、`memory_consolidate`、`memory_export`/`memory_import`（MEMORY.md 风格）。三层：`core` 规则优先注入，`long` 事实按相关度检索，`working` 只对当前 session 可见。检索综合词法分数、confidence、tier、importance、时新性和使用次数。`memory_consolidate` 确定性合并近似条目、归档过期/超限条目、提升高频事实。`derivedFrom` 依赖链在更新/遗忘时级联标 stale，避免继续注入过期结论。
+
+**错误修复记忆**：`repair_record` 保存归一化错误签名（tool + code + 路径/数字/UUID 归一化消息）和修复提示；`repair_search`/`repair_list` 检索。工具再次报同类错误时，`tools/post-execute` 把历史提示作为数据附加，不当作指令；未知错误不猜测。
+
+**日志归档保留（可选）**：`archive_ledgers` 对旧审计账本及 head anchor 做 gzip、写 SHA-256 manifest、校验解压往返，仅在显式要求时删除源文件；`restore_archive` 先全量校验再写入，拒绝路径穿越、symlink 和覆盖。
 
 **会话便签**：`note_append` / `note_read` / `note_compact`。session id 清洗为安全文件名；坏行隔离；压缩用临时文件 + rename 原子重写。
 
@@ -123,6 +127,14 @@ dsh --profile headless --dump-config | grep super-dsh
           maxEntries: 500
           injectTopK: 4
           injectMaxChars: 1600
+          coreMaxChars: 500
+          maxPerTier: 500
+          dedupeThreshold: 0.85
+        repairs:
+          maxEntries: 500
+        retention:
+          maxAgeDays: 30
+          deleteSource: false
         notes:
           maxEntriesPerSession: 500
         repoMap:
@@ -166,12 +178,18 @@ dsh --profile headless --dump-config | grep super-dsh
 
 0.3 Nexus 设计验证：
 
-- `bun test`：**160 个测试 / 918 个断言**，20 个文件，包含对每个注册工具 schema 子集的校验。
+- `bun test`：**197 个测试 / 1,184 个断言**，23 个文件，包含对每个注册工具 schema 子集的校验。
 - Effects 10,000 次调用：**733ms 总计，0.073ms/次**（20,000 条账本记录，5.5MB），从约 33ms/次降下来。
 - 真实 kill-9（`experiments/kill9-effects.ts`）：独立 Bun 进程记录不可逆 intent，被 `taskkill /F /T` 或 `SIGKILL` 杀死，新进程把它对账为 `unknown`，重复不可逆调用被拒绝——**duplicateDenied=true, duplicateExecutions=0**；committed 对照仍允许重复。
 - 审计：HMAC 签名、删除/重算签名篡改检测、带 head/verify 的导出、字节级 golden fixture。
 - Replay plan、文件锁、预算预留/结算、capability token、因果时钟、worker 协议都有确定性测试；真实 dsh 冒烟覆盖 `audit_export`、`effect_reconcile`、`replay_plan`、`apply_patch`、repo map、notes、artifacts、knowledge、handoff、history compact、reflect。
 - Effects 崩溃/artifact 篡改/apply_patch 回滚是确定性保证，尚无 Agent 级 A/B 数字，因此不宣称基准胜利。
+
+0.4 记忆/修复/归档验证：
+
+- Memory v2 巩固（`experiments/memory-v2-bench.ts`）：60 条事实，巩固前后 recall@3 **1.000**，stale 注入 **0**，注入字符 **13,775 → 12,565**；合并 15 条重复，归档 20 条（合并/过期/超限）。
+- 修复记忆（`experiments/repair-bench.ts`）：5 条提示，已知错误命中 **10/10**，正确 hint **10/10**，未知错误误命中 **0/10**，平均注入 212 字符。
+- 归档保留：gzip + SHA-256 manifest、校验后删除、恢复、路径穿越/symlink/覆盖拒绝（`tests/retention.test.ts`）。
 
 完整方法与原始结果见 [`docs/experiments.md`](docs/experiments.md) 与 [`experiments/`](experiments/)。不变量映射见 [`docs/invariants.md`](docs/invariants.md)。88 项来源分析见 [`docs/analysis/`](docs/analysis/README.md)。
 
@@ -189,13 +207,16 @@ dsh --profile headless --dump-config | grep super-dsh
 - `fuzzy_edit` 每次只处理单区域；故意不暴露 `replace_all`。
 - `apply_patch` 回滚是尽力而为：若恢复写入本身失败，错误会列出无法恢复的文件。文件锁是 advisory：宿主 `write`/`edit`、外部编辑器、使用不同锁目录的进程可绕过；TTL/symlink/大小写/路径归一化有边界。
 - repo map 是 regex 启发式，不做类型分析；注释/字符串会误报，压缩单行代码召回有限；缓存键是 mtime+size。
-- effects、knowledge、notes、memory 都是追加式 JSONL，没有跨进程锁；不要让两个进程同时写同一 session/workspace。
+- effects、knowledge、notes、memory、repairs 都是追加式 JSONL，没有跨进程锁；不要让两个进程同时写同一 session/workspace。
+- Memory v2 检索仍是词法级（无 embedding）；巩固是确定性 token/Jaccard 合并，不是语义摘要；`working` 可见性依赖保存时的 session id。
+- 错误修复匹配是词法级 + tool/code 过滤；相似错误可能命中错误提示；提示作为数据注入，不强制。
+- 日志归档默认关闭；`delete_source`/`deleteSource` 为 true 时会删除源账本，虽然删除前校验 gzip 和 SHA-256，备份策略仍是运维责任。
 - 审计默认无密钥；HMAC 只保护记录 hash，密钥管理是运维责任；拥有密钥并重写整条链仍可伪造一致账本。
 - handoff/replay-plan 对注入上下文的过滤是启发式；未来未知格式可能被当成用户请求。
 - 验证闸门只跑一个配置命令，达到 `maxAttempts` 后放行。
 - `budget` 只累计事件 usage；预留在内存，重启丢失；工具/子代理没有单独计价。
 - capability/causal/worker 是测试过的库，不是暴露的工具；没有包含远程 worker 运行时。
-- 88 项分析是路线图，不代表全部已实现。0.3.0 交付上述能力；C/D 类保持延后或拒绝。
+- 88 项分析是路线图，不代表全部已实现。0.4.0 交付上述能力；C/D 类保持延后或拒绝。
 
 ## 致谢
 

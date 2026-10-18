@@ -1,0 +1,182 @@
+{
+  "experiment": "repair-bench",
+  "generatedAt": "2026-10-18T02:13:58.892Z",
+  "hypothesis": "Signature-normalized repair hints recorded once are retrieved in a later session for recurring errors, without injecting hints for unrelated errors.",
+  "recordedRepairs": 5,
+  "simulatedErrors": 20,
+  "known": {
+    "cases": 10,
+    "hits": 10,
+    "hitRate": 1,
+    "correctHints": 10,
+    "correctHintRate": 1,
+    "injectedChars": 2124,
+    "avgInjectedChars": 212.4,
+    "maxInjectedChars": 219
+  },
+  "unknown": {
+    "cases": 10,
+    "falseHits": 0,
+    "falsePositiveRate": 0,
+    "injectedChars": 0
+  },
+  "totalInjectedChars": 2124,
+  "recorded": [
+    {
+      "tool": "read",
+      "errorCode": "ENOENT",
+      "signature": "8201a885b4bdeef9",
+      "successCount": 1
+    },
+    {
+      "tool": "bash",
+      "errorCode": "EACCES",
+      "signature": "f111c68d77a090b0",
+      "successCount": 1
+    },
+    {
+      "tool": "edit",
+      "errorCode": "EDIT_MISMATCH",
+      "signature": "05682295d08bb7cf",
+      "successCount": 1
+    },
+    {
+      "tool": "bash",
+      "errorCode": "ETIMEDOUT",
+      "signature": "bd4b848225ddd383",
+      "successCount": 1
+    },
+    {
+      "tool": "apply_patch",
+      "errorCode": "PATCH_FAILED",
+      "signature": "7aaef39c7902d5ec",
+      "successCount": 1
+    }
+  ],
+  "details": {
+    "known": [
+      {
+        "tool": "read",
+        "errorCode": "ENOENT",
+        "hit": true,
+        "chars": 208
+      },
+      {
+        "tool": "read",
+        "errorCode": "ENOENT",
+        "hit": true,
+        "chars": 208
+      },
+      {
+        "tool": "bash",
+        "errorCode": "EACCES",
+        "hit": true,
+        "chars": 219
+      },
+      {
+        "tool": "bash",
+        "errorCode": "EACCES",
+        "hit": true,
+        "chars": 219
+      },
+      {
+        "tool": "edit",
+        "errorCode": "EDIT_MISMATCH",
+        "hit": true,
+        "chars": 219
+      },
+      {
+        "tool": "edit",
+        "errorCode": "EDIT_MISMATCH",
+        "hit": true,
+        "chars": 219
+      },
+      {
+        "tool": "bash",
+        "errorCode": "ETIMEDOUT",
+        "hit": true,
+        "chars": 205
+      },
+      {
+        "tool": "bash",
+        "errorCode": "ETIMEDOUT",
+        "hit": true,
+        "chars": 205
+      },
+      {
+        "tool": "apply_patch",
+        "errorCode": "PATCH_FAILED",
+        "hit": true,
+        "chars": 211
+      },
+      {
+        "tool": "apply_patch",
+        "errorCode": "PATCH_FAILED",
+        "hit": true,
+        "chars": 211
+      }
+    ],
+    "unknown": [
+      {
+        "tool": "read",
+        "errorCode": "ENOENT",
+        "hit": false,
+        "chars": 0
+      },
+      {
+        "tool": "bash",
+        "errorCode": "EACCES",
+        "hit": false,
+        "chars": 0
+      },
+      {
+        "tool": "edit",
+        "errorCode": "EDIT_MISMATCH",
+        "hit": false,
+        "chars": 0
+      },
+      {
+        "tool": "bash",
+        "errorCode": "ETIMEDOUT",
+        "hit": false,
+        "chars": 0
+      },
+      {
+        "tool": "apply_patch",
+        "errorCode": "PATCH_FAILED",
+        "hit": false,
+        "chars": 0
+      },
+      {
+        "tool": "grep",
+        "errorCode": "NO_MATCH",
+        "hit": false,
+        "chars": 0
+      },
+      {
+        "tool": "fetch",
+        "errorCode": "HTTP_500",
+        "hit": false,
+        "chars": 0
+      },
+      {
+        "tool": "sqlite",
+        "errorCode": "LOCKED",
+        "hit": false,
+        "chars": 0
+      },
+      {
+        "tool": "compile",
+        "errorCode": "TYPE_ERROR",
+        "hit": false,
+        "chars": 0
+      },
+      {
+        "tool": "image_resize",
+        "errorCode": "DIMENSION",
+        "hit": false,
+        "chars": 0
+      }
+    ]
+  }
+}

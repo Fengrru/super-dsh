@@ -15,7 +15,9 @@ A "no" to any of these means it stays out of the default bundle. This file recor
 | Candidate | Evidence | Status |
 |---|---|---|
 | Safety-guarded fuzzy editing (`fuzzy-patch` from awesome-agent-infra) | 33.8% → 90.0% correct on 80 drift cases; 0 wrong edits; 100% control refusals (`experiments/results/patch-bench.json`) | Default on |
-| Project memory (file-backed, lexical retrieval, auto-injection, TTL, MEMORY.md import/export) | Cross-session recall passes with the workspace wiped; baseline fails (`experiments/results/agent-bench.json`); TTL/import tests | Default on |
+| Memory v2 (tiers, feedback, causal invalidation, deterministic consolidation, TTL, MEMORY.md) | Cross-session recall passes; consolidation 60 facts: recall@3 1.0 unchanged, stale 0, injected chars -1,210 (`experiments/results/memory-v2-bench.json`); tier/feedback/invalidate tests | Default on; lexical retrieval |
+| Error-repair memory | Known errors 10/10 hit, correct hint 10/10, unknown false hits 0/10 (`experiments/results/repair-bench.json`); auto-hint tests | Default on; hints are advisory |
+| Log retention | gzip + SHA-256 manifest, verified delete/restore, path traversal/symlink/overwrite refusal (`tests/retention.test.ts`) | Opt-in; destructive only when requested |
 | Hash-chained audit ledger + evidence/export/signatures (Nexus-inspired) | Detects edit/delete/truncate/reorder; plain JSONL detects none (`experiments/results/audit-bench.json`); HMAC signatures, golden fixture, export tests | Default on; signing opt-in |
 | Effects intent/commit + recovery plan (Nexus effects/recovery, TS rewrite) | Pending→committed/failed, restart→unknown, duplicate irreversible denial, `effect_reconcile`/`effect_resolve` (`tests/effects.test.ts`); real kill-9: duplicateDenied=true, duplicateExecutions=0 (`experiments/results/kill9-effects.json`); 10k calls 0.073 ms/call | Default on; deny is opt-in |
 | Content-addressed artifacts (Nexus vault, TS rewrite) | Text/binary round-trip, tamper→verify false, restart read, invalid hash (`tests/artifacts.test.ts`) | Default on |

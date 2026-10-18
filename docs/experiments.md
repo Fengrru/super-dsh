@@ -187,7 +187,52 @@ The 0.3 work adopts Nexus's invariants rather than its runtime. Each design has 
 
 **Not claimed:** the effect/artifact/apply-patch/lock/budget designs are deterministic guarantees, not agent-level A/B wins. `docs/invariants.md` maps each Phoenix invariant to its evidence and still lists artifact crash, audit-anchor crash, budget crash, checkpoint identity, and determinism context as gaps.
 
-## E7 — Rejected candidates
+## E7 — Memory v2, error-repair memory, retention
+
+These adopt the useful parts of awesome-agent-infra's memory/repair/archive packages without their data bugs.
+
+**Command:** `bun test` → **197 tests / 1,184 assertions**, 23 files.
+
+### Memory v2
+
+- Tiers `core` / `long` / `working`; working entries are session-scoped.
+- `memory_feedback` adjusts confidence/uses; `memory_invalidate` and `forget` cascade through `derivedFrom`.
+- `memory_consolidate` deterministically merges near-duplicates (token Jaccard ≥ 0.85), archives expired/over-cap entries, and promotes frequent entries.
+- `experiments/memory-v2-bench.ts`: 60 facts / 35 queries.
+
+| Metric | Before | After |
+|---|---:|---:|
+| Active entries | 55 | 35 |
+| recall@3 | 1.000 | 1.000 |
+| Stale injections | 0 | 0 |
+| Injection chars | 13,775 | 12,565 |
+| Consolidation | — | merged 15, archived 20, promoted 0 |
+
+The consolidation reduces injected bytes by 1,210 with no recall or stale-injection regression. It is lexical/deterministic; no embeddings or LLM summarization.
+
+### Error-repair memory
+
+- `repair_record` / `repair_search` / `repair_list`; normalized signature (tool + code + path/number/UUID-normalized message).
+- `tools/post-execute` attaches a matching prior hint as data on a tool error; unknown errors are not guessed.
+- `experiments/repair-bench.ts`: 5 hints, 10 known + 10 unknown errors.
+
+| Metric | Result |
+|---|---:|
+| Known errors hit | 10/10 (100%) |
+| Correct hint | 10/10 |
+| Unknown-error false hits | 0/10 |
+| Injected context | 212 chars average, 219 max |
+
+### Retention
+
+- `archive_ledgers`: gzip + SHA-256 manifest, verified round-trip, optional verified source deletion, `maxTotalBytes` trimming.
+- `restore_archive`: full preflight, path traversal/symlink/overwrite refusal, `dry_run`.
+- 15 tests cover archive, manifest, restore, corruption, and hostile paths.
+- Opt-in only (`retention` config).
+
+**Real-dsh smoke:** memory tier save + feedback + consolidate, and repair record + search were exercised in a live headless session. Retention is covered by tests and is intentionally not default-on.
+
+## E8 — Rejected candidates
 
 
 Several attractive ideas from `awesome-agent-infra` and `nexus-runtime` did **not** survive review. They are documented in [`decisions.md`](decisions.md): the Nexus kernel bridge, a code-graph repo map, hallucination/confidence heuristics, goal-verifier's fallback, replay/dynamic-workflow recovery, and the LLM request dedup cache. The common reasons were: the implementation was a mock or had correctness bugs, the capability duplicated a stronger dsh primitive, or there was no way to measure a benefit in this environment.

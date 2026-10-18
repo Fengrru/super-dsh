@@ -1,6 +1,6 @@
 # SuperDSH
 
-> A safety-first reliability suite for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`): tolerant edits, transactional patches with file locks, recovery plans for side effects, signed tamper-evident audit, content-addressed artifacts, project memory, a repo map, versioned knowledge, scratchpads, deterministic compaction/reflection/handoff, replay plans, budget reservation, and tested Nexus-inspired protocol libraries.
+> A safety-first reliability suite for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`): tolerant edits, transactional patches with file locks, recovery plans for side effects, signed tamper-evident audit, content-addressed artifacts, tiered project memory, error-repair memory, a repo map, versioned knowledge, scratchpads, deterministic compaction/reflection/handoff, replay plans, budget reservation, log retention, and tested Nexus-inspired protocol libraries.
 
 SuperDSH is a native dsh plugin bundle, not a fork. It ships as one ESM file with **zero runtime dependencies**, loaded through the ordinary Cordis plugin/profile mechanism. Every feature is independently switchable. Features that are on by default have deterministic tests and a real-dsh smoke; the four core capabilities also have quantitative experiments. Features that failed their experiment are documented and left off.
 
@@ -32,7 +32,7 @@ git clone https://github.com/Fengrru/super-dsh.git   # once published
 cd super-dsh
 bun install        # no runtime dependencies; build/test toolchain only
 bun run build      # emits dist/index.js
-bun test           # 160 deterministic checks
+bun test           # 197 deterministic checks
 ```
 
 Local overlay:
@@ -68,7 +68,11 @@ dsh --profile headless --dump-config | grep super-dsh
 
 ### Context and knowledge
 
-**Project memory** — append-only JSONL per workspace under `$DSH_HOME/super-dsh/memory/`. Tools: `memory_save` (TTL), `memory_search`, `memory_forget`, `memory_export`/`memory_import` (MEMORY.md style). Relevant, non-expired entries are injected once per turn; retrieval is lexical with tags, importance, recency, usage, and basic CJK handling.
+**Project memory** — append-only JSONL per workspace under `$DSH_HOME/super-dsh/memory/`. Tools: `memory_save` (TTL, tier, confidence, derived_from, supersedes), `memory_search`, `memory_forget`, `memory_feedback`, `memory_invalidate`, `memory_consolidate`, `memory_export`/`memory_import` (MEMORY.md style). Three tiers: `core` rules are injected first, `long` facts are retrieved by relevance, `working` entries are scoped to one session. Retrieval combines lexical scoring with confidence, tier, importance, recency, and usage. `memory_consolidate` deterministically merges near-duplicates, archives expired/over-cap entries, and promotes frequently used facts. `derivedFrom` links cascade to `stale` on update/forget, so obsolete conclusions stop being injected.
+
+**Error-repair memory** — `repair_record` stores a normalized error signature (tool + code + path/number/UUID-normalized message) with a fix hint; `repair_search`/`repair_list` retrieve it. On a matching tool error, `tools/post-execute` attaches the prior hint as data, not instructions. Unknown errors are not guessed.
+
+**Log retention (opt-in)** — `archive_ledgers` gzips old audit ledgers plus their head anchors, writes a SHA-256 manifest, verifies the gzip round-trip, and only deletes sources when explicitly requested. `restore_archive` validates every entry before writing and refuses path traversal, symlinks, and overwrites.
 
 **Session notes** — `note_append`, `note_read`, `note_compact`. Session ids are sanitized into filenames; malformed lines are isolated; compaction rewrites atomically.
 
@@ -123,6 +127,14 @@ Tested TS building blocks, not model-facing tools:
           maxEntries: 500
           injectTopK: 4
           injectMaxChars: 1600
+          coreMaxChars: 500
+          maxPerTier: 500
+          dedupeThreshold: 0.85
+        repairs:
+          maxEntries: 500
+        retention:
+          maxAgeDays: 30
+          deleteSource: false
         notes:
           maxEntriesPerSession: 500
         repoMap:
@@ -166,12 +178,18 @@ Quantitative experiments on this machine (Windows 10, Node 24, DeepSeek `deepsee
 
 0.3 Nexus-design validation:
 
-- `bun test`: **160 tests / 918 assertions** across 20 files, including schema-subset validation for every registered tool.
+- `bun test`: **197 tests / 1,184 assertions** across 23 files, including schema-subset validation for every registered tool.
 - Effects 10,000 calls: **733 ms total, 0.073 ms/call** (20,000 ledger records, 5.5 MB), down from ~33 ms/call.
 - Real kill-9 (`experiments/kill9-effects.ts`): a separate Bun process records an irreversible intent, is killed with `taskkill /F /T` or `SIGKILL`, a new process reconciles it to `unknown`, and the repeated irreversible call is denied — **duplicateDenied=true, duplicateExecutions=0**; the committed control still allows a repeat.
 - Audit: HMAC signatures, stripped/rehashed tamper detection, export with head/verify, and a byte-pinned golden fixture.
 - Replay plan, file locks, budget reserve/settle, capability tokens, causal clock, and worker protocol have deterministic tests; real-dsh smoke exercised `audit_export`, `effect_reconcile`, `replay_plan`, `apply_patch`, repo map, notes, artifacts, knowledge, handoff, history compaction, and reflection.
 - Effects crash/artifact tamper/apply_patch rollback are deterministic guarantees; they do not yet have agent-level A/B numbers, so they are not presented as benchmark wins.
+
+0.4 memory/repair/retention validation:
+
+- Memory v2 consolidation (`experiments/memory-v2-bench.ts`): 60 facts, recall@3 **1.000 before and after**, stale injections **0**, injected chars **13,775 → 12,565**; 15 duplicates merged, 20 entries archived (merged/expired/cap).
+- Repair memory (`experiments/repair-bench.ts`): 5 hints, known errors hit **10/10**, correct hint **10/10**, unknown errors false-hit **0/10**, average injected context 212 chars.
+- Retention: gzip + SHA-256 manifest, verified delete, restore, path traversal/symlink/overwrite refusal (`tests/retention.test.ts`).
 
 Full methodology and raw results: [`docs/experiments.md`](docs/experiments.md), [`experiments/`](experiments/). Invariant mapping: [`docs/invariants.md`](docs/invariants.md). The 88-item source analysis: [`docs/analysis/`](docs/analysis/README.md).
 
@@ -189,13 +207,16 @@ Full methodology and raw results: [`docs/experiments.md`](docs/experiments.md), 
 - `fuzzy_edit` handles one region per call; `replace_all` is intentionally not exposed.
 - `apply_patch` rollback is best-effort: if a restore write itself fails, the error lists files that could not be restored. Locks are advisory: host `write`/`edit`, external editors, and processes with a different lock dir can bypass them. TTL/symlink/case/normalization caveats apply.
 - The repo map is regex-based, not type-aware; comments/strings can produce false positives, compressed one-line code is under-indexed, and mtime+size is the cache key.
-- Effects, knowledge, notes, and memory are append-only JSONL without cross-process locks; do not run two processes writing the same session/workspace concurrently.
+- Effects, knowledge, notes, memory, and repairs are append-only JSONL without cross-process locks; do not run two processes writing the same session/workspace concurrently.
+- Memory v2 retrieval is still lexical (no embeddings); consolidation is deterministic token/Jaccard merging, not semantic summarization. `working` entries are session-scoped by the session id available at save time.
+- Error-repair matching is lexical and tool/code-filtered; a hint can be wrong for a superficially similar error. Hints are injected as data, not enforced.
+- Retention is opt-in and can delete source ledgers when `delete_source`/`deleteSource` is true; it verifies gzip and SHA-256 before deletion, but backup policy is the operator's responsibility.
 - Audit is unkeyed by default; HMAC signing protects record hashes but key management is the operator's responsibility. A full rewrite with the key can still forge a consistent ledger.
 - Handoff/replay-plan filtering of injected context is heuristic; unknown future formats may appear as user requests.
 - The verification gate runs one configured command and fails open after `maxAttempts`.
 - `budget` accumulates event usage; reservations are in-memory and do not survive a restart, and tools/subagents are not individually priced.
 - The capability/causal/worker modules are tested libraries, not exposed tools; no remote worker runtime is included.
-- The 88-item analysis is a roadmap, not a claim that every item is implemented. Version 0.3.0 ships the features above; C/D items remain deferred or rejected.
+- The 88-item analysis is a roadmap, not a claim that every item is implemented. Version 0.4.0 ships the features above; C/D items remain deferred or rejected.
 
 ## Credits
 

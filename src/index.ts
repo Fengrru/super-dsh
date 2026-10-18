@@ -31,6 +31,8 @@ import { applyKnowledge } from './features/knowledge.ts'
 import { applyHandoff } from './features/handoff.ts'
 import { applyHistoryCompact } from './features/history-compact.ts'
 import { applyReflection } from './features/reflection.ts'
+import { applyRepairs } from './features/repairs.ts'
+import { applyRetention } from './features/retention.ts'
 import { applyReplayPlan } from './replay-plan.ts'
 import { applyBudget } from './features/budget.ts'
 import { warn } from './shared.ts'
@@ -91,8 +93,12 @@ export function apply(ctx: PluginContext, rawConfig: SuperDshConfig = {}): void 
   guard(ctx, 'handoff', () => applyHandoff(ctx, config))
   guard(ctx, 'history-compact', () => applyHistoryCompact(ctx, config))
   guard(ctx, 'reflection', () => applyReflection(ctx, config))
+  guard(ctx, 'repairs', () => applyRepairs(ctx, config))
   guard(ctx, 'replay-plan', () => applyReplayPlan(ctx, config))
   guard(ctx, 'budget', () => applyBudget(ctx, config))
+  if (config.retention !== undefined && config.retention !== false) {
+    guard(ctx, 'retention', () => applyRetention(ctx, config))
+  }
   if (config.verify !== undefined && config.verify !== false) {
     guard(ctx, 'verify', () => applyVerify(ctx, config))
   }

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.0
+
+Memory and recovery upgrades from awesome-agent-infra, implemented without its data bugs:
+
+- **Memory v2** — tiers (`core`/`long`/`working`), session-scoped working memory, confidence/feedback, `memory_invalidate` causal cascade through `derivedFrom`, `supersedes`, deterministic `memory_consolidate` (dedupe, expire, promote, per-tier caps), tiered core+relevant injection, JSONL/Markdown compatibility.
+- **Error-repair memory** — cross-session `repair_record`/`repair_search`/`repair_list`, normalized error signatures, `tools/post-execute` auto-hint injection on matching errors.
+- **Log retention** — opt-in `archive_ledgers` with gzip + SHA-256 + manifest + verified deletes, and `restore_archive` with path-traversal/symlink/overwrite guards.
+- **Benchmarks** — memory consolidation: 60 facts, recall@3 1.0 before/after, stale injections 0, injection chars 13775→12565; repair memory: known-error hit 10/10, correct hint 10/10, unknown-error false hits 0/10.
+- **Schema guard** extended to the new tools; repair parameter schemas no longer advertise unsupported keywords.
+
+197 tests / 1,184 assertions across 23 files.
+
 ## 0.3.0
 
 Nexus-runtime design adoption, implemented and tested in TypeScript:

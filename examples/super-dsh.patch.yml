@@ -10,6 +10,11 @@
           useLocks: true
           lockTimeoutMs: 5000
         memory: true
+        repairs: true
+        # Opt-in destructive retention:
+        # retention:
+        #   maxAgeDays: 30
+        #   deleteSource: false
         notes: true
         repoMap: true
         knowledge: true

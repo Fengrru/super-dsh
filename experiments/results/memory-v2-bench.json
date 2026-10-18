@@ -1,0 +1,41 @@
+{
+  "experiment": "memory-v2-bench",
+  "generatedAt": "2026-10-18T02:13:58.711Z",
+  "hypothesis": "Deterministic consolidation removes duplicate/expired entries and reduces injected characters without lowering recall@3 or injecting stale memories.",
+  "facts": 60,
+  "queries": 35,
+  "before": {
+    "entries": 60,
+    "activeEntries": 55,
+    "recallHits": 35,
+    "recallAt3": 1,
+    "staleInjected": 0,
+    "injectionChars": 13775
+  },
+  "after": {
+    "entries": 60,
+    "activeEntries": 35,
+    "recallHits": 35,
+    "recallAt3": 1,
+    "staleInjected": 0,
+    "injectionChars": 12565
+  },
+  "consolidation": {
+    "dry_run": false,
+    "merged": 15,
+    "archived": 20,
+    "promoted": 0,
+    "remaining": 35
+  },
+  "states": {
+    "active": 35,
+    "archived": 20,
+    "superseded": 5
+  },
+  "delta": {
+    "activeEntryReduction": 20,
+    "injectionCharReduction": 1210,
+    "recallAt3Change": 0
+  },
+  "passed": true
+}

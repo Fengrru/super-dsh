@@ -18,16 +18,18 @@
 
 （A/B 的边界按“当前代码是否需要先改核心逻辑”划分；C 是“不能直接用，但设计/算法值得重写”；D 是“重复 dsh、mock、安全剧场或无可测收益”。）
 
-## 0.2/0.3 已落地的项目
+## 0.2/0.3/0.4 已落地的项目
 
-以下分析项已经在 0.2/0.3 中实现，并通过确定性测试/真实 dsh 冒烟（不代表全部 B 项都已完成）：
+以下分析项已经在 0.2–0.4 中实现，并通过确定性测试/真实 dsh 冒烟（不代表全部 B 项都已完成）：
 
 | 已落地 | 来源 | 说明 |
 |---|---|---|
 | `fuzzy_edit` | awesome `fuzzy-patch` | 已有 80 例、90% 正确的实验 |
 | `apply_patch` | awesome `txn-fs` 思路 | 全量预检 + 失败逆序回滚 + 跨进程文件锁；未复制有 bug 的实现 |
-| 项目记忆 + TTL + MEMORY.md | awesome `agent-memory`/`project-memory` 思路 | JSONL 存储，新增 TTL/导入导出 |
+| Memory v2 | awesome `agent-memory`/`memory-engine-v2`/`memory-graph`/`embedding`/`retrieval-feedback` 思路 | 分层、session working、confidence/feedback、因果 stale、确定性巩固、TTL/MEMORY.md；无伪 embedding |
 | 会话便签 | awesome `notes-manager` | 修复路径穿越/坏行/无效压缩 |
+| 错误修复记忆 | awesome `healix` 思路 | 归一化错误签名 + 跨会话 hint + post-execute 注入；重写匹配 |
+| 日志归档保留 | awesome `archiver` 思路 | gzip + SHA-256 manifest + 校验删除/恢复；修复路径穿越 |
 | repo map | awesome `codegraph` 思路 | 轻量 regex 索引重写，修复同名符号/缓存问题 |
 | 版本化知识库 | awesome `knowledge-vault` 思路 | JSONL 版本链、trust、TTL、tombstone |
 | effects 账本 + 恢复计划 | nexus `effects`/`recovery` | intent/commit、`effect_reconcile`/`effect_resolve`、重启对账、kill-9 验证 |

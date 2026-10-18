@@ -23,6 +23,8 @@ import { applyHandoff } from '../src/features/handoff.ts'
 import { applyHistoryCompact } from '../src/features/history-compact.ts'
 import { applyReflection } from '../src/features/reflection.ts'
 import { applyReplayPlan } from '../src/replay-plan.ts'
+import { applyRepairs } from '../src/features/repairs.ts'
+import { applyRetention } from '../src/features/retention.ts'
 import { applyBudget } from '../src/features/budget.ts'
 import { fakeContext } from './fake-context.ts'
 import type { ToolDefinitionLike } from '../src/plugin-types.ts'
@@ -49,6 +51,8 @@ function collectTools(): Map<string, ToolDefinitionLike> {
   applyHistoryCompact(fake.ctx, {})
   applyReflection(fake.ctx, {})
   applyReplayPlan(fake.ctx, {})
+  applyRepairs(fake.ctx, { repairs: { dir: join(dir, 'repairs') } })
+  applyRetention(fake.ctx, { retention: { dir: join(dir, 'retention') } })
   applyBudget(fake.ctx, { budget: { maxTokens: 1000 } })
   applyVerify(fake.ctx, { verify: { command: 'node -e "process.exit(0)"' } })
   return fake.tools

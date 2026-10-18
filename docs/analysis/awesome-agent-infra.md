@@ -6,6 +6,8 @@
 >
 > dsh seam 缩写：T=工具注册 · C=命令 · SP=系统提示词 · PS=`agent/pre-step` · RQ=`agent/request` · LS=`llm/stream` · TS=`agent/turn-stopping` · PE/PO/TR=`tools/pre-execute`/`post-execute`/`result` · SE=`session/event` · ST=`storageDomain` · CMP=`ctx.compaction` · SUB=子代理 · WF=`workflowEngine` · SK=`ctx.skills` · FS=文件系统 intent · SH=shell/subprocess。
 
+> **0.4 落地状态：** Memory v2（分层/working session/confidence/feedback/因果 stale/确定性巩固）、错误修复记忆（healix 思路重写）、日志归档保留（archiver 思路修复）已实现并通过测试/基准；`fuzzy_edit`、`apply_patch`、repo map、notes、knowledge、handoff/replay、history compact/reflection 已在 0.1–0.3 交付。详见 `docs/experiments.md` 的 E2/E5/E7。
+
 ## A. 文件、补丁与代码智能（4）
 
 | 包 | 真实实现 | dsh 落点 / 怎么做 | 前置修复与风险 | 实验 | 结论 |
