@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.2.0 — 2026-10-18
+
+Budget durability and safety coverage:
+
+- **Durable budget usage** — used tokens and event seq dedupe persist per
+  session under `$DSH_HOME/super-dsh/budget`. A real two-process restart shows
+  **900 → 900**; replayed events are not charged again. Reservations remain
+  in-memory and are released on restart. `budget.dir` overrides the directory.
+- **Fuzzy matcher coverage** — direct tests for the eight strategies, value-
+  literal guards, identity/empty/no-match, and replace-all. Vendored
+  `fuzzy-patch.ts` coverage rose from **59.6%** to **95.2%** lines.
+- **Verification gate coverage** — missing command, direct pass/fail/timeout,
+  non-mutating and errored tools, pre-step reset, and max-attempt fail-open.
+  `verify.ts` coverage rose from **69.9%** to **94.3%** lines.
+- **Memory core-tier A/B** — the same fact stored as `core` vs `long` was
+  injected 10/10 vs 0/10; the task passed **9/10 vs 0/10**, at +4.3% input
+  tokens. This validates the v2 tier behavior, not cross-session memory itself.
+- **search_code agent A/B** — eight navigation tasks over a real source tree:
+  both arms **8/8**, but the repo-map arm used **15,840 vs 8,679 input tokens**
+  (+82.5%). The coding/repo-map surface remains opt-in.
+- **Validation** — 233 tests / 1,460 assertions across 27 files; **96.80%**
+  line / **94.34%** function coverage.
+
 ## 0.1.1 — 2026-10-18
 
 Repository cleanup. The repository-local analysis, pre-release development log,
@@ -75,8 +98,8 @@ one zero-runtime-dependency ESM plugin bundle.
 
 ### Evidence
 
-The repository contains 15 experiment write-ups (E1–E8 and E10–E16), 17
-scripts, and 20 raw JSON result files. Cross-session memory was expanded from
+The repository contains 17 experiment write-ups (E1–E8 and E10–E18), 19
+scripts, and 22 raw JSON result files. Cross-session memory was expanded from
 two to ten pairs: baseline **0/10**, treatment **10/10**, with session-2 output
 tokens **222–678** vs **44–107**. Best-of-N planning was rejected; skill
 curation is deferred; repair memory was demoted to opt-in. See

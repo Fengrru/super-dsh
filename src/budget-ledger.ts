@@ -26,16 +26,17 @@ export interface BudgetSnapshot {
 
 export class BudgetLedger {
   readonly maxTokens: number
-  private usedTokens = 0
+  private usedTokens: number
   private readonly reservations = new Map<string, number>()
 
-  constructor(maxTokens: number) {
+  constructor(maxTokens: number, initialUsed = 0) {
     if (typeof maxTokens !== 'number' || !Number.isFinite(maxTokens) || maxTokens < 0) {
       throw new RangeError(
         `BudgetLedger requires a non-negative finite maxTokens (received ${String(maxTokens)})`,
       )
     }
     this.maxTokens = Math.floor(maxTokens)
+    this.usedTokens = normalizeTokens(initialUsed) ?? 0
   }
 
   /** Tokens already consumed by settled and directly charged usage. */

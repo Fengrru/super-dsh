@@ -1,9 +1,9 @@
 {
   "experiment": "kill9-budget",
-  "generatedAt": "2026-10-18T03:08:50.201Z",
-  "durable": false,
+  "generatedAt": "2026-10-18T05:38:00.589Z",
+  "durable": true,
   "beforeRestartUsed": 900,
-  "afterRestartUsed": 0,
-  "note": "budget state is in-memory; restart loses usage by design",
+  "afterRestartUsed": 900,
+  "note": "used-token accounting is durable; reservations remain in-memory",
   "ok": true
 }

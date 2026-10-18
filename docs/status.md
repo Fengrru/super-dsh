@@ -1,6 +1,6 @@
 # Status: coverage, experiments, and remaining gaps
 
-Last updated with 0.1.1.
+Last updated with 0.2.0.
 
 ## What is covered
 
@@ -9,10 +9,10 @@ Runtime experiments exist for capabilities whose behavior or default could chang
 Current inventory:
 
 - **41 model-facing tools** at the `full` profile; the default `core` profile registers **21** (coding: 37). Repair memory's three tools are opt-in and outside every profile.
-- **222 tests / 1,412 assertions** across 26 test files; **95.50% line / 93.08% function coverage**. Weak spots remain `vendor/fuzzy-patch.ts` (59.6% lines), `verify.ts` (69.9%), and `repo-map.ts` (86.2%).
-- **17 experiment scripts** and **20 result JSON files** under `experiments/`.
-- **6 quantitative agent/retrieval experiments**: patch drift, cross-session memory, audit tamper, verification gate, profile A/B, repair memory A/B.
-- **Deterministic/prototype experiments**: effects performance + real kill-9, artifact crash, audit anchor gap, budget restart loss, memory v2 consolidation, repair memory, agentic search, repo-map performance, tool-schema overhead, cross-process store writes, package install smoke, best-of-N planning, skill curation.
+- **233 tests / 1,460 assertions** across 27 test files; **96.80% line / 94.34% function coverage**. The previous weak spots improved: `vendor/fuzzy-patch.ts` 95.2% lines, `verify.ts` 94.3%, `repo-map.ts` 86.2%.
+- **19 experiment scripts** and **22 result JSON files** under `experiments/`.
+- **8 quantitative agent/retrieval experiments**: patch drift, cross-session memory, memory core-tier, audit tamper, verification gate, profile A/B, repair memory A/B, search_code A/B.
+- **Deterministic/prototype experiments**: effects performance + real kill-9, artifact crash, audit anchor gap, budget durability, memory v2 consolidation, repair memory, agentic search, repo-map performance, tool-schema overhead, cross-process store writes, package install smoke, best-of-N planning, skill curation.
 
 ## Shipped tools (41 at full)
 
@@ -42,6 +42,9 @@ The table lists the union. `core` = editing + memory + effects/audit + artifacts
 - Repo-map performance work — async reads, TTL cache, precomputed sorted symbols, bounded graph/PageRank; cold 33.3s → 2.4–4.6s.
 - Cross-process locks for memory, repair, and knowledge read-modify-write cycles, with two-process tests.
 - Shell-failure detection for repair hints, with deterministic injection/exit-zero/non-shell tests.
+- Durable per-session budget usage under `$DSH_HOME/super-dsh/budget`; kill-9 restores 900 used tokens, while reservations remain in-memory.
+- Memory core-tier A/B: core **9/10** vs long **0/10**, with the fact injected 10/10 vs 0/10 (E17).
+- search_code A/B: **8/8 in both arms**, but treatment used **15,840 vs 8,679 input tokens**; repo map remains opt-in (E18).
 - Package `npm pack` → `dsh plugin add` smoke in CI.
 - Typecheck, coverage script, CI (Ubuntu + Windows), lockfile, and a schema-subset guard for registered tools.
 
@@ -75,7 +78,7 @@ Best-of-N planning was measured and rejected; skill curation is deferred pending
 | Effects intent crash | `experiments/kill9-effects.ts` (real kill-9) | covered: `pending → unknown`, duplicate irreversible denied |
 | Artifact blob/index crash | `experiments/kill9-artifacts.ts` (real kill-9) | covered: read/verify by hash + reindex |
 | Audit anchor gap | `experiments/kill9-audit-anchor.ts` (simulated crash window) | detected, no repair |
-| Budget restart | `experiments/kill9-budget.ts` | confirmed limitation: 900 → 0, in-memory only |
+| Budget restart | `experiments/kill9-budget.ts` | covered: used tokens 900 → 900; reservations cleared on restart |
 | Checkpoint identity, determinism context, worker crash | none | gaps |
 
 ## Add-worthy candidates not yet fully resolved
@@ -84,8 +87,8 @@ These are **not** rejected; they were either not implemented or only partially c
 
 | Candidate | Status | What remains |
 |---|---|---|
-| Agent-level A/B for memory v2 + search_code | Not run | The remaining features most likely to change task outcomes; run isolated multi-session/edit and unfamiliar-repo tasks with hidden checkers. Repair memory's A/B is complete (E14, null on a ceiling corpus). |
-| Durable budget | Not implemented; restart loss confirmed | Either persist usage/reservations or explicitly keep budget as per-process reporting only. |
+| Large-repo search_code A/B | Small source-tree A/B is null (8/8 both, +82.5% input tokens). | Test an unfamiliar 1,000–2,000-file repository before making a positive coding-profile claim. |
+| Memory consolidation / long-horizon quality | Tier priority is tested; consolidation is synthetic-only. | Run a multi-session consolidation/recall experiment if consolidation becomes automatic. |
 | Semantic/embedding memory retrieval | Not implemented. Memory v2 is lexical. | Add an embedding provider interface/experiment; compare recall@k and token cost vs lexical. |
 | Canonical `MEMORY.md` project memory | Partial: JSONL memory has export/import, but MEMORY.md is not the source of truth. | Decide whether MEMORY.md should be canonical; add round-trip/locking tests. |
 | Structured checkpoint handoff | Not implemented. `handoff` + `replay_plan` cover the deterministic path. | Add a structured checkpoint schema only if a real handoff consumer needs it. |
@@ -98,14 +101,13 @@ These are **not** rejected; they were either not implemented or only partially c
 ## Are all "can add" features added?
 
 - **Among the candidates that were actually tested:** yes. `search_code`, `artifact_reindex`, and profiles were added; repair memory was measured and moved to opt-in; Best-of-N was rejected; skill curation is deferred.
-- **Among all potentially add-worthy items:** no. Agent-level A/B for memory v2 and search_code, durable budget, semantic retrieval, canonical MEMORY.md, structured checkpoint handoff, content-addressed evidence log, external worker runtime, and full replay remain unresolved.
-- **Evidence quality:** six features have agent-level quantitative experiments (fuzzy patch, memory, audit, verification gate, profile choice, repair memory). The rest are deterministic tests, synthetic benchmarks, or real-dsh smoke. That is sufficient for guarantees (e.g., tamper detection, rollback, crash detection), not for claiming task-success improvement. `search_code` and memory v2 still need agent-level A/B before being called "proven stronger"; repair memory's A/B supports *not* defaulting it, but its ceiling corpus does not prove it can never help.
+- **Among all potentially add-worthy items:** no. Large-repo search_code evidence, memory consolidation/long-horizon evidence, semantic retrieval, canonical MEMORY.md, structured checkpoint handoff, content-addressed evidence log, external worker runtime, and full replay remain unresolved.
+- **Evidence quality:** eight features have agent-level quantitative experiments (fuzzy patch, cross-session memory, memory tier, audit, verification gate, profile choice, repair memory, search_code). The rest are deterministic tests, synthetic benchmarks, or real-dsh smoke. That is sufficient for guarantees (e.g., tamper detection, rollback, crash detection), not for claiming task-success improvement. `search_code`'s small-tree A/B is null and a large-repo test remains; memory tier priority is tested but consolidation is not. Repair memory's A/B supports *not* defaulting it, but its ceiling corpus does not prove it can never help.
 
 ## Recommended next closures
 
-1. Agent-level A/B for memory v2 and search_code, including multi-session and unfamiliar-codebase tasks.
-2. Decide durable budget: persist usage/reservations across restarts, or document that enforcement is per-process.
-3. Decide MEMORY.md canonical vs export-only.
-4. Embedding/semantic retrieval experiment, only if lexical recall is the limiting factor.
-5. Revisit structured checkpoint / evidence log / worker runtime only when a real consumer exists.
-6. Re-test repair hints on hard, cross-session failures before considering any promotion back to default.
+1. Large-repo search_code A/B and a long-horizon memory consolidation experiment.
+2. Decide MEMORY.md canonical vs export-only.
+3. Embedding/semantic retrieval experiment, only if lexical recall is the limiting factor.
+4. Revisit structured checkpoint / evidence log / worker runtime only when a real consumer exists.
+5. Re-test repair hints on hard, cross-session failures before considering any promotion back to default.

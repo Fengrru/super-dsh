@@ -14,6 +14,9 @@
  * check before any of their usage has been reported.
  */
 
+import { randomUUID } from 'node:crypto'
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import type {
   PluginContext,
   SuperDshConfig,
@@ -21,13 +24,15 @@ import type {
   ToolExecutionLike,
 } from '../plugin-types.ts'
 import { BudgetLedger } from '../budget-ledger.ts'
-import { sessionIdOf } from '../session-id.ts'
-import { warn } from '../shared.ts'
+import { safeFileStem, sessionIdOf } from '../session-id.ts'
+import { dshHome, sha256, warn } from '../shared.ts'
 
 const DEFAULT_MAX_TOKENS = 200_000
+const MAX_PERSISTED_SEQS = 10_000
 const USAGE_EVENT_TYPES = new Set(['assistant/message', 'compaction/summary'])
 
 interface BudgetState {
+  sessionId: string
   ledger: BudgetLedger
   /** Session event seqs whose usage has already been counted. */
   seen: Set<number>
@@ -56,12 +61,61 @@ export function applyBudget(ctx: PluginContext, config: SuperDshConfig): void {
     : DEFAULT_MAX_TOKENS
   const enforce = options.enforce === true
   const reservePerRequest = normalizeReservePerRequest(options.reservePerRequest)
+  const budgetDir = options.dir ?? join(dshHome(), 'super-dsh', 'budget')
   const states = new Map<string, BudgetState>()
+
+  const fileFor = (sessionId: string): string => join(
+    budgetDir,
+    `${safeFileStem(sessionId, 40)}-${sha256(sessionId).slice(0, 16)}.json`,
+  )
+
+  const loadState = (sessionId: string): BudgetState => {
+    let used = 0
+    const seen = new Set<number>()
+    const file = fileFor(sessionId)
+    try {
+      const parsed = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>
+      if (parsed.v === 1 && parsed.sessionId === sessionId) {
+        used = nonNegativeNumber(parsed.used) ?? 0
+        if (Array.isArray(parsed.seenSeqs)) {
+          for (const seq of parsed.seenSeqs) {
+            if (typeof seq === 'number' && Number.isSafeInteger(seq) && seq >= 0) seen.add(seq)
+          }
+        }
+      }
+    } catch (error: unknown) {
+      if (!isMissingFile(error)) {
+        warn(ctx.logger, `could not load budget state for ${sessionId}`, error)
+      }
+    }
+    return { sessionId, ledger: new BudgetLedger(maxTokens, used), seen }
+  }
+
+  const persist = (state: BudgetState): void => {
+    try {
+      mkdirSync(budgetDir, { recursive: true })
+      const file = fileFor(state.sessionId)
+      const temp = `${file}.${process.pid}.${randomUUID()}.tmp`
+      const seenSeqs = [...state.seen].sort((left, right) => left - right).slice(-MAX_PERSISTED_SEQS)
+      const body = JSON.stringify({
+        v: 1,
+        sessionId: state.sessionId,
+        used: state.ledger.used,
+        seenSeqs,
+        updatedAt: Date.now(),
+      })
+      writeFileSync(temp, `${body}
+`, 'utf8')
+      renameSync(temp, file)
+    } catch (error: unknown) {
+      warn(ctx.logger, `could not persist budget state for ${state.sessionId}`, error)
+    }
+  }
 
   const stateFor = (sessionId: string): BudgetState => {
     let state = states.get(sessionId)
     if (state === undefined) {
-      state = { ledger: new BudgetLedger(maxTokens), seen: new Set<number>() }
+      state = loadState(sessionId)
       states.set(sessionId, state)
     }
     return state
@@ -106,10 +160,12 @@ export function applyBudget(ctx: PluginContext, config: SuperDshConfig): void {
       const key = requestKey(sessionId, turn, step)
       if (state.ledger.hasReservation(key)) {
         state.ledger.settle(key, tokens)
+        persist(state)
         return
       }
     }
     state.ledger.charge(tokens)
+    persist(state)
   })
 
   // Optional lifecycle hook: materialize the per-session counter as soon as an
@@ -173,11 +229,11 @@ export function applyBudget(ctx: PluginContext, config: SuperDshConfig): void {
       if (sessionId === undefined || sessionId.length === 0) {
         throw new Error('budget_status: no session id is available; pass session_id or call the tool from an agent session')
       }
-      const state = states.get(sessionId)
+      const state = stateFor(sessionId)
       return statusOf(
         sessionId,
-        state?.ledger.used ?? 0,
-        state?.ledger.reserved ?? 0,
+        state.ledger.used,
+        state.ledger.reserved,
         maxTokens,
         enforce,
       )
@@ -355,6 +411,10 @@ function sessionIdOfValue(value: unknown): string | undefined {
   const record = asRecord(value)
   if (record === undefined) return undefined
   return typeof record.id === 'string' && record.id.length > 0 ? record.id : undefined
+}
+
+function isMissingFile(error: unknown): boolean {
+  return error !== null && typeof error === 'object' && (error as { code?: unknown }).code === 'ENOENT'
 }
 
 function nonNegativeNumber(value: unknown): number | undefined {

@@ -37,6 +37,15 @@ describe('BudgetLedger', () => {
     expect(ledger.remaining).toBe(70)
   })
 
+  test('restores used tokens from a durable snapshot', () => {
+    const ledger = new BudgetLedger(100, 40)
+    expect(ledger.used).toBe(40)
+    expect(ledger.remaining).toBe(60)
+    ledger.charge(10)
+    expect(ledger.used).toBe(50)
+    expect(new BudgetLedger(10, Number.NaN).used).toBe(0)
+  })
+
   test('rejects duplicate keys without changing the hold', () => {
     const ledger = new BudgetLedger(100)
     expect(ledger.reserve('same', 10)).toBe(true)

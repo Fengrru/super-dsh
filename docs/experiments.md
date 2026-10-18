@@ -408,6 +408,8 @@ Mutations hold a per-file advisory lock and reload the file after acquiring it. 
 
 **Verdict: accepted.** The read-modify-write cycles serialize instead of interleaving. Readers can still observe a snapshot from before a concurrent write; the lock protects writers, not a consistent multi-file transaction.
 
+**Budget durability probe.** A child process records 900 tokens and exits; a new process with the same `DSH_HOME` reads **900**, not 0. Used tokens and event seqs are persisted under `$DSH_HOME/super-dsh/budget`; reservations are intentionally per-process. `tests/budget.test.ts` also verifies that a replayed event seq is not charged again after a restart.
+
 ## E16 — Package install smoke
 
 **Hypothesis.** The published file set can be installed through the same path users will use.
@@ -415,6 +417,52 @@ Mutations hold a per-file advisory lock and reload the file after acquiring it. 
 **Design.** `npm pack` → `dsh plugin --profile headless add <tarball>` in an isolated `DSH_HOME` → `dsh --profile headless --dump-config`, asserting the `id: super-dsh` entry. The smoke script is `scripts/install-smoke.ts`; it runs in CI after the build. A manual follow-up used the real headless CLI and called `artifact_put` / `artifact_verify` successfully against dsh `0.2.1-rc.2`.
 
 **Verdict: accepted.** Packaging and profile installation work. Publishing itself is external and not performed by CI.
+
+## E17 — Memory core-tier A/B
+
+**Hypothesis.** The `core` tier, which is always injected, changes behavior compared with storing the same fact in `long` (retrieved only when lexically relevant).
+
+**Design.** Both arms enable memory v2 with the same tool surface. A fixture seeds one fact through `memory_save`:
+
+- baseline: tier `long`
+- treatment: tier `core`
+
+The fact is `Identifiers in serialized payloads use lower_snake_case.` The task asks the agent to create a small `makeUser` module returning a JSON object with id/display-name fields. The checker accepts `id` or `user_id` plus `display_name`, and rejects `displayName`/`userId`. Session logs show the fact was injected in **10/10 core** sessions and **0/10 long** sessions.
+
+**Decision rule (pre-registered).** Support core-tier priority if it wins at least two more trials or uses at least 15% fewer input tokens without losing trials.
+
+**Results** (`experiments/results/memory-tier-ab-bench.json`):
+
+| Metric | long | core |
+|---|---:|---:|
+| Passes | 0/10 | **9/10** |
+| Input tokens | 6,801 | 7,094 (+4.3%) |
+| Fact injected | 0/10 | 10/10 |
+
+**Verdict: core-tier priority has evidence.** It wins 9 trials at a small token cost. The experiment does not test consolidation, feedback, or long-horizon memory; those remain separate.
+
+**Limitations.** One fact, one task family, one model, ten repetitions. The task requires a naming convention that the rule states; it is a targeted tier test, not a general memory-quality benchmark.
+
+## E18 — search_code agent A/B
+
+**Hypothesis.** Enabling the repo-map/search_code surface improves navigation enough to recommend the coding profile, rather than merely improving synthetic retrieval metrics.
+
+**Design.** Eight navigation tasks over a real source-tree snapshot (`src/`). Baseline: core profile without repo map. Treatment: core profile plus `repoMap: true`. Both arms use the same model and prompts; the checker requires the expected file path(s).
+
+**Decision rule (pre-registered).** Recommend the repo-map surface if it wins at least two more tasks or uses at least 15% fewer input tokens without losing tasks.
+
+**Results** (`experiments/results/search-code-ab-bench.json`):
+
+| Metric | baseline | treatment |
+|---|---:|---:|
+| Passes | 8/8 | 8/8 |
+| Input tokens | **8,679** | 15,840 (+82.5%) |
+| Output tokens | **1,427** | 1,959 |
+| Tool use | grep/read | search_code, find_symbol, impact_of, grep |
+
+**Verdict: keep repo map / coding profile opt-in.** The treatment did not win a task and consumed 82.5% more input tokens. The tools were used but did not improve the outcome.
+
+**Limitations.** The source tree is small and the tasks are simple symbol/file lookups; grep is already strong there. This is not a 2,000-file unfamiliar-repository test. A larger-repo navigation benchmark remains useful before making a positive coding-profile claim, but this result is sufficient to reject promotion on current evidence.
 
 ## Reproduction
 
@@ -441,6 +489,8 @@ SUPER_DSH_BENCH_ONLY=verify bun experiments/agent-bench.ts
 SUPER_DSH_BENCH_JUST_MERGE=1 bun experiments/agent-bench.ts   # re-merge saved per-experiment results
 bun experiments/profile-ab-bench.ts                            # E12
 bun experiments/repairs-ab-bench.ts                             # E14
+bun experiments/memory-tier-bench.ts                            # E17
+bun experiments/search-code-ab-bench.ts                         # E18
 SUPER_DSH_REPAIR_LIMIT=2 bun experiments/repairs-ab-bench.ts    # quick subset
 ```
 

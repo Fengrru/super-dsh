@@ -38,7 +38,7 @@ git clone https://github.com/Fengrru/super-dsh.git
 cd super-dsh
 bun install        # no runtime dependencies; build/test toolchain only
 bun run build      # emits dist/index.js
-bun test           # 222 deterministic checks
+bun test           # 233 deterministic checks
 dsh plugin --profile headless add /absolute/path/to/super-dsh
 ```
 
@@ -129,7 +129,7 @@ config:
 
 **Verification gate (opt-in)** — after file mutations, `agent/turn-stopping` runs the configured command; failures return to the agent with an output tail, bounded by `maxAttempts`. Off by default because E3 showed no gain with `deepseek-flash` (it already ran tests unprompted).
 
-**Budget (opt-in)** — accumulates `assistant/message` and `compaction/summary` usage; `budget_status` reports used/reserved/remaining/exhausted. `enforce: true` refuses over-budget requests; `reservePerRequest` adds reserve/settle/release with request-error and turn-end cleanup.
+**Budget (opt-in)** — accumulates `assistant/message` and `compaction/summary` usage; `budget_status` reports used/reserved/remaining/exhausted. Used tokens and seq dedupe persist under `$DSH_HOME/super-dsh/budget`, so a restart does not reset accounting; reservations remain in-memory. `enforce: true` refuses over-budget requests; `reservePerRequest` adds reserve/settle/release with request-error and turn-end cleanup.
 
 ### Protocol libraries
 
@@ -189,6 +189,7 @@ Tested TS building blocks, not model-facing tools:
           maxTokens: 200000
           enforce: false
           reservePerRequest: 0
+          # dir: 'C:/custom/budget'   # default: $DSH_HOME/super-dsh/budget
         verify:
           command: 'node --test'
           timeoutMs: 60000
@@ -207,12 +208,14 @@ Quantitative experiments on this machine (Windows 10, Node 24, DeepSeek `deepsee
 | Wrong-region edits under drift | 0 | **0** | Guardrail held |
 | Ambiguous / no-match refusals | 100% | **100%** | Guardrail held |
 | Cross-session memory (10 pairs) | 0/10 recalled | **10/10 recalled** | Accept |
+| Memory core-tier (10 trials) | 0/10 (long) | **9/10 (core)** | Accept core tier |
+| search_code navigation (8 tasks) | 8/8, 8,679 input tokens | 8/8, **15,840** input tokens | Keep opt-in |
 | Audit tamper scenarios (4 kinds) | 0% detected | **100% detected** | Accept |
 | Verification gate (4 seeded tasks) | 4/4 pass | 4/4 pass | No gain; keep opt-in |
 
 Execution-layer validation (current counts):
 
-- `bun test`: **222 tests / 1,412 assertions** across 26 files, including schema-subset validation for every registered tool.
+- `bun test`: **233 tests / 1,460 assertions** across 27 files, including schema-subset validation for every registered tool.
 - Effects 10,000 calls: **733 ms total, 0.073 ms/call** (20,000 ledger records, 5.5 MB), down from ~33 ms/call.
 - Real kill-9 (`experiments/kill9-effects.ts`): a separate Bun process records an irreversible intent, is killed with `taskkill /F /T` or `SIGKILL`, a new process reconciles it to `unknown`, and the repeated irreversible call is denied — **duplicateDenied=true, duplicateExecutions=0**; the committed control still allows a repeat.
 - Audit: HMAC signatures, stripped/rehashed tamper detection, export with head/verify, and a byte-pinned golden fixture.
@@ -231,12 +234,15 @@ Profile/performance/crash validation:
 - Repo map (`experiments/repo-map-perf.ts`, 2,000 files): cold **2.4–4.6 s** (latest 4,607.7 ms; was 33.3 s), TTL warm p50 **0.1 ms**, forced unchanged rescan p50 **230–363 ms**.
 - Kill-9 artifacts: a blob written without an index is readable/verifiable after a real process kill, and `artifact_reindex` restores the index.
 - Audit anchor gap: a record appended without a head update is detected (`head anchor expects N records`), no repair.
-- Budget restart: usage is lost by design (900 → 0); documented as a gap.
+- Budget restart: used-token accounting is durable (900 → 900); reservations remain in-memory.
 
 Repair/default/concurrency/memory validation:
 
 - Repair A/B (`experiments/repairs-ab-bench.ts`): 16 tasks, both arms 16/16; treatment input **31,156 vs 28,546** (+9.1%), output **+15.4%**; hints were observed in **16/16** treatment sessions and **0/16** baseline sessions. Pre-registered rule: no +2 pass win and no 15% token reduction, so `repairs` moves to opt-in and core drops from 24 to 21 tools.
 - Memory replication (`experiments/agent-bench.ts`): 10 cross-session pairs, baseline **0/10**, treatment **10/10**; session-2 output tokens **222–678** vs **44–107**.
+- Memory core-tier A/B (`experiments/memory-tier-bench.ts`): baseline long **0/10**, core **9/10**; the fact was injected 10/10 core vs 0/10 long, at +4.3% input tokens.
+- search_code A/B (`experiments/search-code-ab-bench.ts`): both arms **8/8**, but the repo-map arm used **15,840 vs 8,679 input tokens** (+82.5%); repo map stays opt-in.
+- Budget durability (`experiments/kill9-budget.ts`): used tokens survive a restart **900 → 900**; reservations remain in-memory.
 - Cross-process stores: two Bun processes each write 25 rows to the same memory, repair, and knowledge files. All 50 memory rows and 50 knowledge versions survive; repair `successCount` reaches 50; versions are contiguous and ids unique (`tests/concurrency.test.ts`).
 - Package install smoke: `npm pack` → `dsh plugin add` → `--dump-config` in an isolated `DSH_HOME`; the profile contains `id: super-dsh` (`scripts/install-smoke.ts`, also in CI).
 - Shell-failure hints: repair memory now treats a dsh shell result with `exitCode != 0` as a recoverable failure even though dsh reports it as `isError: false`; a deterministic test covers the injection and the zero-exit/non-shell controls.
@@ -273,10 +279,10 @@ Full methodology and raw results: [`docs/experiments.md`](docs/experiments.md), 
 - Audit is unkeyed by default; HMAC signing protects record hashes but key management is the operator's responsibility. A full rewrite with the key can still forge a consistent ledger.
 - Handoff/replay-plan filtering of injected context is heuristic; unknown future formats may appear as user requests.
 - The verification gate runs one configured command and fails open after `maxAttempts`.
-- `budget` accumulates event usage; reservations are in-memory and do not survive a restart (confirmed by `experiments/kill9-budget.ts`: 900 → 0), and tools/subagents are not individually priced.
+- `budget` accumulates event usage; the used-token ledger is persisted under `$DSH_HOME/super-dsh/budget` (kill-9: 900 → 900), while reservations are in-memory and cleared on restart. Tools/subagents are not individually priced.
 - The capability/causal/worker modules are tested libraries, not exposed tools; no remote worker runtime is included.
 - The default profile is `core`; the additional coding/full tools register only when explicitly configured. The 5-task A/B is small and does not prove coding tools are never useful.
-- Version 0.1.1 is the current release and ships the features above. Remaining gaps are tracked in [docs/status.md](docs/status.md).
+- Version 0.2.0 is the current release and ships the features above. Remaining gaps are tracked in [docs/status.md](docs/status.md).
 
 ## Credits
 

@@ -1,0 +1,279 @@
+{
+  "experiment": "search-code-ab",
+  "generatedAt": "2026-10-18T05:47:25.430Z",
+  "model": "deepseek-flash",
+  "dsh": "0.2.1-rc.2 (source checkout)",
+  "tasks": 8,
+  "decisionRule": "repo-map surface is supported if it wins >=2 tasks or uses >=15% fewer input tokens without losing tasks",
+  "summary": {
+    "baselinePasses": 8,
+    "treatmentPasses": 8,
+    "total": 8,
+    "baselineInputTokens": 8679,
+    "treatmentInputTokens": 15840,
+    "baselineOutputTokens": 1427,
+    "treatmentOutputTokens": 1959,
+    "tokenChange": 0.8251,
+    "passWins": 0,
+    "recommendCoding": false
+  },
+  "trials": [
+    {
+      "final": "src\\file-locks.ts",
+      "reason": "completed",
+      "inputTokens": 719,
+      "outputTokens": 47,
+      "toolCalls": [
+        "grep"
+      ],
+      "wallMs": 5819,
+      "exitCode": 0,
+      "timedOut": false,
+      "task": "withFileLock-definition",
+      "arm": "baseline",
+      "passed": true
+    },
+    {
+      "final": "src/file-locks.ts",
+      "reason": "completed",
+      "inputTokens": 7272,
+      "outputTokens": 123,
+      "toolCalls": [
+        "search_code",
+        "grep"
+      ],
+      "wallMs": 7340,
+      "exitCode": 0,
+      "timedOut": false,
+      "task": "withFileLock-definition",
+      "arm": "treatment",
+      "passed": true
+    },
+    {
+      "final": "src\\features\\repairs.ts",
+      "reason": "completed",
+      "inputTokens": 784,
+      "outputTokens": 104,
+      "toolCalls": [
+        "grep"
+      ],
+      "wallMs": 6988,
+      "exitCode": 0,
+      "timedOut": false,
+      "task": "repair-normalizer",
+      "arm": "baseline",
+      "passed": true
+    },
+    {
+      "final": "src/features/repairs.ts",
+      "reason": "completed",
+      "inputTokens": 832,
+      "outputTokens": 210,
+      "toolCalls": [
+        "find_symbol",
+        "grep"
+      ],
+      "wallMs": 6956,
+      "exitCode": 0,
+      "timedOut": false,
+      "task": "repair-normalizer",
+      "arm": "treatment",
+      "passed": true
+    },
+    {
+      "final": "src\\features\\memory.ts",
+      "reason": "completed",
+      "inputTokens": 713,
+      "outputTokens": 170,
+      "toolCalls": [
+        "grep",
+        "grep"
+      ],
+      "wallMs": 6845,
+      "exitCode": 0,
+      "timedOut": false,
+      "task": "memory-store",
+      "arm": "baseline",
+      "passed": true
+    },
+    {
+      "final": "src/features/memory.ts",
+      "reason": "completed",
+      "inputTokens": 1226,
+      "outputTokens": 208,
+      "toolCalls": [
+        "search_code",
+        "find_symbol",
+        "read"
+      ],
+      "wallMs": 8050,
+      "exitCode": 0,
+      "timedOut": false,
+      "task": "memory-store",
+      "arm": "treatment",
+      "passed": true
+    },
+    {
+      "final": "src\\features\\artifacts.ts",
+      "reason": "completed",
+      "inputTokens": 1496,
+      "outputTokens": 293,
+      "toolCalls": [
+        "grep",
+        "read"
+      ],
+      "wallMs": 7894,
+      "exitCode": 0,
+      "timedOut": false,
+      "task": "artifact-reindex",
+      "arm": "baseline",
+      "passed": true
+    },
+    {
+      "final": "`src\\features\\artifacts.ts`",
+      "reason": "completed",
+      "inputTokens": 857,
+      "outputTokens": 100,
+      "toolCalls": [
+        "grep"
+      ],
+      "wallMs": 6697,
+      "exitCode": 0,
+      "timedOut": false,
+      "task": "artifact-reindex",
+      "arm": "treatment",
+      "passed": true
+    },
+    {
+      "final": "src/features/knowledge.ts\nsrc/features/memory.ts\nsrc/features/repairs.ts",
+      "reason": "completed",
+      "inputTokens": 2055,
+      "outputTokens": 522,
+      "toolCalls": [
+        "grep",
+        "read",
+        "read",
+        "read"
+      ],
+      "wallMs": 9067,
+      "exitCode": 0,
+      "timedOut": false,
+      "task": "withFileLock-callers",
+      "arm": "baseline",
+      "passed": true
+    },
+    {
+      "final": "src/features/knowledge.ts\nsrc/features/memory.ts\nsrc/features/repairs.ts",
+      "reason": "completed",
+      "inputTokens": 1153,
+      "outputTokens": 461,
+      "toolCalls": [
+        "grep",
+        "impact_of",
+        "grep",
+        "grep"
+      ],
+      "wallMs": 8344,
+      "exitCode": 0,
+      "timedOut": false,
+      "task": "withFileLock-callers",
+      "arm": "treatment",
+      "passed": true
+    },
+    {
+      "final": "src\\budget-ledger.ts",
+      "reason": "completed",
+      "inputTokens": 736,
+      "outputTokens": 73,
+      "toolCalls": [
+        "grep"
+      ],
+      "wallMs": 6552,
+      "exitCode": 0,
+      "timedOut": false,
+      "task": "budget-ledger",
+      "arm": "baseline",
+      "passed": true
+    },
+    {
+      "final": "src/budget-ledger.ts",
+      "reason": "completed",
+      "inputTokens": 1000,
+      "outputTokens": 127,
+      "toolCalls": [
+        "search_code",
+        "grep"
+      ],
+      "wallMs": 6944,
+      "exitCode": 0,
+      "timedOut": false,
+      "task": "budget-ledger",
+      "arm": "treatment",
+      "passed": true
+    },
+    {
+      "final": "src/features/repo-map.ts",
+      "reason": "completed",
+      "inputTokens": 1372,
+      "outputTokens": 154,
+      "toolCalls": [
+        "grep",
+        "read"
+      ],
+      "wallMs": 6667,
+      "exitCode": 0,
+      "timedOut": false,
+      "task": "search-code-impl",
+      "arm": "baseline",
+      "passed": true
+    },
+    {
+      "final": "`src/features/repo-map.ts`",
+      "reason": "completed",
+      "inputTokens": 2380,
+      "outputTokens": 603,
+      "toolCalls": [
+        "grep",
+        "read",
+        "grep"
+      ],
+      "wallMs": 9464,
+      "exitCode": 0,
+      "timedOut": false,
+      "task": "search-code-impl",
+      "arm": "treatment",
+      "passed": true
+    },
+    {
+      "final": "src\\features\\history-compact.ts",
+      "reason": "completed",
+      "inputTokens": 804,
+      "outputTokens": 64,
+      "toolCalls": [
+        "grep"
+      ],
+      "wallMs": 5647,
+      "exitCode": 0,
+      "timedOut": false,
+      "task": "history-compact-impl",
+      "arm": "baseline",
+      "passed": true
+    },
+    {
+      "final": "src\\features\\history-compact.ts",
+      "reason": "completed",
+      "inputTokens": 1120,
+      "outputTokens": 127,
+      "toolCalls": [
+        "grep",
+        "search_code"
+      ],
+      "wallMs": 6296,
+      "exitCode": 0,
+      "timedOut": false,
+      "task": "history-compact-impl",
+      "arm": "treatment",
+      "passed": true
+    }
+  ]
+}

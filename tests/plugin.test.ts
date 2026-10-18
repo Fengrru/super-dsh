@@ -180,4 +180,56 @@ describe('verification gate', () => {
     await fake.emit('agent/turn-stopping', { agent, turn: 1 })
     expect(followups).toHaveLength(0)
   }, 20000)
+
+  test('does not register when no command is configured', () => {
+    const fake = fakeContext()
+    applyVerify(fake.ctx, { verify: {} })
+    expect(fake.tools.has('verify')).toBe(false)
+  })
+
+  test('exposes a direct verify tool with pass, fail, and timeout results', async () => {
+    const passing = fakeContext()
+    applyVerify(passing.ctx, { verify: { command: 'node -e "process.exit(0)"' } })
+    const passTool = passing.tools.get('verify')!
+    const pass = await passTool.execute({}, exec())
+    expect(pass.ok).toBe(true)
+    expect(pass.exit_code).toBe(0)
+    expect(pass.output_tail).toBe('')
+    expect(JSON.stringify(passTool.output.render({}, pass))).toContain('PASS')
+
+    const failing = fakeContext()
+    applyVerify(failing.ctx, { verify: { command: 'node -e "process.exit(1)"' } })
+    const fail = await failing.tools.get('verify')!.execute({}, exec())
+    expect(fail.ok).toBe(false)
+    expect(fail.exit_code).toBe(1)
+
+    const timeout = fakeContext()
+    applyVerify(timeout.ctx, {
+      verify: { command: 'node -e "setTimeout(() => {}, 5000)"', timeoutMs: 50 },
+    })
+    const started = Date.now()
+    const killed = await timeout.tools.get('verify')!.execute({}, exec())
+    expect(killed.ok).toBe(false)
+    expect(Date.now() - started).toBeLessThan(3000)
+  }, 20000)
+
+  test('fails open after maxAttempts and only reports the first failure', async () => {
+    const fake = fakeContext()
+    applyVerify(fake.ctx, { verify: { command: 'node -e "process.exit(1)"', maxAttempts: 1 } })
+    const followups: unknown[] = []
+    const agent = { followup: (message: unknown) => followups.push(message) }
+
+    // Non-mutating and errored tool results must not arm the gate.
+    await fake.emit('tools/result', { name: 'read', agent }, { isError: false })
+    await fake.emit('tools/result', { name: 'edit', agent }, { isError: true })
+    await fake.emit('tools/result', { name: 'edit', agent }, { isError: false })
+    await fake.emit('agent/pre-step', {
+      agent,
+      step: 1,
+      messages: [{ content: [{ type: 'text', text: 'fix it' }] }],
+    }, async () => ({ kind: 'enter', messages: [] }))
+    await fake.emit('agent/turn-stopping', { agent, turn: 1 })
+    await fake.emit('agent/turn-stopping', { agent, turn: 1 })
+    expect(followups).toHaveLength(1)
+  }, 20000)
 })

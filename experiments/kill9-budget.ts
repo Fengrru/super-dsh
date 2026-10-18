@@ -1,7 +1,7 @@
 /**
- * Budget restart gap: budget accounting is in-memory. This experiment records
- * the limitation explicitly instead of claiming recovery: a new process starts
- * with used=0 after a child accumulated usage.
+ * Budget restart durability: a child process records provider usage, exits, and
+ * a new process reads the same DSH_HOME. The used-token counter and seq dedupe
+ * set must survive the restart. Reservations are intentionally not persisted.
  */
 
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
@@ -49,11 +49,11 @@ const restarted = await run('check')
 const result = {
   experiment: 'kill9-budget',
   generatedAt: new Date().toISOString(),
-  durable: false,
+  durable: true,
   beforeRestartUsed: Number(used.used_tokens ?? 0),
   afterRestartUsed: Number(restarted.used_tokens ?? 0),
-  note: 'budget state is in-memory; restart loses usage by design',
-  ok: Number(used.used_tokens ?? 0) > 0 && Number(restarted.used_tokens ?? 0) === 0,
+  note: 'used-token accounting is durable; reservations remain in-memory',
+  ok: Number(used.used_tokens ?? 0) > 0 && Number(restarted.used_tokens ?? 0) === Number(used.used_tokens ?? 0),
 }
 const resultsDir = join(import.meta.dir, 'results')
 mkdirSync(resultsDir, { recursive: true })

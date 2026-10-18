@@ -218,5 +218,7 @@ export interface SuperDshConfig {
         enforce?: boolean
         /** Tokens reserved before a model request; settled against actual usage. Default: 0. */
         reservePerRequest?: number
+        /** Directory for durable per-session budget files. Default: `<dsh home>/super-dsh/budget`. */
+        dir?: string
       }
 }

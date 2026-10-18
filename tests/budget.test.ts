@@ -5,9 +5,28 @@
  * Run: bun test tests/budget.test.ts
  */
 
-import { describe, expect, test } from 'bun:test'
+import { afterAll, describe, expect, test } from 'bun:test'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { applyBudget } from '../src/features/budget.ts'
 import { exec, execWithAgent, fakeContext } from './fake-context.ts'
+
+const budgetDirs: string[] = []
+
+function budgetDir(): string {
+  const dir = mkdtempSync(join(tmpdir(), 'super-dsh-budget-'))
+  budgetDirs.push(dir)
+  return dir
+}
+
+function budgetOptions(options: Record<string, unknown> = {}): Record<string, unknown> {
+  return { ...options, dir: budgetDir() }
+}
+
+afterAll(() => {
+  for (const dir of budgetDirs) rmSync(dir, { recursive: true, force: true })
+})
 
 function usageEvent(seq: number, usage: unknown) {
   return { seq, time: 1_700_000_000_000 + seq, type: 'assistant/message', data: { usage } }
@@ -16,7 +35,7 @@ function usageEvent(seq: number, usage: unknown) {
 describe('budget', () => {
   test('accumulates usage once per event and reports status', async () => {
     const fake = fakeContext()
-    applyBudget(fake.ctx, { budget: true })
+    applyBudget(fake.ctx, { budget: budgetOptions() })
     const session = { id: 'session-a' }
 
     expect(fake.handlers.has('agent/request')).toBe(false)
@@ -78,6 +97,36 @@ describe('budget', () => {
       .rejects.toThrow(/no session id/)
   })
 
+  test('restores usage and seq dedupe after a restart', async () => {
+    const dir = budgetDir()
+    const config = { budget: { dir, maxTokens: 500 } }
+    const first = fakeContext()
+    applyBudget(first.ctx, config)
+    const session = { id: 'session-restart' }
+
+    await first.emit('session/event', session, usageEvent(1, { totalTokens: 100 }))
+    await first.emit('session/event', session, usageEvent(2, { totalTokens: 50 }))
+
+    const second = fakeContext()
+    applyBudget(second.ctx, config)
+    const status = await second.tools.get('budget_status')!.execute(
+      { session_id: 'session-restart' },
+      exec(),
+    )
+    expect(status.used_tokens).toBe(150)
+
+    // The persisted seq set must still prevent a replayed usage event from
+    // charging the session again.
+    await second.emit('session/event', session, usageEvent(1, { totalTokens: 100 }))
+    let current = await second.tools.get('budget_status')!.execute({ session_id: 'session-restart' }, exec())
+    expect(current.used_tokens).toBe(150)
+
+    await second.emit('session/event', session, usageEvent(3, { totalTokens: 25 }))
+    current = await second.tools.get('budget_status')!.execute({ session_id: 'session-restart' }, exec())
+    expect(current.used_tokens).toBe(175)
+    expect(current.remaining).toBe(325)
+  })
+
   test('is disabled unless configured and false disables it', () => {
     const unconfigured = fakeContext()
     applyBudget(unconfigured.ctx, {})
@@ -90,7 +139,7 @@ describe('budget', () => {
 
   test('enforcement refuses a request at the cap', async () => {
     const fake = fakeContext()
-    applyBudget(fake.ctx, { budget: { maxTokens: 100, enforce: true } })
+    applyBudget(fake.ctx, { budget: budgetOptions({ maxTokens: 100, enforce: true }) })
     const session = { id: 'session-enforced' }
 
     await fake.emit('session/event', session, usageEvent(1, { totalTokens: 120 }))
@@ -124,7 +173,7 @@ describe('budget', () => {
 
   test('enforcement passes requests below the cap and ignores duplicate usage', async () => {
     const fake = fakeContext()
-    applyBudget(fake.ctx, { budget: { maxTokens: 150, enforce: true } })
+    applyBudget(fake.ctx, { budget: budgetOptions({ maxTokens: 150, enforce: true }) })
     const session = { id: 'session-under' }
 
     // Two deliveries of seq 1 count once: 100, not 200.
@@ -155,7 +204,7 @@ describe('budget', () => {
 
   test('enforcement refuses exactly at the cap with input/output fallback', async () => {
     const fake = fakeContext()
-    applyBudget(fake.ctx, { budget: { maxTokens: 30, enforce: true } })
+    applyBudget(fake.ctx, { budget: budgetOptions({ maxTokens: 30, enforce: true }) })
 
     await fake.emit('session/event', { id: 'session-exact' }, usageEvent(1, {
       inputTokens: 20,
@@ -171,7 +220,7 @@ describe('budget', () => {
 
   test('reserves before requests, blocks over-cap requests, and settles actual usage', async () => {
     const fake = fakeContext()
-    applyBudget(fake.ctx, { budget: { maxTokens: 100, enforce: true, reservePerRequest: 40 } })
+    applyBudget(fake.ctx, { budget: budgetOptions({ maxTokens: 100, enforce: true, reservePerRequest: 40 }) })
     const agent = { session: { id: 'session-reserve' } }
     const session = agent.session
     const status = () => fake.tools.get('budget_status')!
@@ -256,7 +305,7 @@ describe('budget', () => {
 
   test('releases reservations on request errors and thrown waterfalls', async () => {
     const fake = fakeContext()
-    applyBudget(fake.ctx, { budget: { maxTokens: 50, enforce: true, reservePerRequest: 30 } })
+    applyBudget(fake.ctx, { budget: budgetOptions({ maxTokens: 50, enforce: true, reservePerRequest: 30 }) })
     const agent = { session: { id: 'session-errors' } }
     const status = () => fake.tools.get('budget_status')!
       .execute({ session_id: 'session-errors' }, exec())
@@ -292,7 +341,7 @@ describe('budget', () => {
 
   test('turn/end releases every unsettled reservation of that turn', async () => {
     const fake = fakeContext()
-    applyBudget(fake.ctx, { budget: { maxTokens: 1_000, enforce: true, reservePerRequest: 100 } })
+    applyBudget(fake.ctx, { budget: budgetOptions({ maxTokens: 1_000, enforce: true, reservePerRequest: 100 }) })
     const agent = { session: { id: 'session-turn' } }
     const status = () => fake.tools.get('budget_status')!
       .execute({ session_id: 'session-turn' }, exec())
@@ -320,7 +369,7 @@ describe('budget', () => {
 
   test('reservePerRequest 0 preserves the previous enforcement behavior', async () => {
     const fake = fakeContext()
-    applyBudget(fake.ctx, { budget: { maxTokens: 100, enforce: true } })
+    applyBudget(fake.ctx, { budget: budgetOptions({ maxTokens: 100, enforce: true }) })
     const agent = { session: { id: 'session-zero' } }
 
     await fake.emit('session/event', agent.session, usageEvent(1, { totalTokens: 100 }))

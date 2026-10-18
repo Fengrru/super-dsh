@@ -2,9 +2,9 @@
 
 ## Status
 
-- Version: `0.1.1`
-- Tag: `v0.1.1` (frozen)
-- GitHub release: <https://github.com/Fengrru/super-dsh/releases/tag/v0.1.1>
+- Version: `0.2.0`
+- Tag: `v0.2.0` (frozen)
+- GitHub release: <https://github.com/Fengrru/super-dsh/releases/tag/v0.2.0>
 - Distribution: **GitHub only; no npm registry publication**
 - Latest CI and Release workflow: see the badges in the README
 

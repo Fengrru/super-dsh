@@ -14,7 +14,7 @@ A "no" to any of these means it stays out of the default bundle.
 | Candidate | Evidence | Status |
 |---|---|---|
 | Safety-guarded fuzzy editing | 33.8% → 90.0% correct on 80 drift cases; 0 wrong edits; 100% control refusals (`experiments/results/patch-bench.json`) | Default on |
-| Memory v2 (tiers, feedback, causal invalidation, deterministic consolidation, TTL, MEMORY.md) | Cross-session recall passes (10 pairs: baseline 0/10, treatment 10/10); consolidation 60 facts: recall@3 1.0 unchanged, stale 0, injected chars -1,210 (`experiments/results/memory-v2-bench.json`); tier/feedback/invalidate tests | Default on; lexical retrieval |
+| Memory v2 (tiers, feedback, causal invalidation, deterministic consolidation, TTL, MEMORY.md) | Cross-session recall passes (10 pairs: baseline 0/10, treatment 10/10); core-tier priority 9/10 vs long 0/10 with injection 10/10 vs 0/10 (`experiments/results/memory-tier-ab-bench.json`); consolidation 60 facts: recall@3 1.0 unchanged, stale 0, injected chars -1,210 (`experiments/results/memory-v2-bench.json`); tier/feedback/invalidate tests | Default on; lexical retrieval |
 | Log retention | gzip + SHA-256 manifest, verified delete/restore, path traversal/symlink/overwrite refusal (`tests/retention.test.ts`) | Opt-in; destructive only when requested |
 | Hash-chained audit ledger + evidence/export/signatures | Detects edit/delete/truncate/reorder; plain JSONL detects none (`experiments/results/audit-bench.json`); HMAC signatures, golden fixture, export tests | Default on; signing opt-in |
 | Effects intent/commit + recovery plan | Pending→committed/failed, restart→unknown, duplicate irreversible denial, `effect_reconcile`/`effect_resolve` (`tests/effects.test.ts`); real kill-9: duplicateDenied=true, duplicateExecutions=0 (`experiments/results/kill9-effects.json`); 10k calls 0.073 ms/call | Default on; deny is opt-in |
@@ -24,7 +24,7 @@ A "no" to any of these means it stays out of the default bundle.
 | Repo map | Same-named symbols in different files both survive; mtime rebuild; ignored build dirs (`tests/repo-map.test.ts`); 2,000 files cold 2.4–4.6 s, TTL warm 0.1 ms (`experiments/repo-map-perf.ts`) | `coding`/`full`; enable `repoMap: true` in core; regex heuristic |
 | Versioned knowledge | Version chain/parentId, revert creates a new version, trust/expiry filtering, archived tombstones (`tests/knowledge.test.ts`) | `coding`/`full`; enable `knowledge: true` in core |
 | Deterministic handoff + replay plan | Mixed events, injected-context filtering, apply_patch file extraction, missing-service errors (`tests/handoff.test.ts`); machine-readable actions (`tests/replay-plan.test.ts`); real-dsh smoke | `coding`/`full`; enable `handoff` / `replayPlan` in core |
-| Budget reserve/settle | `BudgetLedger` reserve/settle/release, duplicate keys, cap refusal (`tests/budget-ledger.test.ts`); optional `reservePerRequest` (`tests/budget.test.ts`) | Enforcement opt-in |
+| Budget reserve/settle + durable usage | `BudgetLedger` reserve/settle/release, duplicate keys, cap refusal (`tests/budget-ledger.test.ts`); durable per-session used/seq state (`tests/budget.test.ts`, `experiments/kill9-budget.ts` 900 → 900); optional `reservePerRequest` | Enforcement opt-in; reservations per-process |
 | Capability token / causal clock / worker protocol | HMAC token + realpath scope, vector clock, NDJSON codec/FSM (`tests/capability.test.ts`, `tests/causal-clock.test.ts`, `tests/worker-protocol.test.ts`) | Tested libraries; not model tools |
 | `core` / `coding` / `full` profiles | Tool overhead measured (21/37/41 tools, 2,953/4,984/5,610 schema tokens after repairs became opt-in); 5-task A/B at 24/40 tools: core 5/5 vs coding 5/5, input 18,490 vs 25,357, output 3,740 vs 5,605 (`experiments/results/profile-ab-bench.json`) | `core` is the default; coding/full opt-in |
 
@@ -43,6 +43,7 @@ A "no" to any of these means it stays out of the default bundle.
 |---|---|---|
 | Best-of-N planning | baseline 0.986, judge 0.995, oracle 1.000, judge top-1 75%, 2.64× tokens (`experiments/results/best-of-n-plan-bench.json`) | **Do not add.** Ceiling effect; oracle gain below +0.10. |
 | Skill curation | Synthetic hit@3 83.3% → 100%, stale slots 25% → 0%, but only synthetic data (`experiments/results/skill-curation-bench.json`) | **Defer** until a real skill corpus/agent-task experiment. |
+| search_code promotion | Eight navigation tasks: baseline 8/8, repo-map 8/8, input tokens **15,840 vs 8,679** (`experiments/results/search-code-ab-bench.json`) | **Keep opt-in.** No task win and a large token cost on this tree; revisit with a larger unfamiliar repository. |
 
 ## Scope decisions
 

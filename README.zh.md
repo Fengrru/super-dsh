@@ -38,7 +38,7 @@ git clone https://github.com/Fengrru/super-dsh.git
 cd super-dsh
 bun install        # 无运行时依赖，仅构建/测试需要
 bun run build      # 生成 dist/index.js
-bun test           # 222 个确定性检查
+bun test           # 233 个确定性检查
 dsh plugin --profile headless add /absolute/path/to/super-dsh
 ```
 
@@ -128,7 +128,7 @@ config:
 
 **验证闸门（可选）**：文件修改后，在 `agent/turn-stopping` 运行配置命令；失败带输出尾部反馈，最多 `maxAttempts` 次。默认关闭，因为 E3 显示 `deepseek-flash` 本来就会主动跑测试，没有成功率增益。
 
-**预算（可选）**：累计 `assistant/message` 与 `compaction/summary` usage；`budget_status` 返回 used/reserved/remaining/exhausted。`enforce: true` 超限拒绝请求；`reservePerRequest` 提供 reserve/settle/release，并在 request-error/turn-end 清理。
+**预算（可选）**：累计 `assistant/message` 与 `compaction/summary` usage；`budget_status` 返回 used/reserved/remaining/exhausted。used token 与 seq 去重状态持久化在 `$DSH_HOME/super-dsh/budget`，重启不会清零；reservation 仍在内存。`enforce: true` 超限拒绝请求；`reservePerRequest` 提供 reserve/settle/release，并在 request-error/turn-end 清理。
 
 ### 协议库
 
@@ -188,6 +188,7 @@ config:
           maxTokens: 200000
           enforce: false
           reservePerRequest: 0
+          # dir: 'C:/custom/budget'   # default: $DSH_HOME/super-dsh/budget
         verify:
           command: 'node --test'
           timeoutMs: 60000
@@ -206,12 +207,14 @@ config:
 | 漂移下错区编辑 | 0 | **0** | 护栏保持 |
 | 歧义/不匹配拒绝 | 100% | **100%** | 护栏保持 |
 | 跨会话记忆（10 组） | 0/10 召回 | **10/10 召回** | 接受 |
+| Memory core-tier（10 次） | 0/10（long） | **9/10（core）** | 接受 core tier |
+| search_code 导航（8 任务） | 8/8，8,679 输入 token | 8/8，**15,840** 输入 token | 保持 opt-in |
 | 审计篡改（4 类） | 0% 检出 | **100% 检出** | 接受 |
 | 验证闸门（4 个任务） | 4/4 通过 | 4/4 通过 | 无增益，保持可选 |
 
 执行层验证（当前计数）：
 
-- `bun test`：**222 个测试 / 1,412 个断言**，26 个文件，包含对每个注册工具 schema 子集的校验。
+- `bun test`：**233 个测试 / 1,460 个断言**，27 个文件，包含对每个注册工具 schema 子集的校验。
 - Effects 10,000 次调用：**733ms 总计，0.073ms/次**（20,000 条账本记录，5.5MB），从约 33ms/次降下来。
 - 真实 kill-9（`experiments/kill9-effects.ts`）：独立 Bun 进程记录不可逆 intent，被 `taskkill /F /T` 或 `SIGKILL` 杀死，新进程把它对账为 `unknown`，重复不可逆调用被拒绝——**duplicateDenied=true, duplicateExecutions=0**；committed 对照仍允许重复。
 - 审计：HMAC 签名、删除/重算签名篡改检测、带 head/verify 的导出、字节级 golden fixture。
@@ -230,12 +233,15 @@ Profile/性能/崩溃验证：
 - Repo map（`experiments/repo-map-perf.ts`，2,000 文件）：冷建 **2.4–4.6s**（最近一次 4,607.7ms；原 33.3s），TTL 暖查询 p50 **0.1ms**，未变更强制重扫 p50 **230–363ms**；阈值 5s/100ms 通过。
 - Kill-9 artifacts：子进程写完 blob、未写索引即被杀；新进程按 hash 读取/校验成功，`artifact_reindex` 重建索引。
 - Audit anchor：追加合法记录但不更新 head anchor，`audit_verify` 报 `head anchor expects N records`；只检测，不自动修复。
-- Budget 重启：用量从 900 变为 0，确认内存态预算在重启后丢失（设计缺口，已记录）。
+- Budget 重启：used-token 账本持久化（900 → 900）；reservation 仍在内存。
 
 修复默认值/并发/记忆验证：
 
 - Repair A/B（`experiments/repairs-ab-bench.ts`）：16 任务，两 arm 均 16/16；treatment 输入 **31,156 vs 28,546**（+9.1%），输出 **+15.4%**；提示在 **16/16** treatment 会话中出现，baseline 为 0/16。预注册规则是“多通过 2 题或输入 token 降低 15%”，两者都不满足，因此 `repairs` 改为 opt-in，core 从 24 个工具降到 21 个。
 - 记忆复现（`experiments/agent-bench.ts`）：10 组跨会话任务，baseline **0/10**、treatment **10/10**；session 2 输出 token **222–678 vs 44–107**。
+- Memory core-tier A/B（`experiments/memory-tier-bench.ts`）：long **0/10**、core **9/10**；事实注入 10/10 core vs 0/10 long，输入 token +4.3%。
+- search_code A/B（`experiments/search-code-ab-bench.ts`）：两 arm 均 **8/8**，但 repo-map arm 输入 token **15,840 vs 8,679**（+82.5%）；repo map 保持 opt-in。
+- Budget 持久化（`experiments/kill9-budget.ts`）：used token 重启后 **900 → 900**；reservation 仍在内存。
 - 跨进程 store：两个 Bun 进程同时向同一 memory、repair、knowledge 文件各写 25 条。50 条 memory 和 50 个 knowledge 版本全部保留；repair `successCount` 达到 50；版本连续且 id 唯一（`tests/concurrency.test.ts`）。
 - 安装烟测：`npm pack` → `dsh plugin add` → 隔离 `DSH_HOME` 下的 `--dump-config`，profile 包含 `id: super-dsh`（`scripts/install-smoke.ts`，已接入 CI）。
 - Shell 失败提示：dsh 的 shell 非零退出是 `isError: false`，repair memory 现在会把它当作可恢复失败；确定性测试覆盖注入、零退出和非 shell 对照。
@@ -272,10 +278,10 @@ Profile/性能/崩溃验证：
 - 审计默认无密钥；HMAC 只保护记录 hash，密钥管理是运维责任；拥有密钥并重写整条链仍可伪造一致账本。
 - handoff/replay-plan 对注入上下文的过滤是启发式；未来未知格式可能被当成用户请求。
 - 验证闸门只跑一个配置命令，达到 `maxAttempts` 后放行。
-- `budget` 只累计事件 usage；预留在内存，重启丢失（kill-9 实验已确认 900→0）；工具/子代理没有单独计价。
+- `budget` 累计事件 usage；used-token 账本持久化在 `$DSH_HOME/super-dsh/budget`（kill-9：900 → 900），reservation 仍在内存并在重启时清空；工具/子代理没有单独计价。
 - capability/causal/worker 是测试过的库，不是暴露的工具；没有包含远程 worker 运行时。
 - 默认 profile 是 core；coding/full 的额外工具只在显式配置后注册。5 任务 A/B 样本很小，不能证明 coding 永远无益。
-- 当前版本为 0.1.1，交付上述能力；剩余缺口见 [docs/status.md](docs/status.md)。
+- 当前版本为 0.2.0，交付上述能力；剩余缺口见 [docs/status.md](docs/status.md)。
 
 ## 致谢
 
