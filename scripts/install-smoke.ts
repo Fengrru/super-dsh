@@ -21,14 +21,22 @@ const dshHome = join(temp, 'dsh-home')
 const packDir = join(temp, 'pack')
 
 function run(command: string, args: string[], options: { cwd?: string; env?: NodeJS.ProcessEnv } = {}): string {
-  return execFileSync(command, args, {
+  const execOptions = {
     cwd: options.cwd ?? ROOT,
     env: { ...process.env, ...options.env },
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
+    encoding: 'utf8' as const,
+    stdio: ['ignore', 'pipe', 'pipe'] as ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
     timeout: 240_000,
-  })
+  }
+  if (process.platform === 'win32') {
+    // Node 24 refuses to spawn .cmd shims without a shell (EINVAL). Quote
+    // controlled arguments that contain spaces and let cmd.exe parse the line.
+    const shellArgs = args.map(arg =>
+      /[\s"]/.test(arg) ? `"${arg.replace(/"/g, '""')}"` : arg)
+    return execFileSync(command, shellArgs, { ...execOptions, shell: true })
+  }
+  return execFileSync(command, args, execOptions)
 }
 
 function findTarball(): string {
