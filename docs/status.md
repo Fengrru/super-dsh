@@ -1,6 +1,6 @@
 # Status: coverage, experiments, and remaining gaps
 
-Last updated with 0.6.0.
+Last updated with 0.1.0.
 
 ## Is every source component experimented?
 

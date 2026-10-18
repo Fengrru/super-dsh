@@ -370,7 +370,7 @@ Every model request pays for the schemas of all registered tools. This experimen
 | coding | core + repo map/search, notes, knowledge, handoff/replay, compact/reflection | 37 | 19,934 | **4,984** |
 | full | coding + verify, budget, retention | 41 | 22,438 | **5,610** |
 
-SuperDSH 0.6 ships these as `core` / `coding` / `full`, with explicit feature flags overriding the profile. `full` includes verify, budget, and retention, but those three register only when their config is present, so an empty `full` profile stays at the 37-tool coding surface. Repair memory is opt-in after E14 and is not part of any profile; `repairs: true` adds its three tools.
+SuperDSH 0.1.0 ships these as `core` / `coding` / `full`, with explicit feature flags overriding the profile. `full` includes verify, budget, and retention, but those three register only when their config is present, so an empty `full` profile stays at the 37-tool coding surface. Repair memory is opt-in after E14 and is not part of any profile; `repairs: true` adds its three tools.
 
 **Initial decision (before E12):** do not keep growing the default tool count. Build the profiles, fix the repo-map cold start, then run an agent A/B to choose the default. E12 resolved the choice: **core is the default**. E14 later removed repair memory from core, which is why the current counts are 21/37/41 rather than 24/40/44.
 

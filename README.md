@@ -213,7 +213,7 @@ Quantitative experiments on this machine (Windows 10, Node 24, DeepSeek `deepsee
 | Audit tamper scenarios (4 kinds) | 0% detected | **100% detected** | Accept |
 | Verification gate (4 seeded tasks) | 4/4 pass | 4/4 pass | No gain; keep opt-in |
 
-Nexus-design validation (0.3+, current counts):
+Nexus-design validation (current counts):
 
 - `bun test`: **221 tests / 1,404 assertions** across 26 files, including schema-subset validation for every registered tool.
 - Effects 10,000 calls: **733 ms total, 0.073 ms/call** (20,000 ledger records, 5.5 MB), down from ~33 ms/call.
@@ -222,13 +222,13 @@ Nexus-design validation (0.3+, current counts):
 - Replay plan, file locks, budget reserve/settle, capability tokens, causal clock, and worker protocol have deterministic tests; real-dsh smoke exercised `audit_export`, `effect_reconcile`, `replay_plan`, `apply_patch`, repo map, notes, artifacts, knowledge, handoff, history compaction, and reflection.
 - Effects crash, artifact crash/tamper, and apply_patch rollback are deterministic guarantees or real-process experiments; they do not yet have agent-level A/B numbers, so they are not presented as benchmark wins.
 
-0.4 memory/repair/retention validation:
+Memory/repair/retention validation:
 
 - Memory v2 consolidation (`experiments/memory-v2-bench.ts`): 60 facts, recall@3 **1.000 before and after**, stale injections **0**, injected chars **13,775 → 12,565**; 15 duplicates merged, 20 entries archived (merged/expired/cap).
 - Repair memory (`experiments/repair-bench.ts`): 5 hints, known errors hit **10/10**, correct hint **10/10**, unknown errors false-hit **0/10**, average injected context 212 chars.
 - Retention: gzip + SHA-256 manifest, verified delete, restore, path traversal/symlink/overwrite refusal (`tests/retention.test.ts`).
 
-0.5 profile/performance/crash validation:
+Profile/performance/crash validation:
 
 - Profile A/B (`experiments/profile-ab-bench.ts`): core **5/5**, coding **5/5**, input tokens **18,490 vs 25,357**, output **3,740 vs 5,605**; default is now core.
 - Repo map (`experiments/repo-map-perf.ts`, 2,000 files): cold **2,376 ms** (4,500 ms on the first uncached run; was 33.3 s), TTL warm p50 **0.1 ms**, forced unchanged rescan p50 **230 ms**.
@@ -236,7 +236,7 @@ Nexus-design validation (0.3+, current counts):
 - Audit anchor gap: a record appended without a head update is detected (`head anchor expects N records`), no repair.
 - Budget restart: usage is lost by design (900 → 0); documented as a gap.
 
-0.6 repair/default/concurrency validation:
+Repair/default/concurrency validation:
 
 - Repair A/B (`experiments/repairs-ab-bench.ts`): 16 tasks, both arms 16/16; treatment input **31,156 vs 28,546** (+9.1%), output **+15.4%**; hints were observed in **16/16** treatment sessions and **0/16** baseline sessions. Pre-registered rule: no +2 pass win and no 15% token reduction, so `repairs` moves to opt-in and core drops from 24 to 21 tools.
 - Cross-process stores: two Bun processes each write 25 rows to the same memory, repair, and knowledge files. All 50 memory rows and 50 knowledge versions survive; repair `successCount` reaches 50; versions are contiguous and ids unique (`tests/concurrency.test.ts`).
@@ -290,7 +290,7 @@ Full methodology and raw results: [`docs/experiments.md`](docs/experiments.md), 
 - `budget` accumulates event usage; reservations are in-memory and do not survive a restart (confirmed by `experiments/kill9-budget.ts`: 900 → 0), and tools/subagents are not individually priced.
 - The capability/causal/worker modules are tested libraries, not exposed tools; no remote worker runtime is included.
 - The default profile is `core`; the additional coding/full tools register only when explicitly configured. The 5-task A/B is small and does not prove coding tools are never useful.
-- The 88-item analysis is a roadmap, not a claim that every item is implemented. Version 0.6.0 ships the features above; C/D items remain deferred or rejected.
+- The 88-item analysis is a roadmap, not a claim that every item is implemented. Version 0.1.0 is the first open-source release and ships the features above; C/D items remain deferred or rejected.
 
 ## Credits
 

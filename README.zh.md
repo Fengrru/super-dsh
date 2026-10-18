@@ -213,7 +213,7 @@ config:
 | 审计篡改（4 类） | 0% 检出 | **100% 检出** | 接受 |
 | 验证闸门（4 个任务） | 4/4 通过 | 4/4 通过 | 无增益，保持可选 |
 
-0.3 Nexus 设计验证（0.3+，当前计数）：
+Nexus 设计验证（当前计数）：
 
 - `bun test`：**221 个测试 / 1,404 个断言**，26 个文件，包含对每个注册工具 schema 子集的校验。
 - Effects 10,000 次调用：**733ms 总计，0.073ms/次**（20,000 条账本记录，5.5MB），从约 33ms/次降下来。
@@ -222,13 +222,13 @@ config:
 - Replay plan、文件锁、预算预留/结算、capability token、因果时钟、worker 协议都有确定性测试；真实 dsh 冒烟覆盖 `audit_export`、`effect_reconcile`、`replay_plan`、`apply_patch`、repo map、notes、artifacts、knowledge、handoff、history compact、reflect。
 - Effects 崩溃、artifact 崩溃/篡改、apply_patch 回滚是确定性保证或真实进程实验，尚无 Agent 级 A/B 数字，因此不宣称基准胜利。
 
-0.4 记忆/修复/归档验证：
+记忆/修复/归档验证：
 
 - Memory v2 巩固（`experiments/memory-v2-bench.ts`）：60 条事实，巩固前后 recall@3 **1.000**，stale 注入 **0**，注入字符 **13,775 → 12,565**；合并 15 条重复，归档 20 条（合并/过期/超限）。
 - 修复记忆（`experiments/repair-bench.ts`）：5 条提示，已知错误命中 **10/10**，正确 hint **10/10**，未知错误误命中 **0/10**，平均注入 212 字符。
 - 归档保留：gzip + SHA-256 manifest、校验后删除、恢复、路径穿越/symlink/覆盖拒绝（`tests/retention.test.ts`）。
 
-0.5 Profile/性能/崩溃验证：
+Profile/性能/崩溃验证：
 
 - Profile A/B（`experiments/profile-ab-bench.ts`）：core **5/5**、coding **5/5**；输入 token **18,490 vs 25,357**，输出 **3,740 vs 5,605**，墙钟 **86.3s vs 101.5s**；决策规则是 coding 至少多通过一题才选 coding，平局选低 token，因此默认改为 core。
 - Repo map（`experiments/repo-map-perf.ts`，2,000 文件）：冷建 **2,376ms**（首次未缓存 4,500ms；原 33.3s），TTL 暖查询 p50 **0.1ms**，未变更强制重扫 p50 **230ms**；阈值 5s/100ms 通过。
@@ -236,7 +236,7 @@ config:
 - Audit anchor：追加合法记录但不更新 head anchor，`audit_verify` 报 `head anchor expects N records`；只检测，不自动修复。
 - Budget 重启：用量从 900 变为 0，确认内存态预算在重启后丢失（设计缺口，已记录）。
 
-0.6 修复默认值/并发验证：
+修复默认值/并发验证：
 
 - Repair A/B（`experiments/repairs-ab-bench.ts`）：16 任务，两 arm 均 16/16；treatment 输入 **31,156 vs 28,546**（+9.1%），输出 **+15.4%**；提示在 **16/16** treatment 会话中出现，baseline 为 0/16。预注册规则是“多通过 2 题或输入 token 降低 15%”，两者都不满足，因此 `repairs` 改为 opt-in，core 从 24 个工具降到 21 个。
 - 跨进程 store：两个 Bun 进程同时向同一 memory、repair、knowledge 文件各写 25 条。50 条 memory 和 50 个 knowledge 版本全部保留；repair `successCount` 达到 50；版本连续且 id 唯一（`tests/concurrency.test.ts`）。
@@ -290,7 +290,7 @@ config:
 - `budget` 只累计事件 usage；预留在内存，重启丢失（kill-9 实验已确认 900→0）；工具/子代理没有单独计价。
 - capability/causal/worker 是测试过的库，不是暴露的工具；没有包含远程 worker 运行时。
 - 默认 profile 是 core；coding/full 的额外工具只在显式配置后注册。5 任务 A/B 样本很小，不能证明 coding 永远无益。
-- 88 项分析是路线图，不代表全部已实现。0.6.0 交付上述能力；C/D 类保持延后或拒绝。
+- 88 项分析是路线图，不代表全部已实现。0.1.0 是首个开源版本，交付上述能力；C/D 类保持延后或拒绝。
 
 ## 致谢
 
